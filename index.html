@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>Network City: IT Support RPG</title>
+<link rel="stylesheet" href="css/style.css">
+<!-- ===== PWA: cài đặt như app, chơi offline ===== -->
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0f172a">
+<meta name="mobile-web-app-capable" content="yes">
+<!-- iOS Safari — Add to Home Screen -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Nhân IT">
+<link rel="icon" type="image/png" sizes="192x192" href="./assets/img/icon-192.png">
+<link rel="apple-touch-icon" href="./assets/img/icon-192.png">
+</head>
+<body>
+
+
+
+<div id="app">
+  <!-- ===== HUD TRÁI ===== -->
+  <!-- ===== THẺ NHÂN VẬT (trái trên) ===== -->
+  <div id="player-card">
+    <div id="pc-avatar"><canvas id="pc-av-cv" width="132" height="132"></canvas></div>
+    <div>
+      <div id="pc-name">Nhân IT <span id="pc-lv-badge">Lv.<b id="hud-lv">5</b></span></div>
+      <div class="xp-bar"><i id="hud-xp-bar"></i><span class="xp-txt"><span id="hud-xp">230</span>/<span id="hud-xpmax">500</span></span></div>
+      <div id="pc-wallet">
+        <span class="wallet-chip coin"><span class="coin-ic" aria-hidden="true">C</span> <b id="hud-coin">2,000</b></span>
+        <span class="wallet-chip gem">💎 <b id="hud-gem">45</b></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== DẢI BUFF TRANG BỊ (ngay dưới thẻ nhân vật) ===== -->
+  <div id="buff-bar" class="hidden"></div>
+
+  <!-- ===== DOCK ICON + MINIMAP (phải trên) ===== -->
+  <div id="dock-tr">
+    <button class="dock-btn" onclick="openMissions()"><span class="dock-ic">📋</span><span class="dock-lb">Nhiệm vụ</span></button>
+    <button class="dock-btn" onclick="openInventory()"><span class="dock-ic">🎒</span><span class="dock-lb">Túi đồ</span></button>
+    <button class="dock-btn" onclick="openSkills()"><span class="dock-ic">✨</span><span class="dock-lb">Kỹ năng</span></button>
+    <button class="dock-btn" onclick="openShop()"><span class="dock-ic">🛒</span><span class="dock-lb">Cửa hàng</span></button>
+    <button class="dock-btn" onclick="toggleSettings(event)"><span class="dock-ic">⚙️</span><span class="dock-lb">Cài đặt</span></button>
+  </div>
+  <div id="minimap-box">
+    <!-- Đổi dòng #mm-title thành dòng dưới để có nút bấm thu gọn: -->
+    <div id="mm-title" onclick="toggleMinimap()" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; padding: 0 2px;">
+      <span id="zone-tag">1. THÀNH PHỐ</span>
+      <span id="mm-toggle" style="background: rgba(0,0,0,0.12); border-radius: 4px; padding: 0 4px; font-weight: 800; font-size: 10px;">–</span>
+    </div>
+    <canvas id="minimap" width="184" height="184"></canvas>
+    <span class="mm-weather" onclick="toggleWeather()" id="w-badge">☀️ <b>Thứ 2 08:30</b></span>
+    <div id="mm-loc"><span id="loc-name">Network City (World Map)</span></div>
+  </div>
+  <div id="settings-menu">
+    <button id="snd-btn" onclick="toggleAudio()">🔊 Âm Thanh</button>
+    <button onclick="toggleWeather()">🌤️ Đổi thời tiết</button>
+    <button id="fs-btn" onclick="toggleFullScreen()">⛶ Toàn màn hình</button>
+    <button id="pwa-install-btn" onclick="pwaInstall()" style="display:none;">📲 Cài đặt ứng dụng</button>
+    <button onclick="openCert()">🎓 Chứng chỉ CCNA</button>
+    <button class="danger" onclick="confirmResetGame()">🔄 Chơi lại từ đầu</button>
+  </div>
+
+  <!-- ===== PANEL NHIỆM VỤ (trái) ===== -->
+  <div id="quest-panel">
+    <div id="qp-head" onclick="toggleQuestPanel()">📜 Nhiệm vụ hiện tại <span id="qp-toggle">–</span></div>
+    <div id="qp-body">
+      <div id="qp-title">Đang tải…</div>
+      <div id="qp-steps"></div>
+      <div id="qp-reward"></div>
+    </div>
+  </div>
+
+  <!-- ===== PANEL KHU VỰC (phải) ===== -->
+  <div id="area-panel">
+    <div id="ap-head">🏙️ Khu vực <span id="ap-close" onclick="toggleAreaPanel()">✕</span></div>
+    <div id="ap-list"></div>
+  </div>
+  <button id="ap-open-btn" onclick="toggleAreaPanel()">🗺️</button>
+
+  <canvas id="cv" width="960" height="600"></canvas>
+  
+
+  <!-- ===== HỘP THOẠI ===== -->
+  <div id="dialog">
+    <div id="dlg-av">
+      <canvas id="av-cv" width="56" height="56"></canvas>
+      <span id="dlg-role">Kế toán</span>
+    </div>
+    <div style="flex:1;">
+      <div id="dlg-name">Chị Lan</div>
+      <div id="dlg-txt">Nội dung...</div>
+    </div>
+    <div class="dlg-next">[E] tiếp tục <span>▶</span></div>
+  </div>
+
+  <!-- ============ CLI MODAL ============ -->
+  <div id="cli-modal" class="modal">
+    <div class="m-head term-head">
+      <span class="mac-dots"><i class="md md-r"></i><i class="md md-y"></i><i class="md md-g"></i></span>
+      <span class="term-title">R1 — Cisco IOS 15.9 · console · /dev/tty0</span>
+      <button class="term-btn" onclick="quickFixNAT()">⚡ Auto Fix NAT</button>
+      <span class="m-close" onclick="closeAll()">[✕ Đóng ESC]</span>
+    </div>
+    <div class="cli-layout">
+      <div class="term-col">
+        <div class="term-tabs">
+          <span class="tt active">▸ console</span>
+          <span class="tt">▸ running-config</span>
+          <span class="tt">▸ nat-table</span>
+          <span class="tt-right">bash — zsh — ios-cons</span>
+        </div>
+        <div id="term-screen"></div>
+        <div id="term-in-bar">
+          <span class="term-prompt">R1#</span>
+          <input type="text" id="term-in" autocomplete="off" spellcheck="false" />
+          <span class="term-cursor"></span>
+        </div>
+        <div class="term-status" id="term-status"></div>
+      </div>
+
+      <div class="flow-col">
+        <div class="flow-title">📡 TEST INTERNET — PACKET FLOW</div>
+
+        <div class="flow-card">
+          <div class="flow-row">
+            <span>Luồng đi ICMP Echo:</span>
+            <span id="flow-status" style="color:var(--red); font-weight:800;">CHƯA THÔNG MẠNG</span>
+          </div>
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <div class="node">💻 PC<br><small>192.168.10.25</small></div>
+            <div class="wire green"><div class="p-dot" id="d1"></div></div>
+            <div class="node">🔀 SW01<br><small>VLAN 10</small></div>
+            <div class="wire green"><div class="p-dot" id="d2"></div></div>
+            <div class="node">🌐 R1<br><small>Gateway</small></div>
+            <div class="wire red" id="w-wan"><div class="p-dot" id="d3"></div></div>
+            <div class="node">🌍 Internet<br><small>8.8.8.8</small></div>
+          </div>
+        </div>
+
+        <div class="flow-card term-log">
+          <div class="ok">✔ Ping 192.168.10.1 (Gateway) ... OK (1ms)</div>
+          <div id="ping-res" class="bad">✖ Ping 8.8.8.8 (Internet) ... FAIL (Timeout)</div>
+          <div id="ping-note" class="note">👉 Chưa có NAT Overload trên cổng WAN g0/1.</div>
+        </div>
+
+        <button class="hud-btn primary" style="margin-top:10px; padding:10px;" onclick="runPingTest()">
+          🚀 BẮT ĐẦU TEST PING
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MISSION MODAL ============ -->
+  <div id="mis-modal" class="modal">
+    <div class="m-head">
+      <span id="mis-head">📋 MISSION BOARD — NHẬT KÝ NHIỆM VỤ IT SUPPORT</span>
+      <span class="m-close" onclick="closeAll()">[✕ Đóng]</span>
+    </div>
+    <div class="split-layout">
+      <div class="side-pane" id="mission-list"></div>
+      <div class="main-pane" id="mission-detail"></div>
+    </div>
+  </div>
+
+  <!-- ============ INVENTORY / PROFILE MODAL ============ -->
+  <div id="inv-modal" class="modal">
+    <div class="m-head">
+      <span class="inv-head-tabs">
+        <button type="button" class="inv-tab active" id="tab-inv" onclick="openInventory()">🎒 Túi đồ</button>
+        <button type="button" class="inv-tab" id="tab-skills" onclick="openSkills()">✨ Kỹ năng</button>
+        <button type="button" class="inv-tab" id="tab-ach" onclick="openAchievements()">🏆 Thành tựu 0/8</button>
+      </span>
+      <span id="inv-head" class="inv-head-title">🎒 HỒ SƠ KỸ SƯ &amp; TÚI ĐỒ</span>
+      <span class="m-close" onclick="closeAll()">[✕ Đóng]</span>
+    </div>
+    <div class="split-layout">
+      <div class="side-pane" style="width:346px;">
+        <b style="color:#7dd3fc; font-size:11px; letter-spacing:.4px;">🎒 TÚI ĐỒ NGHỀ IT</b>
+        <div class="inv-grid" id="inv-box"></div>
+        <div style="margin-top:10px; background:linear-gradient(180deg,#101a2e,#0b1322); border:1px solid #1e3a5f; padding:9px; border-radius:8px; font-size:11px;">
+          <span class="inv-dic" id="item-ic">📟</span>
+          <b id="item-title" style="color:#fde047;">Cable Tester</b><i class="inv-qty" id="item-qty"></i>
+          <p id="item-desc" style="color:#cbd5e1; font-size:10px; margin-top:3px; line-height:1.45;">Dùng để kiểm tra 8 sợi dây mạng chuẩn T568A / T568B.</p>
+          <span class="inv-eff" id="item-eff"></span>
+        </div>
+        <div class="inv-savebar">
+          <button type="button" class="hud-btn" onclick="exportSave()">📤 Xuất File Save</button>
+          <button type="button" class="hud-btn" onclick="pickSaveFile()">📥 Nạp File Save</button>
+          <input type="file" id="save-file" accept=".json,application/json" onchange="importSave(this)">
+        </div>
+        <p class="inv-note">💾 <b>Xuất</b> ra file <b>it_rpg_save.json</b> để giữ tiến trình. Sang máy khác hoặc bị xoá cache thì bấm <b>Nạp</b> rồi chọn đúng file đó.</p>
+      </div>
+      <div class="main-pane">
+        <h3 style="color:#7dd3fc; font-size:15px;">Nhân <span style="color:#93a4bd; font-size:11px; font-weight:500;">— IT Support Engineer</span></h3>
+        <p style="color:#93a4bd; font-size:11px; margin-top:6px;">Cấp độ: <b style="color:#fde047;">Lv.<span id="prof-lv">5</span></b> (<span id="prof-xp">230</span>/500 XP)</p>
+        <p style="color:var(--lime); font-size:11px; margin-top:3px;">Danh hiệu: <b id="prof-title">Junior Network Engineer</b></p>
+        <h4 style="color:#fde047; font-size:12px; margin:14px 0 8px 0;">🎓 KỸ NĂNG IT</h4>
+        <div style="font-size:11px; line-height:1.8;" id="skills-list"></div>
+        <div style="margin-top:16px; padding-top:12px; border-top:1px solid #1a2740;">
+          <button class="hud-btn" style="border-color:rgba(239,68,68,.5); color:#fca5a5;" onclick="resetGame()">🗑️ Xoá tiến trình &amp; chơi lại từ đầu</button>
+          <p style="font-size:10px; color:#64748b; margin-top:8px;">💾 Tiến trình (ải, XP, coin, kỹ năng) được <b style="color:#93a4bd">lưu tự động</b> vào trình duyệt — mở lại vẫn chơi tiếp.</p>
+        </div>
+      </div>
+    </div>
+    <div class="ach-wrap" id="ach-wrap">
+      <div class="ach-hud">
+        <b>🏆 THÀNH TỰU NETWORK CITY</b>
+        <span class="ach-prog"><i id="ach-bar"></i></span>
+        <span class="ach-cnt"><b id="ach-num">0</b>/<span id="ach-total">8</span> · <span id="ach-coin">+0 Coin</span></span>
+      </div>
+      <div class="ach-grid" id="ach-box"></div>
+      <p class="ach-note">💡 Danh hiệu mở khoá <b>tự động</b> ngay khi em đạt điều kiện trong game — mỗi danh hiệu thưởng <b>+200 Coin</b>. Thẻ xám là danh hiệu còn trống, kèm gợi ý điều kiện.</p>
+    </div>
+  </div>
+
+  <!-- ============ PC BUILD MINI-GAME ============ -->
+  <div id="pc-modal" class="modal mg-modal">
+    <div class="m-head">
+      <span>🛠️ LẮP RÁP MÁY TÍNH — PC BUILDING LAB</span>
+      <span class="m-close" onclick="closeAll()">[✕ Đóng ESC]</span>
+    </div>
+    <div class="mg-body">
+      <div class="mg-title">🔧 LẮP RÁP CASE MÁY TRẠM (WORKSTATION)</div>
+      <div class="mg-desc">Nhấn vào linh kiện bên dưới theo đúng thứ tự lắp ráp từ 1 → 8 để hoàn thiện dàn máy.</div>
+      <div class="mg-hint" id="pc-hint">💡 Gợi ý: Bắt đầu từ bộ phận cung cấp nguồn cho toàn hệ thống.</div>
+      <div class="mg-progress">
+        <span>Tiến độ:</span>
+        <div class="mg-bar"><div class="mg-bar-fill" id="pc-bar" style="width:0%"></div></div>
+        <span id="pc-count">0/8</span>
+      </div>
+      <div class="pc-slots" id="pc-slots"></div>
+      <div style="color:#93a4bd; font-size:11px; margin-bottom:6px; font-weight:700;">📦 KHO LINH KIỆN:</div>
+      <div class="pc-parts" id="pc-parts"></div>
+      <div style="display:flex; gap:8px; margin-top:14px;">
+        <button class="hud-btn primary" style="flex:1; padding:10px;" onclick="resetPCBuild()">🔄 LÀM LẠI</button>
+        <button class="hud-btn success" style="flex:1; padding:10px;" onclick="pcBuildFinish()" id="pc-finish-btn" disabled>✅ HOÀN THÀNH</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CABLE CRIMPING MINI-GAME ============ -->
+  <div id="crimp-modal" class="modal mg-modal">
+    <div class="m-head">
+      <span>🔌 BẤM CÁP MẠNG RJ45 — CABLE CRIMPING LAB</span>
+      <span class="m-close" onclick="closeAll()">[✕ Đóng ESC]</span>
+    </div>
+    <div class="mg-body">
+      <div class="mg-title">🔨 BẤM DÂY MẠNG CHUẨN T568B</div>
+      <div class="mg-desc">Click màu dây ở cột phải → sau đó click vào vị trí PIN tương ứng ở đầu RJ45 bên trái (theo thứ tự).</div>
+      <div class="mg-hint" id="crimp-hint">💡 Chuẩn T568B: Trắng-Cam, Cam, Trắng-Xanh lá, Xanh dương, Trắng-Xanh dương, Xanh lá, Trắng-Nâu, Nâu.</div>
+      <div class="mg-progress">
+        <span>Đã bấm:</span>
+        <div class="mg-bar"><div class="mg-bar-fill" id="crimp-bar" style="width:0%"></div></div>
+        <span id="crimp-count">0/8</span>
+      </div>
+      <div class="crimp-wrap">
+        <div class="crimp-connector">
+          <div class="crimp-cap">🔌 ĐẦU BẤM RJ45 — nhìn từ trên, chốt nhựa quay xuống</div>
+          <canvas id="crimp-cv" class="mg-cv" width="500" height="344"></canvas>
+        </div>
+        <div class="crimp-side">
+          <div class="crimp-cap">🎨 KHO DÂY CAT6 — click 1 dây</div>
+          <canvas id="crimp-palette" class="mg-cv" width="246" height="326"></canvas>
+        </div>
+        <div class="crimp-ref" id="crimp-ref-box">
+          <b>📐 THỨ TỰ T568B</b>
+          <div id="crimp-ref-list" class="crimp-ref-grid"></div>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:14px;">
+        <button class="hud-btn primary" style="flex:1; padding:10px;" onclick="resetCrimp()">🔄 LÀM LẠI</button>
+        <button class="hud-btn success" style="flex:1; padding:10px;" onclick="crimpFinish()" id="crimp-finish-btn" disabled>✅ HOÀN THÀNH</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DIAGNOSTICS MINI-GAME ============ -->
+  <div id="diag-modal" class="modal mg-modal">
+    <div class="m-head">
+      <span>🩺 CHẨN ĐOÁN SỰ CỐ PC — HARDWARE TROUBLESHOOTING</span>
+      <span class="m-close" onclick="closeAll()">[✕ Đóng ESC]</span>
+    </div>
+    <div class="mg-body">
+      <div class="mg-title">🚨 CA SỰ CỐ #IT-2024-001</div>
+      <div class="diag-scene">
+        <div class="diag-pc-icon">🖥️</div>
+        <div class="diag-symptom">
+          <b>Triệu chứng:</b> "Máy tính bấm nút nguồn không lên, không có đèn LED, không nghe tiếng quạt. Không có tín hiệu gì cả."
+          <div style="margin-top:6px; color:#93a4bd;">Khách hàng: Anh Hùng — Phòng Kinh Doanh</div>
+        </div>
+      </div>
+      <div class="mg-desc">Chọn các bước kiểm tra theo <b style="color:#fde047">thứ tự hợp lý</b> (từ đơn giản → phức tạp) để chẩn đoán sự cố.</div>
+      <div class="mg-progress">
+        <span>Bước:</span>
+        <div class="mg-bar"><div class="mg-bar-fill" id="diag-bar" style="width:0%"></div></div>
+        <span id="diag-count">0/6</span>
+      </div>
+      <div class="diag-steps" id="diag-steps"></div>
+      <div class="diag-log" id="diag-log">> Hệ thống chẩn đoán sẵn sàng. Chọn bước kiểm tra đầu tiên...</div>
+      <div style="display:flex; gap:8px; margin-top:14px;">
+        <button class="hud-btn primary" style="flex:1; padding:10px;" onclick="resetDiag()">🔄 LÀM LẠI</button>
+        <button class="hud-btn success" style="flex:1; padding:10px;" onclick="diagFinish()" id="diag-finish-btn" disabled>✅ HOÀN THÀNH</button>
+      </div>
+    </div>
+  </div>
+  <!-- ============ QUIZ CCNA (HỌC VIỆN) ============ -->
+  <div id="quiz-modal" class="modal mg-modal exam">
+    <div class="m-head">
+      <span>🎓 HỌC VIỆN CCNA — KỲ THI CHỨNG CHỈ</span>
+      <span class="m-close" onclick="closeAll()">[✕ Đóng ESC]</span>
+    </div>
+    <div class="mg-body exam-body">
+      <div class="ex-bar">
+        <div class="ex-brand"><span class="ex-logo">C</span><div><b>CCNA 200-301</b><small>MOCK CERTIFICATION EXAM · CANDIDATE WORKSTATION</small></div></div>
+        <div class="ex-meta">
+          <div class="ex-cell"><span>QUESTION</span><b id="quiz-count">1/8</b></div>
+          <div class="ex-cell clock" id="quiz-clock"><span>TIME REMAINING</span><b id="quiz-time">10:00</b></div>
+        </div>
+      </div>
+      <div class="ex-timebar"><div class="ex-timefill" id="quiz-bar" style="width:100%"></div></div>
+      <div class="ex-nav">
+        <span class="ex-navlbl">NAVIGATOR</span>
+        <div class="ex-palette" id="quiz-palette"></div>
+        <button class="ex-flag" id="quiz-flag" onclick="toggleFlag()">🚩 FLAG FOR REVIEW</button>
+      </div>
+      <div id="quiz-body"></div>
+      <div class="mg-hint" id="quiz-hint">💡 Chọn đáp án — hệ thống chấm điểm ngay lập tức.</div>
+      <div style="display:flex; gap:8px;">
+        <button class="hud-btn primary" style="flex:1; padding:9px;" onclick="resetQuiz()">🔄 THI LẠI</button>
+        <button class="hud-btn success" style="flex:1; padding:9px;" onclick="quizFinish()" id="quiz-finish-btn" disabled>✅ NHẬN CHỨNG CHỈ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ HELPDESK (TRỤ SỞ IT) ============ -->
+  <div id="tk-modal" class="modal mg-modal">
+    <div class="m-head">
+      <span>🎫 TRỤ SỞ IT — HELPDESK TICKET QUEUE</span>
+      <span class="m-close" onclick="closeAll()">[✕ Đóng ESC]</span>
+    </div>
+    <div class="mg-body">
+      <div class="mg-title">🎫 XỬ LÝ TICKET NGƯỜI DÙNG</div>
+      <div class="mg-desc">Phân loại 6 ticket vào đúng nhóm sự cố. Chọn sai sẽ được xem đáp án đúng.</div>
+      <div class="mg-progress">
+        <span>Ticket:</span>
+        <div class="mg-bar"><div class="mg-bar-fill" id="tk-bar" style="width:0%"></div></div>
+        <span id="tk-count">0/6</span>
+      </div>
+      <div id="tk-body"></div>
+      <div class="mg-hint" id="tk-hint">💡 Đọc kỹ mô tả sự cố rồi chọn nhóm xử lý phù hợp.</div>
+      <div style="display:flex; gap:8px; margin-top:14px;">
+        <button class="hud-btn primary" style="flex:1; padding:10px;" onclick="resetTk()">🔄 LÀM LẠI</button>
+        <button class="hud-btn success" style="flex:1; padding:10px;" onclick="tkFinish()" id="tk-finish-btn" disabled>✅ HOÀN THÀNH</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PATCH PANEL (DATA CENTER) ============ -->
+  <div id="pt-modal" class="modal mg-modal">
+    <div class="m-head">
+      <span>🗄️ DATA CENTER — PATCH PANEL &amp; ĐẤU CÁP</span>
+      <span class="m-close" onclick="closeAll()">[✕ Đóng ESC]</span>
+    </div>
+    <div class="mg-body">
+      <div class="mg-title">🔌 ĐẤU CÁP SERVER → SWITCH THEO SƠ ĐỒ</div>
+      <div class="mg-desc">Click 1 cổng Server bên trái → rồi click cổng Switch tương ứng bên phải (theo đúng sơ đồ bên dưới).</div>
+      <div class="mg-progress">
+        <span>Đã đấu:</span>
+        <div class="mg-bar"><div class="mg-bar-fill" id="pt-bar" style="width:0%"></div></div>
+        <span id="pt-count">0/5</span>
+      </div>
+      <div class="patch-stage">
+        <canvas id="pt-cv" class="mg-cv" width="820" height="300"></canvas>
+      </div>
+      <div class="patch-ref" id="pt-ref"></div>
+      <div class="mg-hint" id="pt-hint" style="margin-top:10px;">💡 Chưa chọn cổng nào.</div>
+      <div style="display:flex; gap:8px; margin-top:12px;">
+        <button class="hud-btn primary" style="flex:1; padding:10px;" onclick="resetPt()">🔄 RÚT HẾT CÁP</button>
+        <button class="hud-btn success" style="flex:1; padding:10px;" onclick="ptFinish()" id="pt-finish-btn" disabled>✅ HOÀN THÀNH</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ WIFI CHANNEL (VP KINH DOANH) ============ -->
+  <div id="wf-modal" class="modal mg-modal">
+    <div class="m-head">
+      <span>📶 VP KINH DOANH — QUY HOẠCH KÊNH WIFI</span>
+      <span class="m-close" onclick="closeAll()">[✕ Đóng ESC]</span>
+    </div>
+    <div class="mg-body">
+      <div class="mg-title">📶 PHÂN TÍCH PHỔ SÓNG 2.4 GHz — CHỐNG NHIỄU WIFI</div>
+      <div class="mg-desc">Bấm vào lane của từng AP để đặt kênh. Hai búp sóng chồng nhau là <b style="color:#fde047">trùng kênh</b> — cần lệch nhau từ 5 bước trở lên (1 / 6 / 11).</div>
+      <div class="mg-progress">
+        <span>Kênh hợp lệ:</span>
+        <div class="mg-bar"><div class="mg-bar-fill" id="wf-bar" style="width:0%"></div></div>
+        <span id="wf-count">0/3</span>
+      </div>
+      <div class="wf-stage">
+        <canvas id="wf-cv" class="mg-cv" width="856" height="262"></canvas>
+      </div>
+      <div class="wifi-warn" id="wf-warn"></div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button class="hud-btn primary" style="flex:1; padding:10px;" onclick="resetWf()">🔄 LÀM LẠI</button>
+        <button class="hud-btn success" style="flex:1; padding:10px;" onclick="wfFinish()" id="wf-finish-btn" disabled>✅ HOÀN THÀNH</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ TRACEROUTE (TRẠM ISP) ============ -->
+  <div id="tr-modal" class="modal mg-modal">
+    <div class="m-head">
+      <span>📡 TRẠM MẠNG ISP — PHÂN TÍCH TRACEROUTE</span>
+      <span class="m-close" onclick="closeAll()">[✕ Đóng ESC]</span>
+    </div>
+    <div class="mg-body">
+      <div class="mg-title">🛰️ SƠ ĐỒ TOPOLOGY — SẮP XẾP HOP THEO ĐƯỜNG ĐI GÓI TIN</div>
+      <div class="mg-desc">Bấm thẻ thiết bị theo đúng thứ tự gói tin đi ra Internet — thứ tự thẻ A–E là ngẫu nhiên.</div>
+      <div class="mg-progress">
+        <span>Đã xác định:</span>
+        <div class="mg-bar"><div class="mg-bar-fill" id="tr-bar" style="width:0%"></div></div>
+        <span id="tr-count">0/5</span>
+      </div>
+      <div class="tr-stage">
+        <canvas id="tr-cv" class="mg-cv" width="856" height="226"></canvas>
+      </div>
+      <div class="trace-term">
+        <div class="trace-out" id="tr-out">&gt; Chọn hop đầu tiên (gần máy bạn nhất)...</div>
+      </div>
+      <div class="mg-hint" id="tr-hint">💡 Gói tin đi từ máy bạn → router → nhà mạng → Internet.</div>
+      <div style="display:flex; gap:8px; margin-top:6px;">
+        <button class="hud-btn primary" style="flex:1; padding:9px;" onclick="resetTr()">🔄 LÀM LẠI</button>
+        <button class="hud-btn success" style="flex:1; padding:9px;" onclick="trFinish()" id="tr-finish-btn" disabled>✅ HOÀN THÀNH</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== BẢNG MỤC TIÊU ẢI ===== -->
+  <div id="quest-hud">
+    <span class="q-dot"></span>
+    <span>🎯 <b class="q-num">ẢI <span id="q-num">1</span>/<span id="q-total">10</span></b></span>
+    <span class="q-sep">|</span>
+    <span id="q-name">Đang tải…</span>
+    <span class="q-sep">|</span>
+    <span class="q-loc">📍 <span id="q-loc">Thành phố</span></span>
+  </div>
+
+  <!-- ===== BANNER THÔNG BÁO ===== -->
+  <div id="banner">
+    <div class="b-top" id="b-top">ẢI HOÀN THÀNH</div>
+    <div class="b-main" id="b-main">…</div>
+    <div class="b-sub" id="b-sub"></div>
+  </div>
+
+  <!-- ===== POPUP VINH DANH THÀNH TỰU ===== -->
+  <div id="ach-pop">
+    <span class="ap-ic" id="ap-ic">🎖️</span>
+    <span class="ap-tx"><b id="ap-nm">…</b><small id="ap-hint"></small></span>
+    <span class="ap-tag">🏆 THÀNH TỰU MỚI</span>
+  </div>
+
+  <!-- ============ BOSS ẢI CUỐI: BÁO ĐỘNG ĐỎ DATA CENTER ============ -->
+  <div id="boss-modal" class="modal mg-modal red-alert">
+    <div class="m-head ba-head">
+      <span>🔥 ĐẠI SỰ CỐ — BROADCAST STORM TOÀN DATA CENTER (ẢI CUỐI)</span>
+      <span class="ba-siren"></span>
+      <span class="m-close" onclick="closeAll()">[✕ Đóng ESC]</span>
+    </div>
+    <div class="mg-body ba-body">
+      <div class="ba-bar">
+        <div class="ba-brand"><span class="ba-logo">!</span><div><b>DC-NOC · EMERGENCY</b><small id="ba-mode">BÁO ĐỘNG ĐỎ · LEVEL 1</small></div></div>
+        <div class="ba-phases" id="ba-phases"></div>
+        <div class="ba-cells">
+          <div class="ba-cell"><span>INTEGRITY</span><b id="boss-hearts">❤️❤️❤️</b></div>
+          <div class="ba-cell clock" id="boss-clock"><span>TIME LEFT</span><b id="boss-time">01:30</b></div>
+        </div>
+      </div>
+      <div class="ex-timebar ba-timebar"><div class="ex-timefill" id="boss-bar" style="width:100%"></div></div>
+      <div class="boss-stage">
+        <canvas id="boss-cv" class="mg-cv" width="856" height="202"></canvas>
+      </div>
+      <div class="ba-console" id="boss-log"></div>
+      <div class="ba-cmds" id="boss-cmds"></div>
+      <div class="mg-hint" id="boss-hint">💡 Ba bước liên hoàn: cô lập cổng loop → bấm lại cáp dự phòng → cấu hình định tuyến khẩn cấp.</div>
+      <div style="display:flex; gap:8px; margin-top:6px;">
+        <button class="hud-btn primary" style="flex:1; padding:9px;" onclick="resetBoss()">🔄 KHỞI ĐỘNG LẠI</button>
+        <button class="hud-btn success" style="flex:1; padding:9px;" onclick="bossVictory()" id="boss-finish-btn" disabled>🏆 KẾT THÚC ĐẠI SỰ CỐ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MÀN HÌNH CHIẾN THẮNG ============ -->
+  <div id="victory-modal" class="modal mg-modal victory">
+    <div class="m-head vic-head">
+      <span>🏆 NETWORK CITY — TOÀN MẠNG ĐÃ THÔNG TRỞ LẠI</span>
+      <span class="m-close" onclick="closeAll()">[✕ Đóng ESC]</span>
+    </div>
+    <div class="mg-body vic-body">
+      <div class="vic-band">CHỨNG NHẬN HOÀN THÀNH NHIỆM VỤ CẤP CAO · INCIDENT BRIDGE LEAD</div>
+      <canvas id="vic-cv" class="vic-cv" width="856" height="246"></canvas>
+      <div class="vic-title">Chuyên gia Mạng CCNA</div>
+      <div class="vic-sub">👑 <b>VUA CỨU MẠNG CITY</b> — 10/10 ải · Broadcast Storm được khống chế trong <span id="vic-time">--</span></div>
+      <div class="vic-meta" id="vic-meta"></div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button class="hud-btn primary" style="flex:1; padding:10px;" onclick="closeAll()">📋 ĐÓNG BÁO CÁO</button>
+        <button class="hud-btn gold" style="flex:1; padding:10px;" onclick="openCert()">🎓 NHẬN CHỨNG CHỈ CCNA</button>
+        <button class="hud-btn success" style="flex:1; padding:10px;" onclick="bossFinish()">🎁 NHẬN THƯỞNG &amp; DANH HIỆU</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CHỨNG CHỈ CCNA (bản in Canvas) ============ -->
+  <div id="cert-modal" class="modal mg-modal">
+    <div class="m-head">
+      <span>🎓 CHỨNG CHỈ CCNA — BẢN IN NETWORK CITY</span>
+      <span class="m-close" onclick="closeCert()">[✕ Đóng ESC]</span>
+    </div>
+    <div class="mg-body cert-body">
+      <canvas id="cert-cv" class="cert-cv" width="800" height="600"></canvas>
+      <div class="cert-side">
+        <div class="cert-meta" id="cert-meta"></div>
+        <button class="hud-btn primary" id="cert-dl" onclick="downloadCert()">⬇ TẢI ẢNH VỀ MÁY</button>
+        <button class="hud-btn" onclick="closeCert()">← QUAY LẠI</button>
+        <div class="cert-note" id="cert-note"></div>
+      </div>
+    </div>
+  </div>
+  <!-- ============ DEV MENU (F2 / /dev) ============ -->
+  <div id="dev-menu">
+    <div class="dm-head">
+      <span>🛠️ DEV MENU — NHẢY ẢI</span>
+      <span class="m-close" onclick="closeDevMenu()">[✕ ESC]</span>
+    </div>
+    <div class="dm-body" id="dm-body"></div>
+    <div class="dm-foot">
+      <label class="dm-sw"><input type="checkbox" id="dm-unlock" onchange="devUnlock(this.checked)"> Bỏ điều kiện mở khoá ải</label>
+      <button class="hud-btn" onclick="devUnlockAll()">🔓 Mở 10 ải</button>
+      <button class="hud-btn" onclick="devClearDone()">♻️ Bỏ dấu hoàn thành</button>
+      <button class="hud-btn danger" onclick="devResetProgress()">🗑 Reset tiến trình</button>
+    </div>
+    <div class="dm-tip">Phím <kbd>F2</kbd> hoặc gõ <kbd>/dev</kbd> vào ô chat / terminal để mở bảng này.</div>
+  </div>
+
+  <!-- ===== CHAT BOX (giữa dưới) ===== -->
+  <div id="chat-box">
+    <div id="chat-tabs">
+      <span class="chat-tab active" data-ch="all" onclick="switchChatTab('all', this)">Thế giới</span>
+      <span class="chat-tab" data-ch="sys" onclick="switchChatTab('sys', this)">Hệ thống</span>
+      <span class="chat-tab" data-ch="guild" onclick="switchChatTab('guild', this)">Bang hội</span>
+    </div>
+    <div id="chat-log"></div>
+    <div id="chat-in-row">
+      <input id="chat-in" placeholder="Nhắn gì đó..." autocomplete="off" />
+      <button id="chat-send" onclick="sendChat()">😊</button>
+    </div>
+  </div>
+
+  <div class="mobile-touch-bar" id="touch">
+    <!-- ===== JOYSTICK (trái dưới) ===== -->
+    <div id="joystick"><div id="joy-base"><div id="joy-knob"></div></div></div>
+    <!-- ===== NÚT HÀNH ĐỘNG (phải dưới) — chỉ giữ nút Tương tác ===== -->
+    <div id="act-dock">
+      <button class="big-act primary" id="m-act">✋<span>Tương tác</span></button>
+    </div>
+  </div>
+</div>
+
+
+<script src="js/engine.js"></script>
+<script src="js/mg-art.js"></script>
+<script src="js/game.js"></script>
+<script src="js/assets.js"></script>
+<script src="js/reskin.js"></script>
+<script src="js/skins.js"></script>
+<script src="js/ui.js"></script>
+<script>
+/* ============================================================
+   PWA — đăng ký Service Worker + nút "Cài đặt ứng dụng" + chặn reload
+   Chỉ hoạt động khi chạy qua http/https (file:// trình duyệt chặn SW,
+   game vẫn chơi bình thường, chỉ không có cache offline).
+   ============================================================ */
+(function () {
+  var isHttp = location.protocol === 'http:' || location.protocol === 'https:';
+
+  // 1) Đăng ký service worker (cache-first, chơi offline từ lần tải thứ 2)
+  if ('serviceWorker' in navigator && isHttp) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('./service-worker.js').catch(function () {});
+    });
+  }
+
+  // 2) Nút "Cài đặt ứng dụng" — hiện khi trình duyệt cho phép cài (beforeinstallprompt)
+  var installBtn = document.getElementById('pwa-install-btn');
+  var deferredPrompt = null;
+  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  var isStandaloneApp = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (installBtn) installBtn.style.display = '';
+  });
+
+  window.pwaInstall = function () {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function () {
+        deferredPrompt = null;
+        if (installBtn) installBtn.style.display = 'none';
+      }).catch(function () {});
+      return;
+    }
+    // iOS Safari không hỗ trợ beforeinstallprompt → hướng dẫn thủ công
+    alert('📲 Cài lên iPhone/iPad:\n1. Bấm nút Chia sẻ (⬆️) trên thanh dưới Safari\n2. Chọn “Thêm vào Màn hình chính”\n3. Bấm “Thêm” — game sẽ chạy như app và chơi được offline!');
+  };
+
+  // iOS: hiện nút hướng dẫn nếu chưa cài vào Màn hình chính
+  if (isIOS && !isStandaloneApp && installBtn) installBtn.style.display = '';
+
+  window.addEventListener('appinstalled', function () {
+    if (installBtn) installBtn.style.display = 'none';
+  });
+
+  // 3) Ở chế độ app (đã cài): chặn F5 / Ctrl+R làm tải lại ngoài ý muốn
+  if (isStandaloneApp) {
+    window.addEventListener('keydown', function (e) {
+      if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R'))) e.preventDefault();
+    }, true);
+  }
+})();
+</script>
+</body>
+</html>

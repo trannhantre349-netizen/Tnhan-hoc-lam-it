@@ -1,0 +1,13 @@
+{
+  "name": "it-ccna-tools",
+  "private": true,
+  "type": "commonjs",
+  "description": "Tinh chep anh AI-gen -> PNG co kenh alpha that (chay mot lan, khong phai bo phan game)",
+  "scripts": {
+    "bake": "node bake-sprites.cjs"
+  },
+  "dependencies": {
+    "jpeg-js": "^0.4.4",
+    "pngjs": "^7.0.0"
+  }
+}
