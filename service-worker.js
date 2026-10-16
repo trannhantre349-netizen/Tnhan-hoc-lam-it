@@ -12,7 +12,7 @@
 
    Thêm tài nguyên mới? Cập nhật cả ASSETS.js và PRECACHE bên dưới.
    ============================================================ */
-const CACHE_NAME = 'it-game-v1.0';
+const CACHE_NAME = 'it-game-v1.1';
 
 const PRECACHE = [
   // --- vỏ ứng dụng ---

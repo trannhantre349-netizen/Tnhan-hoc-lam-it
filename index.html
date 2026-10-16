@@ -45,6 +45,7 @@
     <button class="dock-btn" onclick="openSkills()"><span class="dock-ic">✨</span><span class="dock-lb">Kỹ năng</span></button>
     <button class="dock-btn" onclick="openShop()"><span class="dock-ic">🛒</span><span class="dock-lb">Cửa hàng</span></button>
     <button class="dock-btn" onclick="toggleSettings(event)"><span class="dock-ic">⚙️</span><span class="dock-lb">Cài đặt</span></button>
+    <button class="dock-btn pwa-install" id="pwa-install-btn" onclick="pwaInstall()" title="Cài đặt ứng dụng"><span class="dock-ic">📲</span><span class="dock-lb">Cài App</span></button>
   </div>
   <div id="minimap-box">
     <!-- Đổi dòng #mm-title thành dòng dưới để có nút bấm thu gọn: -->
@@ -60,7 +61,6 @@
     <button id="snd-btn" onclick="toggleAudio()">🔊 Âm Thanh</button>
     <button onclick="toggleWeather()">🌤️ Đổi thời tiết</button>
     <button id="fs-btn" onclick="toggleFullScreen()">⛶ Toàn màn hình</button>
-    <button id="pwa-install-btn" onclick="pwaInstall()" style="display:none;">📲 Cài đặt ứng dụng</button>
     <button onclick="openCert()">🎓 Chứng chỉ CCNA</button>
     <button class="danger" onclick="confirmResetGame()">🔄 Chơi lại từ đầu</button>
   </div>
@@ -593,37 +593,54 @@
     });
   }
 
-  // 2) Nút "Cài đặt ứng dụng" — hiện khi trình duyệt cho phép cài (beforeinstallprompt)
+  // 2) Nút "📲 Cài App" trên dock — MẶC ĐỊNH ẨN, chỉ hiện khi trình duyệt cho phép cài
   var installBtn = document.getElementById('pwa-install-btn');
   var deferredPrompt = null;
   var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
   var isStandaloneApp = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 
+  function showInstallBtn(blink) {
+    if (!installBtn || isStandaloneApp) return; // đang chạy dạng app đã cài → không hiện
+    installBtn.classList.add('show');
+    if (blink) installBtn.classList.add('blink');
+  }
+  function hideInstallBtn() {
+    if (installBtn) installBtn.classList.remove('show', 'blink');
+  }
+
   window.addEventListener('beforeinstallprompt', function (e) {
     e.preventDefault();
     deferredPrompt = e;
-    if (installBtn) installBtn.style.display = '';
+    showInstallBtn(true); // hiện + nhấp nháy nhẹ để mời cài
   });
 
   window.pwaInstall = function () {
     if (deferredPrompt) {
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.then(function () {
-        deferredPrompt = null;
-        if (installBtn) installBtn.style.display = 'none';
+      var p = deferredPrompt;
+      deferredPrompt = null;
+      p.prompt();
+      p.userChoice.then(function (choice) {
+        if (choice && choice.outcome === 'accepted') {
+          hideInstallBtn(); // cài thành công → nút tự biến mất
+        } else if (installBtn) {
+          installBtn.classList.remove('blink'); // người chơi đóng hộp thoại → giữ nút, ngớt nhấp nháy
+        }
       }).catch(function () {});
       return;
     }
-    // iOS Safari không hỗ trợ beforeinstallprompt → hướng dẫn thủ công
-    alert('📲 Cài lên iPhone/iPad:\n1. Bấm nút Chia sẻ (⬆️) trên thanh dưới Safari\n2. Chọn “Thêm vào Màn hình chính”\n3. Bấm “Thêm” — game sẽ chạy như app và chơi được offline!');
+    if (isIOS) {
+      alert('📲 Cài lên iPhone/iPad:\n1. Bấm nút Chia sẻ (⬆️) trên thanh dưới Safari\n2. Chọn “Thêm vào Màn hình chính”\n3. Bấm “Thêm” — game sẽ chạy như app và chơi được offline!');
+      return;
+    }
+    alert('📲 Trình duyệt chưa sẵn sàng cài đặt lúc này.\nHãy tải lại trang, hoặc mở menu trình duyệt (⋮) → “Cài đặt ứng dụng / Install app”.');
   };
 
-  // iOS: hiện nút hướng dẫn nếu chưa cài vào Màn hình chính
-  if (isIOS && !isStandaloneApp && installBtn) installBtn.style.display = '';
+  // iOS Safari không hỗ trợ beforeinstallprompt → hiện nút hướng dẫn thủ công (không nhấp nháy)
+  if (isIOS && !isStandaloneApp) showInstallBtn(false);
 
-  window.addEventListener('appinstalled', function () {
-    if (installBtn) installBtn.style.display = 'none';
-  });
+  // Cài xong ở tab khác / đang chạy standalone → nút tự biến mất
+  window.addEventListener('appinstalled', hideInstallBtn);
+  if (isStandaloneApp) hideInstallBtn();
 
   // 3) Ở chế độ app (đã cài): chặn F5 / Ctrl+R làm tải lại ngoài ý muốn
   if (isStandaloneApp) {
