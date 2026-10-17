@@ -669,12 +669,22 @@ const INTERIORS = {
   SALES: {
     id: 'SALES', name: 'VP KINH DOANH', zone: '8. VP KINH DOANH', zoneName: 'Sàn mở & Wifi công ty',
     accent: '#10b981', floorA: '#102a24', floorB: '#0b1f1b', wallA: '#143a2f', wallB: '#0d2620',
+    /* Ảnh interior_office_wifi_isometric.png (JPEG 1024x572 lát full khung).
+       NPC Chị Mai đứng giữa thảm đỏ và chậu cây lớn góc tây (230,440).
+       station = mép TRƯỚC mặt bàn BÀN QUY HOẠCH WIFI (màn heatmap canvas
+       700..900 x 240..400, mặt bàn 620..910 x 330..470): tâm 690,400 — đứng
+       trước bàn (690,440) cách 40px, trong bán kính 95 theo yêu cầu.
+       enter 210,470 = ngay trong nook cửa kính (180,500 theo yêu cầu lẹm ra
+       ngoài mép sàn Tây và lọt va chạm); exit = thảm đỏ "RA THÀNH PHỐ"
+       (thảm canvas x 70..185, y 350..413) theo cùng quy ước L-shape. */
     npc: {
-      name: 'Chị Mai', role: 'Trưởng phòng KD', sprite: 'mai', x: 150, y: 340,
+      name: 'Chị Mai', role: 'Trưởng phòng KD', sprite: 'mai', x: 230, y: 440,
       intro: '"Nhân-IT ơi! Sàn bên chị <b>wifi chập chờn</b> quá, họp online cứ giật.\nEm xem lại <b>kênh 3 cục AP</b> giúp chị với!"',
       done: '"Sóng wifi giờ mượt cả sàn! Chị gửi lời cảm ơn tới phòng IT nhé!"'
     },
-    station: { icon: '📶', title: 'BÀN QUY HOẠCH WIFI', sub: 'Bấm [E] để chọn kênh AP', x: 660, y: 300, game: 'WIFI' },
+    station: { icon: '📶', title: 'BÀN QUY HOẠCH WIFI', sub: 'Bấm [E] để chọn kênh AP', x: 690, y: 400, game: 'WIFI', rad: 95 },
+    enter: { x: 210, y: 470 },
+    exit: { x: 165, y: 348 },
     props: [
       { t: 'table', x: 280, y: 165, w: 240, h: 88 },
       { t: 'desk', x: 280, y: 460, w: 150, h: 46 },
@@ -982,6 +992,11 @@ const SCENE_WALK = {
      spawnY 520 = mặt sàn trống ngay trước bàn phụ cam (x 480 — điểm vào phòng
      cố định của engine), cạnh bên trái cụm bàn nên không rơi vào hộp va chạm. */
   ISP: { minY: 150, maxY: 565, spawnY: 520 },
+  /* Cảnh 8 — VP KINH DOANH (interior_office_wifi_isometric.png, JPEG 1024x572
+     lát full khung 960x600, cùng hệ số với Phòng 6/7/9). Dải tường + nóc tủ
+     chiếm 0..~150 → thân trên bắt đầu từ 150. Chân tới 565 vẫn trong khung gỗ;
+     spawnY 470 chỉ là dự phòng — điểm vào thật là INTERIORS.SALES.enter. */
+  SALES: { minY: 150, maxY: 565, spawnY: 470 },
   /* Căn cứ Mặt Trăng: ảnh lunar_base_bg 1024x572 giữ tỉ lệ khung, vẽ tại
      y=64..600 (960x536). Dải 0..64 là vũ trụ vector vẽ thêm, mặt cát bắt đầu
      sớm nên nới biên đi bộ thật thoáng (minY 115, maxY 575) để không bị chặn
@@ -1150,6 +1165,48 @@ const SCENE_BOXES = {
     [690, 300, 110, 30],    // ④ Thân giữa phi thuyền (sàn bệ đáp đã bỏ chặn)
     [120, 482, 150, 26],    // ⑤ Nhà trạm cáp — lõi trên
     [548, 496, 74, 24]      // ⑥ Vòm an ninh — lõi trên
+  ],
+  /* Cảnh 8 — VP KINH DOANH, đo trực tiếp trên ảnh interior_office_wifi_isometric.png
+     (JPEG 1024x572 lát full khung 960x600 — cùng hệ số với Phòng 6/7/9). Phòng
+     hình thoi: tường trái dốc nên THANG 5 BẬC (chân tường y = 400 - 0.44(x-40)),
+     tường phải thang 3 bậc + dải mép (chân tường y = 170 + 0.579(x-540)). Sàn
+     cắt chéo hai góc dưới → 9 hộp "ngoài sàn" để nhân vật không đứng lơ lửng
+     trên nền đen, chừa nook cửa kính + thảm "RA THÀNH PHỐ" góc tây. Đồ nhỏ
+     giữa phòng (thùng rác, cây nước, chậu cây) chỉ chặn MẶT SÀN theo đúng quy
+     ước đầu mục → hành lang giữa phòng (y 393..453) thông suốt từ cửa kính qua
+     bàn Chị Mai tới BÀN QUY HOẠCH WIFI. Chỉ theo yêu cầu: chặn dãy bàn giữa,
+     dãy tủ tài liệu sát tường trên và góc sofa đáy. Va chạm (x+10,y+18) lề 8px. */
+  SALES: [
+    [0, 0, 960, 150],      // dải trên: chữ VP KINH DOANH + nóc 2 tường (= minY 150)
+    [0, 150, 95, 250],     // tường trái ① (thang theo chân tường dốc lên phải)
+    [95, 150, 95, 226],    // tường trái ②
+    [190, 150, 95, 187],   // tường trái ③
+    [285, 150, 95, 145],   // tường trái ④
+    [380, 150, 95, 103],   // tường trái ⑤ tới góc Bắc
+    [760, 150, 80, 194],   // tường phải ①
+    [840, 150, 40, 206],   // tường phải ②
+    [880, 150, 40, 244],   // tường phải ③ xuống góc Đông
+    [920, 150, 40, 245],   // mép phải ngoài phòng
+    [0, 395, 45, 170],     // ngoài sàn tây ①
+    [45, 435, 60, 130],    // ngoài sàn tây ②
+    [105, 455, 60, 110],   // ngoài sàn tây ③
+    [165, 505, 60, 60],    // ngoài sàn tây ④ (chừa nook cửa kính)
+    [225, 540, 255, 25],   // ngoài sàn tây ⑤ + bóng tối trước tường
+    [860, 395, 100, 45],   // ngoài sàn đông ①
+    [810, 440, 150, 45],   // ngoài sàn đông ②
+    [740, 485, 220, 80],   // ngoài sàn đông ③ (mép SE cắt chéo)
+    [610, 545, 350, 20],   // ngoài sàn đông ④ (tip nam)
+    [195, 245, 158, 139],  // bàn Chị Mai: kệ + màn + ghế + mặt bàn
+    [272, 455, 78, 105],   // chậu cây lớn góc tây (chặn từ ngang chậu)
+    [368, 490, 42, 26],    // thùng rác xanh (mặt sàn)
+    [394, 470, 42, 36],    // cây nước nóng lạnh (mặt sàn)
+    [448, 498, 32, 28],    // chậu cây nhỏ cạnh cây nước (mặt sàn)
+    [400, 150, 245, 195],  // dãy bàn giữa: carton + 2 bàn PC + ghế xoay
+    [485, 150, 280, 140],  // dãy tủ tài liệu + tủ server sát tường trên
+    [620, 250, 290, 165],  // lõi trên BÀN QUY HOẠCH WIFI: 3 màn heatmap + mặt bàn
+    [705, 415, 205, 60],   // bệ/ngăn kéo bàn (chừa hốc x 620..705 trước bàn)
+    [455, 462, 185, 108],  // góc sofa nhỏ đáy
+    [855, 350, 80, 85]     // tủ thấp + cuộn cáp + bình xịt góc đông
   ]
 };
 function propCollides(sc, nx, ny) {
@@ -1879,8 +1936,11 @@ function doAction() {
       }
     } else if (INTERIORS[id]) {
       const cfg = INTERIORS[id];
-      // Học viện CCNA vẽ bằng ảnh nền nên phải spawn tránh các ô SCENE_BOXES
-      S.scene = id; S.p.x = 480; S.p.y = SCENE_WALK[id] ? SCENE_WALK[id].spawnY : 470; S.lastBld = id;
+      // Ảnh nền isometric có số điểm vào riêng (cfg.enter) để tránh hộp va chạm;
+      // không có thì rơi về lối vào cũ giữa trên (x 480 + spawnY của SCENE_WALK)
+      S.scene = id;
+      S.p.x = cfg.enter ? cfg.enter.x : 480;
+      S.p.y = cfg.enter ? cfg.enter.y : (SCENE_WALK[id] ? SCENE_WALK[id].spawnY : 470); S.lastBld = id;
       setZone(cfg.zone, cfg.zoneName); beep(520);
       if (buildingStatus(id) !== 'done') {
         setTimeout(() => showDlg(cfg.npc.name, cfg.npc.role, cfg.npc.intro), 400);

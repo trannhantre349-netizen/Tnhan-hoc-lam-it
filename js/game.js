@@ -2277,6 +2277,8 @@ drawInterior = function (id) {
   if (id === 'DC' && IMG.dc_bg) { drawDataCenter(); return; }
   // Cảnh 9 — Trạm mạng ISP vẽ bằng ảnh isometric cùng bộ
   if (id === 'ISP' && IMG.isp_bg) { drawIspStation(); return; }
+  // Cảnh 8 — VP Kinh Doanh vẽ bằng ảnh isometric cùng bộ
+  if (id === 'SALES' && IMG.sales_bg) { drawSalesOffice(); return; }
   const cfg = INTERIORS[id], acc = cfg.accent, t = Date.now() / 1000;
   ctx.fillStyle = cfg.floorA; ctx.fillRect(0, 0, 960, 600);
   ctx.fillStyle = 'rgba(255,255,255,.055)';
@@ -2664,6 +2666,24 @@ function drawIspStation() {
     .forEach(([x, y, r]) => drawSprite(x, y, r));
 }
 
+/* ---- interior_office_wifi_isometric.png (Cảnh 8 — VP KINH DOANH), cùng bộ
+   JPEG 1024x572 lát full khung 960x600 → dùng chung IT_SX/IT_SY. Ảnh sạch:
+   không NPC, không chữ UI; chữ "RA THÀNH PHỐ" trên thảm đỏ đã có sẵn trong
+   ảnh nên không cần nhãn exit. Defect duy nhất: ngôi sao xám 4 cánh AI vẽ
+   lẫn trên nền đen ngoài mép sàn dưới-phải (canvas 855..900 × 480..525) →
+   chép đè vùng đen thuần cùng ảnh (canvas 680..742 × 548..600, hoàn toàn
+   ngoài mép sàn SE). Nhãn [E] + lock chip + ✅ XONG vẽ nổi như Phòng 7/9. ---- */
+function izSalesPatch(img) { izIsoMask(img, 852, 478, 62, 52, 680, 548); }
+function drawSalesOffice() {
+  const c = INTERIORS.SALES;
+  ctx.drawImage(IMG.sales_bg, 0, 0, 960, 600);
+  izSalesPatch(IMG.sales_bg);
+  izStationTag(c);
+  drawLockChip(c.station.x, c.station.y + 120, GAME_MISSION[c.station.game]);
+  [[c.npc.x, c.npc.y, c.npc.sprite], [S.p.x, S.p.y, 'p']].sort((a, b) => a[1] - b[1])
+    .forEach(([x, y, r]) => drawSprite(x, y, r));
+}
+
 /* ===== V5: TOÀ NHÀ + CÂY CHIBI, TÊN NHÂN VẬT ===== */
 const PLAYER_NAME = 'Nhân-IT';
 const IZ_NAMES = { lan:['Chị Lan','#facc15'], tuan:['Tuấn (Net)','#22c55e'], huong:['Chị Hương','#f59e0b'], duc:['Thầy Đức','#c084fc'],
@@ -2783,6 +2803,12 @@ function ambBuild(sc) {
   if (sc === 'HARDWARE_LAB') return [mk('a11', 0, 0, { path: [[300, 382], [600, 382], [860, 382], [600, 382]], i: 1, v: 46 })];
   const c = INTERIORS[sc]; if (!c) return [];
   const rs = { ACADEMY: ['a5', 'a6'], IT: ['a2', 'a13'], DC: ['a0', 'a9'], SALES: ['a1', 'a12'], ISP: ['a7', 'a4'] }[sc] || ['a5', 'a6'];
+  // VP Kinh Doanh: đi bộ dọc hành lang giữa phòng y≈425 (đường y 393..453 thông suốt);
+  // người còn lại đứng cạnh sofa đáy — đường loop mặc định văng qua hộp dãy bàn giữa
+  if (sc === 'SALES') return [
+    mk(rs[0], 0, 0, { path: [[330, 425], [560, 425], [430, 425]], i: 1 }),
+    mk(rs[1], 555, 448, { kind: 'chat', dir: -1 })
+  ];
   const d = (c.props || []).find(q => q.t === 'desk' && q.y > 400) || { x: 280, y: 460, w: 150 };
   return [mk(rs[0], 0, 0, { path: [[300, 332], [560, 332], [430, 404], [300, 404]], i: 1 }), mk(rs[1], d.x + d.w + 28, d.y + 44, { kind: 'desk', dir: -1 })];
 }

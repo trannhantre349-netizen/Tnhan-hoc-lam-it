@@ -12,7 +12,7 @@
 
    Thêm tài nguyên mới? Cập nhật cả ASSETS.js và PRECACHE bên dưới.
    ============================================================ */
-const CACHE_NAME = 'it-game-v1.1';
+const CACHE_NAME = 'it-game-v1.7';
 
 const PRECACHE = [
   // --- vỏ ứng dụng ---
@@ -41,6 +41,7 @@ const PRECACHE = [
   './assets/img/interior_helpdesk_isometric.png?v=2',
   './assets/img/interior_datacenter_isometric.png?v=1',
   './assets/img/interior_isp_isometric.png?v=1',
+  './assets/img/interior_office_wifi_isometric.png?v=1',
   './assets/lunar_base_bg.png?v=1',
   // --- phố ngoài: sprite sheet đã bake (nền trong suốt thật) ---
   './assets/img/street_bg_clean.png?v=1',
