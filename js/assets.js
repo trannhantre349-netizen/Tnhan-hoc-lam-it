@@ -20,6 +20,7 @@ const ASSETS = {
   dc_bg: 'assets/img/interior_datacenter_isometric.png?v=1',
   isp_bg: 'assets/img/interior_isp_isometric.png?v=1',
   sales_bg: 'assets/img/interior_office_wifi_isometric.png?v=1',
+  noc_bg: 'assets/img/interior_noc_soc_isometric.png?v=1',
   lunar_bg: 'assets/lunar_base_bg.png?v=1',
   chars: {
     p: 'assets/img/baked/char_player.png',
@@ -31,12 +32,13 @@ const ASSETS = {
     khoa: 'assets/img/baked/npc_khoa.png',
     mai: 'assets/img/baked/npc_mai.png',
     son: 'assets/img/baked/npc_son.png',
+    nam: 'assets/img/baked/npc_nam.png',
     /* Phi thuyền Khu 3 — cùng pipeline tẩy nền trắng + cắt bbox alpha */
     ship: 'assets/img/baked/ship_gen.png'
   }
 };
 
-const IMG = { bg: null, chars: {}, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, lunar_bg: null };
+const IMG = { bg: null, chars: {}, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null };
 let assetsReady = false;
 
 /* ============================================================
@@ -165,6 +167,7 @@ function loadOne(src) {
   jobs.push(loadOne(ASSETS.dc_bg).then(im => { IMG.dc_bg = im; }));
   jobs.push(loadOne(ASSETS.isp_bg).then(im => { IMG.isp_bg = im; }));
   jobs.push(loadOne(ASSETS.sales_bg).then(im => { IMG.sales_bg = im; }));
+  jobs.push(loadOne(ASSETS.noc_bg).then(im => { IMG.noc_bg = im; }));
   jobs.push(loadOne(ASSETS.lunar_bg).then(im => { IMG.lunar_bg = im; }));
 
   Object.entries(ASSETS.chars).forEach(([k, src]) => {

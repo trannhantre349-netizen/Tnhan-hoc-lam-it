@@ -12,7 +12,7 @@
 
    Thêm tài nguyên mới? Cập nhật cả ASSETS.js và PRECACHE bên dưới.
    ============================================================ */
-const CACHE_NAME = 'it-game-v1.7';
+const CACHE_NAME = 'it-game-v1.8';
 
 const PRECACHE = [
   // --- vỏ ứng dụng ---
@@ -42,6 +42,7 @@ const PRECACHE = [
   './assets/img/interior_datacenter_isometric.png?v=1',
   './assets/img/interior_isp_isometric.png?v=1',
   './assets/img/interior_office_wifi_isometric.png?v=1',
+  './assets/img/interior_noc_soc_isometric.png?v=1',
   './assets/lunar_base_bg.png?v=1',
   // --- phố ngoài: sprite sheet đã bake (nền trong suốt thật) ---
   './assets/img/street_bg_clean.png?v=1',
@@ -58,6 +59,7 @@ const PRECACHE = [
   './assets/img/baked/npc_khoa.png',
   './assets/img/baked/npc_mai.png',
   './assets/img/baked/npc_son.png',
+  './assets/img/baked/npc_nam.png',
   './assets/img/baked/ship_gen.png',
   // --- font nội bộ (Baloo 2 + JetBrains Mono, gồm subset tiếng Việt) ---
   './assets/fonts/baloo-2-devanagari.woff2',

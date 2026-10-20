@@ -38,7 +38,8 @@ const S = {
   // ===== MISSION PROGRESS =====
   missionsDone: {
     nat: false, pcBuild: false, crimp: false, diag: false,
-    quiz: false, helpdesk: false, patch: false, wifi: false, trace: false, boss: false
+    quiz: false, helpdesk: false, patch: false, wifi: false, trace: false, boss: false,
+    socfw: false, nocload: false
   },
   // ===== WEATHER ANIM =====
   rain: Array.from({length: 130}, () => ({x: Math.random()*1060, y: Math.random()*600, spd: 9+Math.random()*7, len: 10+Math.random()*10})),
@@ -205,7 +206,8 @@ const blds = [
   { id: 'HARDWARE', name: 'LAB PHẦN CỨNG',  x: 20,  y: 240, w: 190, h: 130, c: '#22c55e', style: 'hardware' },
   { id: 'DC',       name: 'DATA CENTER',    x: 740, y: 240, w: 200, h: 130, c: '#0ea5e9', style: 'datacenter' },
   { id: 'SALES',    name: 'VP KINH DOANH',  x: 20,  y: 490, w: 190, h: 90,  c: '#10b981', style: 'sales' },
-  { id: 'ISP',      name: 'TRẠM MẠNG ISP',  x: 740, y: 490, w: 200, h: 90,  c: '#ef4444', style: 'isp' }
+  { id: 'ISP',      name: 'TRẠM MẠNG ISP',  x: 740, y: 490, w: 200, h: 90,  c: '#ef4444', style: 'isp' },
+  { id: 'NOC_SOC',  name: 'TRUNG TÂM NOC/SOC', x: 290, y: 468, w: 380, h: 112, c: '#f43f5e', style: 'modern' }
 ];
 
 /* ============ PRE-RENDER WORLD BG ============ */
@@ -269,13 +271,17 @@ const BLD_META = {
   HARDWARE: { icon: '🔧', accent: '#22c55e', open: true, desc: 'Lab phần cứng' },
   DC:       { icon: '🗄️', accent: '#0ea5e9', open: true, desc: 'Đấu cáp Patch Panel' },
   SALES:    { icon: '📈', accent: '#10b981', open: true, desc: 'Quy hoạch kênh Wifi' },
-  ISP:      { icon: '📡', accent: '#ef4444', open: true, desc: 'Phân tích Traceroute' }
+  ISP:      { icon: '📡', accent: '#ef4444', open: true, desc: 'Phân tích Traceroute' },
+  NOC_SOC:  { icon: '🛡️', accent: '#f43f5e', open: true, desc: 'Giám sát Firewall & cân bằng tải' }
 };
 
 // Đài phun nước trung tâm (có va chạm – không đi xuyên qua được)
 const FOUNTAIN = { x: 480, y: 300, rx: 68, ry: 44 };
 
 /* ==================== SPRITE KENNEY (nạp ảnh) ==================== */
+/* NOC/SOC dùng lại sprite toà nhà modern của TRỤ SỞ IT (chưa có bản riêng) */
+SPR_META.bld_noc_soc = SPR_META.bld_it;
+SPR_DATA.bld_noc_soc = SPR_DATA.bld_it;
 const SPR = {};
 Object.keys(SPR_DATA).forEach(k => {
   const im = new Image();
@@ -358,6 +364,10 @@ function buildingStatus(id) {
     return n === 0 ? 'todo' : (n === 3 ? 'done' : 'part:' + n);
   }
   const map = { OFFICE: 'nat', ACADEMY: 'quiz', IT: 'helpdesk', DC: 'patch', SALES: 'wifi', ISP: 'trace' };
+  if (id === 'NOC_SOC') {
+    const n = [S.missionsDone.socfw, S.missionsDone.nocload].filter(Boolean).length;
+    return n === 0 ? 'todo' : (n === 2 ? 'done' : 'part:' + n);
+  }
   const k = map[id];
   if (!k) return null;
   return S.missionsDone[k] ? 'done' : 'todo';
@@ -712,11 +722,27 @@ const INTERIORS = {
       { t: 'rack', x: 830, y: 420, w: 100, h: 140, label: 'CORE-02' },
       { t: 'desk', x: 300, y: 460, w: 150, h: 46 }
     ]
-  }
+  },
+  NOC_SOC: {
+    id: 'NOC_SOC', name: 'TRUNG TÂM NOC/SOC', zone: '10. TRUNG TÂM NOC/SOC', zoneName: 'Điều hành mạng & An ninh mạng',
+    accent: '#f43f5e', floorA: '#131a2b', floorB: '#0d1322', wallA: '#1b2440', wallB: '#111a30',
+    npc: {
+      name: 'Anh Nam', role: 'Trưởng Ca Trực', sprite: 'nam', x: 210, y: 380,
+      intro: '"Nhân-IT đấy à! Ca trực hôm nay gặp sự cố liên hoàn cả <b>NOC lẫn SOC</b>.\nCó 4 bàn máy tính tương ứng 4 ải: <b>1. Tường lửa ➔ 2. Diệt Malware ➔ 3. Loop Switch ➔ 4. Cân bằng tải</b>. Em xử lý cả 4 bàn để nhận chứng chỉ <b>Hung Thần IT</b> nhé!"',
+      done: '"Xuất sắc! Em đã hoàn thành cả 4 ải, xứng danh <b>Hung Thần IT</b> của Network City!"'
+    },
+    // 4 BÀN ĐÃ ĐƯA LÊN TRÙNG MÀN HÌNH MÁY TÍNH THEO HÌNH:
+    station:  { icon: '🛡️', title: 'BÀN 1: TƯỜNG LỬA (SOC)', sub: 'Bấm [E] để mở Firewall Monitor', x: 345, y: 350, game: 'SOCFW', rad: 85 },
+    station2: { icon: '🦠', title: 'BÀN 2: DIỆT MALWARE', sub: 'Bấm [E] để diệt tiến trình đào coin', x: 500, y: 260, game: 'MALWARE', rad: 85 },
+    station3: { icon: '⚡', title: 'BÀN 3: LOOP SWITCH (NOC)', sub: 'Bấm [E] để kích hoạt BPDU Guard', x: 475, y: 430, game: 'SWITCHLOOP', rad: 85 },
+    station4: { icon: '⚖️', title: 'BÀN 4: CÂN BẰNG TẢI (NOC)', sub: 'Bấm [E] để chia tải server', x: 635, y: 345, game: 'NOCLOAD', rad: 85 },
+    enter: { x: 240, y: 480 },
+    exit: { x: 180, y: 490 }
+  },
 };
 const INTERIOR_IDS = Object.keys(INTERIORS);
 // map mini-game → nhiệm vụ (để gắn với ải tương ứng)
-const GAME_MISSION = { QUIZ: 'quiz', TICKET: 'helpdesk', PATCH: 'patch', WIFI: 'wifi', TRACE: 'trace' };
+const GAME_MISSION = { QUIZ: 'quiz', TICKET: 'helpdesk', PATCH: 'patch', WIFI: 'wifi', TRACE: 'trace', SOCFW: 'socfw', NOCLOAD: 'nocload' };
 
 /* ==================== VẼ ĐỒ ĐẠC TRONG PHÒNG ==================== */
 function drawProp(p, acc, t) {
@@ -997,6 +1023,13 @@ const SCENE_WALK = {
      chiếm 0..~150 → thân trên bắt đầu từ 150. Chân tới 565 vẫn trong khung gỗ;
      spawnY 470 chỉ là dự phòng — điểm vào thật là INTERIORS.SALES.enter. */
   SALES: { minY: 150, maxY: 565, spawnY: 470 },
+  /* Cảnh 10 — TRUNG TÂM NOC/SOC (interior_noc_soc_isometric.png, PNG 1536x1024
+     lát full khung 960x600 — hệ số khác Phòng 6/7/8/9). Dải tường + video wall
+     chiếm 0..~158 → thân trên bắt đầu từ 160. Đáy sàn thoi ~y545, thảm đỏ +
+     cửa kính tây-nam kéo tới ~y510, chân tới 565 vẫn trong khung nhờ hộp
+     "ngoài sàn". spawnY 470 chỉ là dự phòng — điểm vào thật là
+     INTERIORS.NOC_SOC.enter. */
+  NOC_SOC: { minY: 160, maxY: 565, spawnY: 470 },
   /* Căn cứ Mặt Trăng: ảnh lunar_base_bg 1024x572 giữ tỉ lệ khung, vẽ tại
      y=64..600 (960x536). Dải 0..64 là vũ trụ vector vẽ thêm, mặt cát bắt đầu
      sớm nên nới biên đi bộ thật thoáng (minY 115, maxY 575) để không bị chặn
@@ -1207,6 +1240,37 @@ const SCENE_BOXES = {
     [705, 415, 205, 60],   // bệ/ngăn kéo bàn (chừa hốc x 620..705 trước bàn)
     [455, 462, 185, 108],  // góc sofa nhỏ đáy
     [855, 350, 80, 85]     // tủ thấp + cuộn cáp + bình xịt góc đông
+  ],
+  /* Cảnh 10 — TRUNG TÂM NOC/SOC, đo bằng script quét pixel trên ảnh
+     interior_noc_soc_isometric.png (PNG 1536x1024 lát full khung 960x600).
+     Phòng hình thoi: tường trái dốc từ (44,193) lên góc Bắc, tường phải dốc
+     xuống góc Đông từ x≈825. Video wall trái-trên áp tường (màn cyan đo được
+     x115..529), bàn điều khiển cong trái x62..313 y176..330, cụm bàn chỉ huy
+     giữa có đèn ALERT đỏ x425..675 y402..507, dãy rack + bảng đồng hồ phải
+     x685..900 y195..395 (mặt trước ~y395). Thảm đỏ "RA THÀNH PHỐ" tây-nam
+     x144..270 y375..510 → hộp ngoài sàn chừa lối thảm. Đáy sàn thoi tới
+     ~y545 quanh x500; mép phải tại y480 ~x700. Lối đi trung tâm x313..420
+     thông suốt, vòng dưới đáy cụm bàn giữa (y>515) ra trước mặt dãy rack tới
+     station2 (765,445 — lùi 15px so yêu cầu 780,410 để vào đúng bán kính 90
+     trước mặt rack, vì ảnh đặt rack sát tường hơn bản phác thảo). Va chạm
+     (x+10,y+18) lề 8px. */
+  NOC_SOC: [
+    [0, 0, 960, 158],      // Tường trên và màn hình video wall
+    [0, 160, 130, 49],     // Tường trái dốc
+    [825, 160, 135, 47],   // Tường phải dốc
+    [685, 195, 215, 190],  // Dãy tủ server sát tường phải
+    [900, 160, 60, 250],   // Bảng gauge áp tường phải
+    // 4 HỘP BÀN ÔM THEO MÀN HÌNH MỚI (LỐI ĐI THÔNG THOÁNG):
+    [300, 335, 90, 35],    // Bàn 1 (Trái)
+    [455, 245, 90, 35],    // Bàn 2 (Trên - chỗ mũi tên đỏ)
+    [430, 415, 90, 35],    // Bàn 3 (Dưới)
+    [590, 330, 90, 35],    // Bàn 4 (Phải)
+    // Mép sàn ngoài phòng:
+    [0, 209, 100, 131],
+    [0, 340, 115, 225],    // Chừa lối thảm đỏ vào cửa kính
+    [0, 545, 420, 30],
+    [580, 545, 380, 30],
+    [750, 455, 210, 80]
   ]
 };
 function propCollides(sc, nx, ny) {
@@ -1371,6 +1435,10 @@ function update() {
     const cfg = INTERIORS[S.scene];
     // Cảnh 9 cần bán kính [E] riêng 95px → station.rad, các phòng khác vẫn 90.
     if (Math.hypot(S.p.x + 10 - cfg.station.x, S.p.y + 18 - cfg.station.y) < (cfg.station.rad || 90)) targetAct = { t: 'ig_station', id: S.scene };
+    // Cảnh 10 NOC/SOC có bàn tương tác thứ 2 (cân bằng tải) cùng quy ước rad.
+    if (cfg.station2 && Math.hypot(S.p.x + 10 - cfg.station2.x, S.p.y + 18 - cfg.station2.y) < (cfg.station2.rad || 90)) targetAct = { t: 'ig_station2', id: S.scene };
+	if (cfg.station3 && Math.hypot(S.p.x + 10 - cfg.station3.x, S.p.y + 18 - cfg.station3.y) < (cfg.station3.rad || 90)) targetAct = { t: 'ig_station3', id: S.scene };
+    if (cfg.station4 && Math.hypot(S.p.x + 10 - cfg.station4.x, S.p.y + 18 - cfg.station4.y) < (cfg.station4.rad || 90)) targetAct = { t: 'ig_station4', id: S.scene };
     if (Math.hypot(S.p.x + 10 - cfg.npc.x, S.p.y + 18 - cfg.npc.y) < 90) targetAct = { t: 'ig_npc', id: S.scene };
     // Cảnh 7 và 9 có thảm đỏ "RA THÀNH PHỐ" nằm cao hơn (y≈370..460) nên vùng exit
     // đặt trong INTERIORS; các phòng khác vẫn dùng góc dưới-trái mặc định.
@@ -1403,6 +1471,7 @@ function drawSprite(x, y, r='p') {
   else if (r === 'khoa') { hair='#0f172a'; hair2='#020617'; skin='#fcd0a3'; skinD='#e2a878'; shirt='#0ea5e9'; shirtD='#0369a1'; pants='#1e293b'; shoe='#0b1220'; }
   else if (r === 'mai')  { hair='#78350f'; hair2='#451a03'; skin='#fcd0a3'; skinD='#e2a878'; shirt='#10b981'; shirtD='#047857'; pants='#1e293b'; shoe='#0b1220'; }
   else if (r === 'son')  { hair='#1c1917'; hair2='#0c0a09'; skin='#fcd0a3'; skinD='#e2a878'; shirt='#ef4444'; shirtD='#b91c1c'; pants='#1e293b'; shoe='#0b1220'; }
+  else if (r === 'nam')  { hair='#0f172a'; hair2='#020617'; skin='#fcd0a3'; skinD='#e2a878'; shirt='#1e3a8a'; shirtD='#172554'; pants='#1e293b'; shoe='#0b1220'; }
   else { hair='#1e293b'; hair2='#0f172a'; skin='#fcd0a3'; skinD='#e2a878'; shirt='#0284c7'; shirtD='#0369a1'; pants='#1e293b'; shoe='#0b1220'; }
 
   const ty = y - bob;
@@ -1432,7 +1501,7 @@ function drawSprite(x, y, r='p') {
   const names = {
     p: ['Nhân (IT)', '#38bdf8'], lan: ['Chị Lan', '#facc15'], tuan: ['Tuấn (Net)', '#22c55e'], huong: ['Chị Hương', '#f59e0b'],
     duc: ['Thầy Đức', '#a855f7'], linh: ['Chị Linh', '#38bdf8'], khoa: ['Anh Khoa', '#0ea5e9'],
-    mai: ['Chị Mai', '#10b981'], son: ['Anh Sơn', '#ef4444']
+    mai: ['Chị Mai', '#10b981'], son: ['Anh Sơn', '#ef4444'], nam: ['Anh Nam', '#f43f5e']
   };
   const [nm, col] = names[r] || ['???', '#94a3b8'];
   ctx.font = 'bold 9px monospace';
@@ -1842,6 +1911,9 @@ function render() {
     else if (targetAct.t === 'hw_crimp') label = '[E] BẤM CÁP';
     else if (targetAct.t === 'hw_diag') label = '[E] CHẨN ĐOÁN';
     else if (targetAct.t === 'ig_station') label = '[E] ' + (ST_SHORT[targetAct.id] || 'LÀM VIỆC');
+    else if (targetAct.t === 'ig_station2') label = '[E] ' + INTERIORS[targetAct.id].station2.title;
+	else if (targetAct.t === 'ig_station3') label = '[E] ' + INTERIORS[targetAct.id].station3.title;
+    else if (targetAct.t === 'ig_station4') label = '[E] ' + INTERIORS[targetAct.id].station4.title;
     else if (targetAct.t === 'ig_npc') label = '[E] NÓI CHUYỆN';
     else if (targetAct.t === 'to_world') label = '[E] RA THÀNH PHỐ';
     // Khu 3 tự cung cấp nhãn (đặt trong targetAct.txt ở game.js)
@@ -1962,6 +2034,15 @@ function doAction() {
   } else if (targetAct.t === 'ig_station') {
     const g = INTERIORS[targetAct.id].station.game;
     gateMission(GAME_MISSION[g], () => openBuildingGame(targetAct.id));
+  } else if (targetAct.t === 'ig_station2') {
+    const g = INTERIORS[targetAct.id].station2.game;
+    gateMission(GAME_MISSION[g], () => openBuildingGame2(targetAct.id));
+  } else if (targetAct.t === 'ig_station3') {
+    const g = INTERIORS[targetAct.id].station3.game;
+    openBuildingGame3(targetAct.id);
+  } else if (targetAct.t === 'ig_station4') {
+    const g = INTERIORS[targetAct.id].station4.game;
+    openBuildingGame4(targetAct.id);
   } else if (targetAct.t === 'ig_npc') {
     npcDialog(targetAct.id);
   } else if (targetAct.t === 'to_net') {
@@ -2038,12 +2119,18 @@ function releaseFocus() {
   if (el && el !== document.body && typeof el.blur === 'function') el.blur();
   if (window.focus) window.focus();
 }
+// ĐOẠN MỚI ĐÃ SỬA:
 function closeAll() {
   document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
   const dm = document.getElementById('dev-menu'); if (dm) dm.style.display = 'none';
   document.getElementById('dialog').style.display = 'none';
   if (window.bossLeave) bossLeave();
-  if (bannerTimer) { clearTimeout(bannerTimer); }
+  if (bannerTimer) {
+    clearTimeout(bannerTimer);
+    bannerTimer = null;
+  }
+  const bn = document.getElementById('banner');
+  if (bn) bn.className = ''; // Ẩn triệt để thông báo, không để lại class show
   releaseFocus();
 }
 function openCLI() { closeAll(); document.getElementById('cli-modal').style.display = 'flex'; setTimeout(()=>document.getElementById('term-in').focus(),50); beep(600); }

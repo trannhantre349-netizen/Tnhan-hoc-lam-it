@@ -583,11 +583,14 @@ const STAGES = [
   { id: 'patch',    icon: '🔌', name: 'Đấu cáp Patch Panel',       bld: 'DC' },
   { id: 'wifi',     icon: '📶', name: 'Chống nhiễu sóng Wifi',     bld: 'SALES' },
   { id: 'trace',    icon: '🛰️', name: 'Phân tích Traceroute',      bld: 'ISP' },
+  { id: 'socfw',    icon: '🛡️', name: 'Chặn IP tấn công & đóng cổng (SOC)', bld: 'NOC_SOC' },
+  { id: 'nocload',  icon: '⚖️', name: 'Cân bằng tải Server (NOC)', bld: 'NOC_SOC' },
   { id: 'boss',     icon: '🔥', name: 'ĐẠI SỰ CỐ — Đêm trực chiến', bld: 'OFFICE', boss: true }
 ];
 const BLD_NAME = {
   OFFICE: 'VP Kế toán', HARDWARE: 'Lab Phần cứng', ACADEMY: 'Học viện CCNA',
-  IT: 'Trụ sở IT', DC: 'Data Center', SALES: 'VP Kinh doanh', ISP: 'Trạm mạng ISP'
+  IT: 'Trụ sở IT', DC: 'Data Center', SALES: 'VP Kinh doanh', ISP: 'Trạm mạng ISP',
+  NOC_SOC: 'Trung tâm NOC/SOC'
 };
 const RANKS = [
   { lv: 1,  title: 'IT Support Intern' },
@@ -651,7 +654,7 @@ function gateMission(mid, fn) {
 const DEV_STAGE = {
   nat: 'openCLI', pcBuild: 'openPCBuild', crimp: 'openCrimp', diag: 'openDiag',
   quiz: 'openQuiz', helpdesk: 'openTk', patch: 'openPt', wifi: 'openWf',
-  trace: 'openTr', boss: 'openBoss'
+  trace: 'openTr', socfw: 'openFw', nocload: 'openNc', boss: 'openBoss'
 };
 function devJumpTo(i) {
   const s = STAGES[i]; if (!s) return;
@@ -707,6 +710,7 @@ function showBanner(top, main, sub, cls) {
   document.getElementById('b-main').innerHTML = main;
   document.getElementById('b-sub').innerHTML = sub || '';
   el.className = 'show' + (cls ? ' ' + cls : '');
+  el.onclick = () => { el.className = ''; }; // Click thẳng vào banner là tắt ngay
   beep(880, 'triangle', 0.14, 0.045);
   clearTimeout(bannerTimer);
   bannerTimer = setTimeout(() => { el.className = ''; }, 3200);
@@ -1602,6 +1606,11 @@ function openBuildingGame(id) {
   else if (g === 'PATCH') openPt();
   else if (g === 'WIFI') openWf();
   else if (g === 'TRACE') openTr();
+  else if (g === 'SOCFW') openFw();
+}
+function openBuildingGame2(id) {
+  const g = INTERIORS[id] && INTERIORS[id].station2.game;
+  if (g === 'NOCLOAD') openNc();
 }
 function npcDialog(id) {
   const cfg = INTERIORS[id];
@@ -2269,6 +2278,8 @@ drawStation = function (cfg, acc, t) {
   ctx.textAlign = 'left';
 };
 drawInterior = function (id) {
+  if (id === 'NOC_SOC' && IMG.noc_bg) { drawNocSoc(); return; }
+  if (id === 'ACADEMY' && IMG.ccna_bg) { drawAcademy(); return; }
   // Học viện CCNA có ảnh nền chi tiết riêng; ảnh chưa nạp thì rơi về khối vector bên dưới
   if (id === 'ACADEMY' && IMG.ccna_bg) { drawAcademy(); return; }
   // Phòng 6 — Trụ sở IT / Helpdesk vẽ bằng ảnh isometric mới
@@ -6198,4 +6209,786 @@ window.triggerEmergency = function (type) {
   return ev.id;
 };
 emgSchedule(45000);   // cuộc gọi đầu tiên sau ~45s để người chơi kịp ổn định
+
+/* ====================================================
+   🛡️ CẢNH 10: TRUNG TÂM NOC/SOC & 4 ẢI THỰC HÀNH CNTT
+   🛡️ CẢNH 10: TRUNG TÂM NOC/SOC & 4 ẢI THỰC HÀNH CNTT
+   🛡️ CẢNH 10: TRUNG TÂM NOC/SOC & 4 ẢI THỰC HÀNH CNTT
+   ==================================================== */
+function drawNocSocStationTag(st, done) {
+  const x = st.x, by = st.y - 48 + Math.sin(Date.now() / 420 + x * 0.02) * 2;
+  const txt = (done ? '✅ ' : st.icon + ' ') + st.title.replace('BÀN ', '');
+  ctx.font = 'bold 10px "Segoe UI",sans-serif';
+  const w = ctx.measureText(txt).width + 18;
+  izb(x - w / 2, by, w, 22, 11, done ? '#15803d' : '#0284c7', 'rgba(255,255,255,.3)');
+  ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
+  ctx.fillText(txt, x, by + 15); ctx.textAlign = 'left';
+}
+
+function drawNocSoc() {
+  const c = INTERIORS.NOC_SOC;
+  ctx.drawImage(IMG.noc_bg, 0, 0, 960, 600);
+  
+  // Vẽ nhãn trên 4 bàn máy tính
+  drawNocSocStationTag(c.station, !!S.missionsDone.socfw);
+  drawNocSocStationTag(c.station2, !!S.missionsDone.socmalware);
+  drawNocSocStationTag(c.station3, !!S.missionsDone.socloop);
+  drawNocSocStationTag(c.station4, !!S.missionsDone.nocload);
+
+  // Nhãn thảm đỏ ra thành phố
+  ctx.save(); ctx.translate(180, 500); ctx.rotate(-0.12); ctx.textAlign = 'center';
+  ctx.font = 'bold 11px "Segoe UI",sans-serif';
+  ctx.fillStyle = '#ffffff'; ctx.fillText('🚪 RA THÀNH PHỐ', 0, 0); ctx.restore(); ctx.textAlign = 'left';
+
+  [[c.npc.x, c.npc.y, c.npc.sprite], [S.p.x, S.p.y, 'p']].sort((a, b) => a[1] - b[1])
+    .forEach(([x, y, r]) => drawSprite(x, y, r));
+}
+
+function openBuildingGame(id) {
+  const g = INTERIORS[id] && INTERIORS[id].station.game;
+  if (g === 'QUIZ') openQuiz();
+  else if (g === 'TICKET') openTk();
+  else if (g === 'PATCH') openPt();
+  else if (g === 'WIFI') openWf();
+  else if (g === 'TRACE') openTr();
+  else if (g === 'SOCFW') openFw();
+}
+function openBuildingGame2(id) {
+  const g = INTERIORS[id] && INTERIORS[id].station2.game;
+  if (g === 'MALWARE') openMalware();
+  else if (g === 'NOCLOAD') openNc();
+}
+function openBuildingGame3(id) {
+  const g = INTERIORS[id] && INTERIORS[id].station3.game;
+  if (g === 'SWITCHLOOP') openSwitchLoop();
+}
+function openBuildingGame4(id) {
+  const g = INTERIORS[id] && INTERIORS[id].station4.game;
+  if (g === 'NOCLOAD') openNc();
+}
+
+function checkNocSocAllDone() {
+  if (S.missionsDone.socfw && S.missionsDone.socmalware && S.missionsDone.socloop && S.missionsDone.nocload) {
+    if (!S.missionsDone.hungThanCert) {
+      S.missionsDone.hungThanCert = true;
+      setTimeout(openHungThanCert, 400);
+    }
+  }
+}
+
+/* ====================================================
+   ẢI 1: BÀN TƯỜNG LỬA (SOCFW) — CHẶN IP FLOOD & ĐÓNG PORT
+   ==================================================== */
+let fwState = { blocked: false, p23: true, p445: true };
+function openFw() {
+  closeAll();
+  let m = document.getElementById('fw-modal');
+  if (!m) {
+    m = document.createElement('div'); m.id = 'fw-modal'; m.className = 'modal';
+    document.getElementById('app').appendChild(m);
+  }
+  m.style.cssText = 'display:flex !important; flex-direction:column !important; gap:10px !important; position:absolute !important; top:30px !important; bottom:30px !important; left:60px !important; right:60px !important; transform:none !important; animation:none !important; margin:0 !important; padding:18px 24px !important; background:linear-gradient(160deg,#0a1324,#050811) !important; border:2px solid #ef4444 !important; border-radius:16px !important; color:#e2e8f0 !important; font:13px "Segoe UI",sans-serif !important; z-index:120 !important; box-shadow:0 20px 60px #000c !important; overflow:auto !important;';
+  renderFw();
+  beep(600);
+}
+
+function renderFw() {
+  const m = document.getElementById('fw-modal');
+  if (m) {
+    m.style.setProperty('transform', 'none', 'important');
+    m.style.setProperty('top', '30px', 'important');
+    m.style.setProperty('left', '60px', 'important');
+    m.style.setProperty('bottom', '30px', 'important');
+    m.style.setProperty('right', '60px', 'important');
+    m.style.setProperty('margin', '0', 'important');
+  }
+  const safe = fwState.blocked && !fwState.p23 && !fwState.p445;
+  m.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155;padding-bottom:8px">
+      <b style="font-size:16px;color:#f87171">🛡️ BÀN 1: TƯỜNG LỬA NEXT-GEN FIREWALL (SOC)</b>
+      <button onclick="closeAll()" style="background:#1e293b;color:#fff;border:1px solid #475569;border-radius:6px;padding:3px 10px;cursor:pointer">✕</button>
+    </div>
+    <div style="background:#111c33;padding:10px 14px;border-radius:8px;border-left:4px solid #ef4444;font-size:12px;line-height:1.5">
+      <b>TÌNH HUỐNG:</b> Hệ thống bị tấn công từ chối dịch vụ (DDoS 28,450 req/s) và dò quét cổng Windows SMB. Hãy phân tích log để chặn IP botnet và đóng các cổng dịch vụ nguy hiểm!
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px">
+      <div style="background:#080e1a;border:1px solid #1e293b;border-radius:8px;padding:10px">
+        <b style="color:#38bdf8">📋 LOG TRUY CẬP THỜI GIAN THỰC</b>
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;font-family:monospace;font-size:11px">
+          <div style="padding:6px;background:#0f172a;border-radius:4px">192.168.1.45:443 ➔ Web-Server (12 req/s) · Hợp lệ</div>
+          <div style="padding:6px;background:${fwState.blocked?'#14532d':'#450a0a'};border:1px solid ${fwState.blocked?'#22c55e':'#ef4444'};border-radius:4px;display:flex;justify-content:space-between;align-items:center">
+            <span>198.51.100.45 ➔ DDoS (28,450 req/s)</span>
+            <button onclick="fwToggleBlock()" style="background:${fwState.blocked?'#22c55e':'#ef4444'};color:#fff;border:0;border-radius:4px;padding:3px 8px;cursor:pointer;font-weight:700">
+              ${fwState.blocked?'ĐÃ CHẶN (DROP)':'CHẶN IP NÀY'}</button>
+          </div>
+          <div style="padding:6px;background:#0f172a;border-radius:4px">10.0.0.12:53 ➔ DNS Query (4 req/s) · Hợp lệ</div>
+          <div style="padding:6px;background:#0f172a;border-radius:4px">203.0.113.88 ➔ SMB Scan Port 445 · Rủi ro cao</div>
+        </div>
+      </div>
+      <div style="background:#080e1a;border:1px solid #1e293b;border-radius:8px;padding:10px">
+        <b style="color:#38bdf8">🔒 BẢNG QUẢN LÝ CỔNG (PORT SECURITY)</b>
+        <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px;font-size:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;background:#0f172a;padding:6px 10px;border-radius:6px">
+            <span>Port 443 (HTTPS Web Bảo mật)</span><b style="color:#22c55e">MỞ (ON)</b>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;background:#0f172a;padding:6px 10px;border-radius:6px">
+            <span>Port 23 (Telnet - Truyền văn bản trần)</span>
+            <button onclick="fwTogglePort('p23')" style="background:${fwState.p23?'#ef4444':'#22c55e'};color:#fff;border:0;border-radius:4px;padding:3px 10px;cursor:pointer;font-weight:700">
+              ${fwState.p23?'ĐANG MỞ (ĐÓNG NGAY)':'ĐÃ ĐÓNG (SECURED)'}</button>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;background:#0f172a;padding:6px 10px;border-radius:6px">
+            <span>Port 445 (SMB - Nguy cơ Ransomware)</span>
+            <button onclick="fwTogglePort('p445')" style="background:${fwState.p445?'#ef4444':'#22c55e'};color:#fff;border:0;border-radius:4px;padding:3px 10px;cursor:pointer;font-weight:700">
+              ${fwState.p445?'ĐANG MỞ (ĐÓNG NGAY)':'ĐÃ ĐÓNG (SECURED)'}</button>
+          </div>
+        </div>
+        <div style="margin-top:12px;padding:8px;border-radius:6px;background:${safe?'rgba(34,197,94,.15)':'rgba(239,68,68,.15)'};color:${safe?'#4ade80':'#fca5a5'};font-weight:700;text-align:center">
+          ${safe ? '✅ Tải mạng đã hạ về 18% — Hệ thống Firewall an toàn!' : '⚠️ Cảnh báo: Tải mạng 99% — Vẫn còn nguy cơ tấn công!'}
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:auto;display:flex;justify-content:flex-end;gap:10px">
+      <button onclick="fwFinish()" ${safe?'':'disabled'} style="background:${safe?'#22c55e':'#475569'};color:#fff;border:0;border-radius:8px;padding:9px 24px;font-weight:700;cursor:${safe?'pointer':'not-allowed'}">
+        HOÀN THÀNH ẢI 1</button>
+    </div>`;
+}
+function fwToggleBlock() { fwState.blocked = !fwState.blocked; beep(fwState.blocked?750:350); renderFw(); }
+function fwTogglePort(p) { fwState[p] = !fwState[p]; beep(fwState[p]?350:750); renderFw(); }
+function fwFinish() {
+  if (!fwState.blocked || fwState.p23 || fwState.p445) return;
+  finishMission('socfw', 500, 2000, 'networking', 'Anh Nam', 'Trưởng Ca Trực',
+    '🎉 Xuất sắc! Em đã chặn đứng IP botnet và đóng chặt các cổng dịch vụ nguy hiểm!');
+  checkNocSocAllDone();
+}
+
+/* ====================================================
+   ẢI 2: BÀN DIỆT MALWARE (MALWARE) — PROCESS EXPLORER
+   ==================================================== */
+let malState = { killed1: false, killed2: false, cleanReg: false };
+function openMalware() {
+  closeAll();
+  let m = document.getElementById('mal-modal');
+  if (!m) {
+    m = document.createElement('div'); m.id = 'mal-modal'; m.className = 'modal';
+    document.getElementById('app').appendChild(m);
+  }
+  m.style.cssText = 'display:flex;flex-direction:column;gap:10px;position:absolute;inset:30px 60px;transform:none;animation:none;padding:18px 24px;background:linear-gradient(160deg,#0a1324,#050811);border:2px solid #38bdf8;border-radius:16px;color:#e2e8f0;font:13px "Segoe UI",sans-serif;z-index:120;box-shadow:0 20px 60px #000c;overflow:auto';
+  renderMalware();
+  beep(600);
+}
+function renderMalware() {
+  const m = document.getElementById('mal-modal');
+  const cpu = (malState.killed1 ? 0 : 58) + (malState.killed2 ? 0 : 34) + 8;
+  const safe = malState.killed1 && malState.killed2 && malState.cleanReg;
+  m.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155;padding-bottom:8px">
+      <b style="font-size:16px;color:#38bdf8">🦠 BÀN 2: TRUNG TÂM PHẢN ỨNG MÃ ĐỘC (ENDPOINT SECURITY)</b>
+      <button onclick="closeAll()" style="background:#1e293b;color:#fff;border:1px solid #475569;border-radius:6px;padding:3px 10px;cursor:pointer">✕</button>
+    </div>
+    <div style="background:#111c33;padding:10px 14px;border-radius:8px;border-left:4px solid #38bdf8;font-size:12px;line-height:1.5">
+      <b>TÌNH HUỐNG:</b> Máy trạm kỹ thuật bị cấy mã độc đào Monero ngầm. CPU đang peg <b>${cpu}%</b>! Hãy tìm đúng 2 tiến trình đào coin giả mạo để End Process, sau đó bấm Quét sạch mã độc.
+    </div>
+    <div style="background:#080e1a;border:1px solid #1e293b;border-radius:8px;padding:10px;margin-top:6px;overflow-x:auto">
+      <div style="display:grid;grid-template-columns:180px 80px 80px 180px 120px;font-weight:700;color:#94a3b8;border-bottom:1px solid #1e293b;padding-bottom:6px">
+        <span>Tên Tiến Trình</span><span>PID</span><span>CPU %</span><span>Đường Dẫn</span><span>Hành Động</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;font-family:monospace;font-size:12px">
+        <div style="display:grid;grid-template-columns:180px 80px 80px 180px 120px;align-items:center;padding:5px 0">
+          <span>System</span><span>4</span><span>1%</span><span>C:\\Windows</span><span style="color:#64748b">Hệ thống</span>
+        </div>
+        <div style="display:grid;grid-template-columns:180px 80px 80px 180px 120px;align-items:center;padding:5px 0;background:${malState.killed1?'transparent':'rgba(239,68,68,.12)'}">
+          <span style="color:${malState.killed1?'#64748b':'#f87171'}">svch0st_miner.exe</span><span>6620</span><span>${malState.killed1?'0%':'58%'}</span><span>AppData/Roaming</span>
+          <button onclick="malKill(1)" ${malState.killed1?'disabled':''} style="background:${malState.killed1?'#334155':'#ef4444'};color:#fff;border:0;border-radius:4px;padding:3px 8px;cursor:pointer">
+            ${malState.killed1?'ĐÃ DIỆT':'KILL PROCESS'}</button>
+        </div>
+        <div style="display:grid;grid-template-columns:180px 80px 80px 180px 120px;align-items:center;padding:5px 0">
+          <span>mysqld.exe</span><span>2840</span><span>7%</span><span>Program Files/MySQL</span><span style="color:#64748b">Database</span>
+        </div>
+        <div style="display:grid;grid-template-columns:180px 80px 80px 180px 120px;align-items:center;padding:5px 0;background:${malState.killed2?'transparent':'rgba(239,68,68,.12)'}">
+          <span style="color:${malState.killed2?'#64748b':'#f87171'}">xmrig_core.exe</span><span>9114</span><span>${malState.killed2?'0%':'34%'}</span><span>Temp/xmrig</span>
+          <button onclick="malKill(2)" ${malState.killed2?'disabled':''} style="background:${malState.killed2?'#334155':'#ef4444'};color:#fff;border:0;border-radius:4px;padding:3px 8px;cursor:pointer">
+            ${malState.killed2?'ĐÃ DIỆT':'KILL PROCESS'}</button>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;background:#080e1a;padding:10px;border-radius:8px">
+      <span>CPU Hiện Tại: <b style="color:${cpu>30?'#ef4444':'#22c55e'};font-size:15px">${cpu}%</b></span>
+      <button onclick="malQuarantine()" ${malState.killed1&&malState.killed2&&!malState.cleanReg?'':'disabled'} style="background:${malState.cleanReg?'#22c55e':(malState.killed1&&malState.killed2?'#f59e0b':'#334155')};color:#fff;border:0;border-radius:6px;padding:8px 16px;font-weight:700;cursor:pointer">
+        ${malState.cleanReg?'✔ ĐÃ DỌN SẠCH REGISTRY':'🧹 QUÉT & CÁCH LY MÃ ĐỘC'}</button>
+    </div>
+    <div style="margin-top:auto;display:flex;justify-content:flex-end;gap:10px">
+      <button onclick="malFinish()" ${safe?'':'disabled'} style="background:${safe?'#22c55e':'#475569'};color:#fff;border:0;border-radius:8px;padding:9px 24px;font-weight:700;cursor:${safe?'pointer':'not-allowed'}">
+        HOÀN THÀNH ẢI 2</button>
+    </div>`;
+}
+function malKill(idx) {
+  if (idx === 1) malState.killed1 = true;
+  if (idx === 2) malState.killed2 = true;
+  beep(750, 'triangle', 0.1);
+  renderMalware();
+}
+function malQuarantine() {
+  malState.cleanReg = true;
+  chord([660, 880, 1100]);
+  renderMalware();
+}
+function malFinish() {
+  if (!malState.killed1 || !malState.killed2 || !malState.cleanReg) return;
+  finishMission('socmalware', 500, 2000, 'troubleshooting', 'Anh Nam', 'Trưởng Ca Trực',
+    '🎉 Tuyệt vời! Em đã kết liễu 2 tiến trình đào coin và cách ly hoàn toàn mã độc!');
+  checkNocSocAllDone();
+}
+
+/* ====================================================
+   ẢI 3: BÀN LOOP SWITCH (SWITCHLOOP) — STP & BPDU GUARD
+   ==================================================== */
+let loopState = { port3Down: false, bpduEnabled: false };
+function openSwitchLoop() {
+  closeAll();
+  let m = document.getElementById('loop-modal');
+  if (!m) {
+    m = document.createElement('div'); m.id = 'loop-modal'; m.className = 'modal';
+    document.getElementById('app').appendChild(m);
+  }
+  m.style.cssText = 'display:flex;flex-direction:column;gap:10px;position:absolute;inset:30px 60px;transform:none;animation:none;padding:18px 24px;background:linear-gradient(160deg,#0a1324,#050811);border:2px solid #facc15;border-radius:16px;color:#e2e8f0;font:13px "Segoe UI",sans-serif;z-index:120;box-shadow:0 20px 60px #000c';
+  renderSwitchLoop();
+  beep(600);
+}
+function renderSwitchLoop() {
+  const m = document.getElementById('loop-modal');
+  const storm = !loopState.port3Down;
+  const safe = loopState.port3Down && loopState.bpduEnabled;
+  m.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155;padding-bottom:8px">
+      <b style="font-size:16px;color:#facc15">⚡ BÀN 3: BẢNG ĐIỀU KHIỂN SWITCH CORE (LOOP LAYER-2)</b>
+      <button onclick="closeAll()" style="background:#1e293b;color:#fff;border:1px solid #475569;border-radius:6px;padding:3px 10px;cursor:pointer">✕</button>
+    </div>
+    <div style="background:#111c33;padding:10px 14px;border-radius:8px;border-left:4px solid #facc15;font-size:12px;line-height:1.5">
+      <b>TÌNH HUỐNG:</b> Bão broadcast <b>35,000 bcast/s</b> làm nghẽn toàn mạng do 2 cổng Gi0/3 và Gi0/4 bị cắm nhầm dây loop. Hãy ngắt kết nối cổng loop và kích hoạt cơ chế BPDU Guard để bảo vệ switch!
+    </div>
+    <div style="background:#080e1a;border:1px solid #1e293b;border-radius:8px;padding:12px;margin-top:6px">
+      <b style="color:#94a3b8">BẢNG TRẠNG THÁI 8 CỔNG GIGABIT ETHERNET</b>
+      <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:10px;margin-top:10px">
+        <div style="background:#0f172a;padding:8px;border-radius:6px;border:1px solid #22c55e">
+          <b>Gi0/1</b> · PC Kế toán<br><span style="color:#4ade80">● Link Up (100Mbps)</span>
+        </div>
+        <div style="background:#0f172a;padding:8px;border-radius:6px;border:1px solid #22c55e">
+          <b>Gi0/2</b> · Server Web<br><span style="color:#4ade80">● Link Up (1Gbps)</span>
+        </div>
+        <div style="background:#0f172a;padding:8px;border-radius:6px;border:1px solid ${storm?'#ef4444':'#64748b'}">
+          <b>Gi0/3</b> · Cáp Loop A<br>
+          <span style="color:${storm?'#f87171':'#64748b'}">${storm?'⚡ BÃO LOOP 35k pkts/s':'⛔ ĐÃ SHUTDOWN'}</span>
+          <button onclick="loopTogglePort()" style="margin-top:6px;width:100%;background:${storm?'#ef4444':'#334155'};color:#fff;border:0;border-radius:4px;padding:4px;cursor:pointer">
+            ${storm?'SHUTDOWN PORT 3':'MỞ LẠI'}</button>
+        </div>
+        <div style="background:#0f172a;padding:8px;border-radius:6px;border:1px solid ${storm?'#f59e0b':'#22c55e'}">
+          <b>Gi0/4</b> · Cáp Loop B<br>
+          <span style="color:${storm?'#fbbf24':'#4ade80'}">${storm?'⚠ Nhấp nháy MAC Flap':'● Hoạt động bình thường'}</span>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;background:#080e1a;padding:10px;border-radius:8px;margin-top:6px">
+      <div>
+        <b>Cơ chế Spanning-Tree & BPDU Guard:</b><br>
+        <small style="color:#94a3b8">Tự động ngắt cổng nếu phát hiện gói BPDU loop</small>
+      </div>
+      <button onclick="loopToggleBPDU()" style="background:${loopState.bpduEnabled?'#22c55e':'#f59e0b'};color:#fff;border:0;border-radius:6px;padding:8px 18px;font-weight:700;cursor:pointer">
+        ${loopState.bpduEnabled?'✔ ĐÃ BẬT BPDU GUARD':'BẬT SPANNING-TREE & BPDU GUARD'}</button>
+    </div>
+    <div style="margin-top:auto;display:flex;justify-content:flex-end;gap:10px">
+      <button onclick="loopFinish()" ${safe?'':'disabled'} style="background:${safe?'#22c55e':'#475569'};color:#fff;border:0;border-radius:8px;padding:9px 24px;font-weight:700;cursor:${safe?'pointer':'not-allowed'}">
+        HOÀN THÀNH ẢI 3</button>
+    </div>`;
+}
+function loopTogglePort() { loopState.port3Down = !loopState.port3Down; beep(loopState.port3Down?750:350); renderSwitchLoop(); }
+function loopToggleBPDU() { loopState.bpduEnabled = true; chord([660, 880, 1100]); renderSwitchLoop(); }
+function loopFinish() {
+  if (!loopState.port3Down || !loopState.bpduEnabled) return;
+  finishMission('socloop', 500, 2000, 'networking', 'Anh Nam', 'Trưởng Ca Trực',
+    '🎉 Quá giỏi! Em đã dập tắt bão broadcast và bật BPDU Guard chống loop vĩnh viễn!');
+  checkNocSocAllDone();
+}
+
+/* ====================================================
+   ẢI 4: BÀN CÂN BẰNG TẢI (NOCLOAD) — LOAD BALANCING
+   ==================================================== */
+let ncState = { algo: 'single', balanced: false, healthCheck: false };
+function openNc() {
+  closeAll();
+  let m = document.getElementById('nc-modal');
+  if (!m) {
+    m = document.createElement('div'); m.id = 'nc-modal'; m.className = 'modal';
+    document.getElementById('app').appendChild(m);
+  }
+  m.style.cssText = 'display:flex;flex-direction:column;gap:10px;position:absolute;inset:30px 60px;transform:none;animation:none;padding:18px 24px;background:linear-gradient(160deg,#0a1324,#050811);border:2px solid #a855f7;border-radius:16px;color:#e2e8f0;font:13px "Segoe UI",sans-serif;z-index:120;box-shadow:0 20px 60px #000c';
+  renderNc();
+  beep(600);
+}
+function renderNc() {
+  const m = document.getElementById('nc-modal');
+  const safe = (ncState.algo === 'rr' || ncState.algo === 'lc') && ncState.balanced && ncState.healthCheck;
+  m.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155;padding-bottom:8px">
+      <b style="font-size:16px;color:#c084fc">⚖️ BÀN 4: HỆ THỐNG CÂN BẰNG TẢI LOAD BALANCER (NOC)</b>
+      <button onclick="closeAll()" style="background:#1e293b;color:#fff;border:1px solid #475569;border-radius:6px;padding:3px 10px;cursor:pointer">✕</button>
+    </div>
+    <div style="background:#111c33;padding:10px 14px;border-radius:8px;border-left:4px solid #a855f7;font-size:12px;line-height:1.5">
+      <b>TÌNH HUỐNG:</b> Cụm 3 Server Web đang nghẽn nặng. Node 1 gánh <b>96%</b> tải (sắp sập), trong khi Node 2 và Node 3 chỉ chạy 2%. Hãy đổi thuật toán sang Round Robin và san đều tải cho cả 3 node!
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:6px">
+      <div style="background:#080e1a;border:1px solid ${ncState.balanced?'#22c55e':'#ef4444'};border-radius:8px;padding:12px;text-align:center">
+        <b>NODE 1 (Web-01)</b><br>
+        <span style="font-size:24px;font-weight:700;color:${ncState.balanced?'#4ade80':'#f87171'}">${ncState.balanced?'33%':'96%'}</span>
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px">${ncState.balanced?'Ổn định mát mẻ':'Quá nhiệt nghẽn mạng!'}</div>
+      </div>
+      <div style="background:#080e1a;border:1px solid ${ncState.balanced?'#22c55e':'#38bdf8'};border-radius:8px;padding:12px;text-align:center">
+        <b>NODE 2 (Web-02)</b><br>
+        <span style="font-size:24px;font-weight:700;color:${ncState.balanced?'#4ade80':'#38bdf8'}">${ncState.balanced?'34%':'2%'}</span>
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px">${ncState.balanced?'Ổn định mát mẻ':'Rảnh rỗi phí tài nguyên'}</div>
+      </div>
+      <div style="background:#080e1a;border:1px solid ${ncState.balanced?'#22c55e':'#38bdf8'};border-radius:8px;padding:12px;text-align:center">
+        <b>NODE 3 (Web-03)</b><br>
+        <span style="font-size:24px;font-weight:700;color:${ncState.balanced?'#4ade80':'#38bdf8'}">${ncState.balanced?'33%':'2%'}</span>
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px">${ncState.balanced?'Ổn định mát mẻ':'Rảnh rỗi phí tài nguyên'}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
+      <div style="background:#080e1a;padding:10px;border-radius:8px">
+        <b>1. Chọn Thuật Toán Cân Bằng Tải:</b>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button onclick="ncSetAlgo('rr')" style="flex:1;background:${ncState.algo==='rr'?'#22c55e':'#1e293b'};color:#fff;border:0;border-radius:6px;padding:6px;cursor:pointer;font-weight:700">
+            Round Robin</button>
+          <button onclick="ncSetAlgo('lc')" style="flex:1;background:${ncState.algo==='lc'?'#22c55e':'#1e293b'};color:#fff;border:0;border-radius:6px;padding:6px;cursor:pointer;font-weight:700">
+            Least Conn</button>
+        </div>
+      </div>
+      <div style="background:#080e1a;padding:10px;border-radius:8px">
+        <b>2. Phân Bổ Tỷ Trọng & Health Check:</b>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button onclick="ncBalance()" style="flex:1;background:${ncState.balanced?'#22c55e':'#f59e0b'};color:#fff;border:0;border-radius:6px;padding:6px;cursor:pointer;font-weight:700">
+            ${ncState.balanced?'✔ ĐÃ CHIA TẢI 33%':'SAN ĐỀU 3 NODE'}</button>
+          <button onclick="ncToggleHealth()" style="flex:1;background:${ncState.healthCheck?'#22c55e':'#1e293b'};color:#fff;border:0;border-radius:6px;padding:6px;cursor:pointer;font-weight:700">
+            ${ncState.healthCheck?'✔ HEALTH CHECK: OK':'BẬT HEALTH CHECK'}</button>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:auto;display:flex;justify-content:flex-end;gap:10px">
+      <button onclick="ncFinish()" ${safe?'':'disabled'} style="background:${safe?'#22c55e':'#475569'};color:#fff;border:0;border-radius:8px;padding:9px 24px;font-weight:700;cursor:${safe?'pointer':'not-allowed'}">
+        HOÀN THÀNH ẢI 4</button>
+    </div>`;
+}
+function ncSetAlgo(a) { ncState.algo = a; beep(700); renderNc(); }
+function ncBalance() { ncState.balanced = true; chord([660, 880]); renderNc(); }
+function ncToggleHealth() { ncState.healthCheck = true; beep(880); renderNc(); }
+function ncFinish() {
+  if (!ncState.balanced || !ncState.healthCheck) return;
+  finishMission('nocload', 500, 2000, 'datacenter', 'Anh Nam', 'Trưởng Ca Trực',
+    '🎉 Tuyệt cú mèo! 3 node server đã chia đều tải, SLA dịch vụ đạt 100%!');
+  checkNocSocAllDone();
+}
+
+/* ====================================================
+   🎆 HIỆU ỨNG PHÁO HOA ĂN MỪNG CHỨNG CHỈ
+   ==================================================== */
+let fwTimer = null;
+let fwParticles = [];
+
+function startFireworks() {
+  stopFireworks();
+  let cv = document.getElementById('fw-cert-canvas');
+  if (!cv) {
+    cv = document.createElement('canvas');
+    cv.id = 'fw-cert-canvas';
+    cv.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:200';
+    document.body.appendChild(cv);
+  }
+  cv.width = window.innerWidth;
+  cv.height = window.innerHeight;
+  const fctx = cv.getContext('2d');
+  fwParticles = [];
+
+  function blast(x, y) {
+    const colors = ['#facc15', '#f43f5e', '#38bdf8', '#4ade80', '#c084fc', '#fbbf24', '#ffffff'];
+    const count = 45 + Math.random() * 30;
+    const col = colors[Math.floor(Math.random() * colors.length)];
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const spd = 2 + Math.random() * 7;
+      fwParticles.push({
+        x, y,
+        vx: Math.cos(angle) * spd,
+        vy: Math.sin(angle) * spd,
+        alpha: 1,
+        decay: 0.012 + Math.random() * 0.018,
+        color: col,
+        size: 2 + Math.random() * 3.5
+      });
+    }
+    if (typeof beep === 'function') beep(500 + Math.random() * 400, 'triangle', 0.09, 0.035);
+  }
+
+  // Khởi động 2 quả nổ đầu tiên
+  blast(cv.width * 0.25, cv.height * 0.3);
+  blast(cv.width * 0.75, cv.height * 0.35);
+
+  let lastTick = Date.now();
+  function renderFwLoop() {
+    const modal = document.getElementById('ht-cert-modal');
+    if (!modal || modal.style.display === 'none') {
+      stopFireworks();
+      return;
+    }
+    fctx.clearRect(0, 0, cv.width, cv.height);
+
+    if (Date.now() - lastTick > 380) {
+      blast(cv.width * (0.15 + Math.random() * 0.7), cv.height * (0.15 + Math.random() * 0.45));
+      lastTick = Date.now();
+    }
+
+    for (let i = fwParticles.length - 1; i >= 0; i--) {
+      const p = fwParticles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.09; // trọng lực
+      p.vx *= 0.98;
+      p.alpha -= p.decay;
+
+      if (p.alpha <= 0) {
+        fwParticles.splice(i, 1);
+        continue;
+      }
+
+      fctx.save();
+      fctx.globalAlpha = Math.max(0, p.alpha);
+      fctx.fillStyle = p.color;
+      fctx.shadowColor = p.color;
+      fctx.shadowBlur = 6;
+      fctx.beginPath();
+      fctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      fctx.fill();
+      fctx.restore();
+    }
+
+    fwTimer = requestAnimationFrame(renderFwLoop);
+  }
+  fwTimer = requestAnimationFrame(renderFwLoop);
+}
+
+function stopFireworks() {
+  if (fwTimer) {
+    cancelAnimationFrame(fwTimer);
+    fwTimer = null;
+  }
+  const cv = document.getElementById('fw-cert-canvas');
+  if (cv) cv.remove();
+}
+
+function closeHungThanModal() {
+  stopFireworks();
+  closeAll();
+}
+
+/* ====================================================
+   🏆 MODAL CHỨNG CHỈ DANH DỰ: "HUNG THẦN IT"
+   ==================================================== */
+function openHungThanCert() {
+  closeAll();
+  addCoin(50000); addXP(500);
+  S.title = 'Hung Thần IT';
+  saveGame(); syncHUD();
+  
+  let m = document.getElementById('ht-cert-modal');
+  if (!m) {
+    m = document.createElement('div'); m.id = 'ht-cert-modal'; m.className = 'modal';
+    document.getElementById('app').appendChild(m);
+  }
+  m.style.cssText = 'display:flex !important; flex-direction:column !important; gap:12px !important; position:absolute !important; inset:20px 40px !important; transform:none !important; animation:none !important; padding:20px 28px !important; background:radial-gradient(circle at center, #1e1b4b, #09081a) !important; border:3px solid #facc15 !important; border-radius:20px !important; color:#fff !important; font:13px "Segoe UI",sans-serif !important; z-index:150 !important; box-shadow:0 0 50px rgba(250,204,21,.5), 0 20px 60px #000 !important; overflow:auto !important;';
+  
+  const d = new Date();
+  const dateStr = String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
+  
+  m.innerHTML = `
+    <div style="text-align:center;border:2px dashed rgba(250,204,21,.5);border-radius:14px;padding:20px;background:rgba(0,0,0,.45)">
+      <div style="font-size:11px;letter-spacing:2px;color:#fde047">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM — NETWORK CITY CYBER COMMAND</div>
+      <h1 style="margin:10px 0 4px;font-size:26px;color:#facc15;text-shadow:0 0 16px rgba(250,204,21,.7)">🏆 CHỨNG CHỈ: HUNG THẦN IT 🏆</h1>
+      <div style="font-size:13px;color:#93c5fd;font-style:italic">Chứng nhận thành tích đặc biệt xuất sắc trong vận hành An ninh mạng & Điều hành NOC/SOC</div>
+      <div style="margin:16px 0;font-size:15px">Trao tặng cho Kỹ sư: <b style="font-size:22px;color:#38bdf8;text-decoration:underline">${S.name || 'Nhân IT'}</b></div>
+      <div style="max-width:700px;margin:0 auto;font-size:12.5px;line-height:1.7;color:#e2e8f0;background:rgba(255,255,255,.05);padding:12px;border-radius:8px">
+        Đã một mình trấn áp thành công 4 đại sự cố tại Trung Tâm Điều Hành NOC/SOC: 
+        Đập tan bão tấn công từ chối dịch vụ (DDoS) bằng Next-Gen Firewall, thanh trừng triệt để mã độc đào coin ẩn, dập tắt bão broadcast loop mạng trên Core Switch, và cân bằng tải hoàn hảo cụm máy chủ doanh nghiệp.
+      </div>
+      <div style="display:flex;justify-content:space-around;margin-top:20px;align-items:center">
+        <div style="text-align:center">
+          <div style="font-size:11px;color:#94a3b8">NGÀY CẤP: ${dateStr}</div>
+          <b style="color:#fde047">Anh Nam</b><br><small style="color:#94a3b8">Trưởng Ca Trực NOC/SOC</small>
+        </div>
+        <div style="width:72px;height:72px;border-radius:50%;border:2px solid #ef4444;background:rgba(239,68,68,.2);display:flex;align-items:center;justify-content:center;color:#ef4444;font-weight:900;font-size:10px;text-align:center;line-height:1.2;transform:rotate(-12deg)">
+          ĐÃ DUYỆT<br>★ NOC/SOC ★
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:11px;color:#94a3b8">DANH HIỆU MỚI: HUNG THẦN IT</div>
+          <b style="color:#fde047">Chị Lan</b><br><small style="color:#94a3b8">Giám Đốc Vận Hành</small>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+      <span style="color:#4ade80;font-weight:700;font-size:14px">🎁 PHẦN THƯỞNG: +50,000 Coin · +500 XP · Danh hiệu HUNG THẦN IT</span>
+      <div style="display:flex;gap:10px">
+        <button onclick="downloadHungThanPNG()" style="background:#0284c7;color:#fff;border:0;border-radius:8px;padding:9px 18px;font-weight:700;cursor:pointer">
+          ⬇️ TẢI CHỨNG CHỈ VỀ MÁY</button>
+        <button onclick="closeHungThanModal()" style="background:#22c55e;color:#051205;border:0;border-radius:8px;padding:9px 24px;font-weight:800;cursor:pointer">
+          🎉 NHẬN THƯỞNG & ĐÓNG</button>
+      </div>
+    </div>`;
+  
+  // Bắn pháo hoa và phát nhạc khải hoàn
+  startFireworks();
+  chord([523, 659, 784, 1046, 1318]);
+}
+
+function downloadHungThanPNG() {
+  const c = document.createElement('canvas');
+  c.width = 960; c.height = 600;
+  const g = c.getContext('2d');
+  
+  // Background
+  const grd = g.createRadialGradient(480, 300, 50, 480, 300, 550);
+  grd.addColorStop(0, '#1e1b4b'); grd.addColorStop(1, '#09081a');
+  g.fillStyle = grd; g.fillRect(0, 0, 960, 600);
+  
+  // Golden border
+  g.strokeStyle = '#facc15'; g.lineWidth = 6;
+  g.strokeRect(20, 20, 920, 560);
+  g.strokeStyle = 'rgba(250,204,21,.4)'; g.lineWidth = 2;
+  g.strokeRect(30, 30, 900, 540);
+  
+  // Texts
+  g.fillStyle = '#fde047'; g.font = 'bold 13px sans-serif'; g.textAlign = 'center';
+  g.fillText('CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM — NETWORK CITY CYBER COMMAND', 480, 65);
+  
+  g.fillStyle = '#facc15'; g.font = 'bold 32px sans-serif';
+  g.fillText('CHỨNG CHỈ: HUNG THẦN IT', 480, 125);
+  
+  g.fillStyle = '#93c5fd'; g.font = 'italic 15px sans-serif';
+  g.fillText('Chứng nhận thành tích đặc biệt xuất sắc trong vận hành An ninh mạng & NOC/SOC', 480, 165);
+  
+  g.fillStyle = '#fff'; g.font = '18px sans-serif';
+  g.fillText('Trao tặng cho Kỹ sư:', 480, 220);
+  
+  g.fillStyle = '#38bdf8'; g.font = 'bold 28px sans-serif';
+  g.fillText(S.name || 'Nhân IT', 480, 260);
+  
+  g.fillStyle = '#cbd5e1'; g.font = '14px sans-serif';
+  g.fillText('Đã hoàn thành xuất sắc 4 đại sự cố tại Trung Tâm Điều Hành Mạng & An Ninh Mạng (NOC/SOC):', 480, 310);
+  g.fillText('1. Chặn đứng cuộc tấn công DDoS botnet và đóng các cổng nguy hiểm bằng Next-Gen Firewall.', 480, 340);
+  g.fillText('2. Thanh trừng mã độc đào Monero ẩn và cách ly hoàn toàn tiến trình độc hại.', 480, 365);
+  g.fillText('3. Dập tắt bão Broadcast Loop trên Core Switch và kích hoạt BPDU Guard bảo vệ.', 480, 390);
+  g.fillText('4. Tái cấu trúc cân bằng tải Round Robin đưa cụm 3 máy chủ về 100% SLA.', 480, 415);
+  
+  // Signatures
+  g.fillStyle = '#facc15'; g.font = 'bold 16px sans-serif';
+  g.fillText('Anh Nam', 220, 500);
+  g.fillText('Chị Lan', 740, 500);
+  g.fillStyle = '#94a3b8'; g.font = '12px sans-serif';
+  g.fillText('Trưởng Ca Trực NOC/SOC', 220, 525);
+  g.fillText('Giám Đốc Vận Hành', 740, 525);
+  
+  // Seal
+  g.save(); g.translate(480, 490); g.rotate(-0.2);
+  g.strokeStyle = '#ef4444'; g.lineWidth = 3;
+  g.beginPath(); g.arc(0, 0, 40, 0, 7); g.stroke();
+  g.fillStyle = 'rgba(239,68,68,.15)'; g.fill();
+  g.fillStyle = '#ef4444'; g.font = 'bold 11px sans-serif';
+  g.fillText('ĐÃ PHÊ DUYỆT', 0, -6);
+  g.fillText('★ NOC/SOC ★', 0, 12);
+  g.restore();
+  
+  const a = document.createElement('a');
+  a.href = c.toDataURL('image/png');
+  a.download = 'chung-chi-hung-than-it.png';
+  a.click();
+  showToast('⬇️ Đã lưu chứng chỉ chung-chi-hung-than-it.png về máy!');
+}
+
+/* ====================================================
+   🔊 BỘ THƯ VIỆN ÂM THANH SCI-FI & RETRO (WEB AUDIO SFX)
+   ==================================================== */
+function sfxCoin() {
+  if (!soundOn) return;
+  try {
+    const a = getAC();
+    const now = a.currentTime;
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(987.77, now); // B5
+    o.frequency.setValueAtTime(1318.51, now + 0.08); // E6
+    g.gain.setValueAtTime(0.04, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+    o.connect(g); g.connect(a.destination);
+    o.start(now); o.stop(now + 0.35);
+  } catch(e){}
+}
+
+function sfxAlarm() {
+  if (!soundOn) return;
+  try {
+    const a = getAC();
+    const now = a.currentTime;
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(440, now);
+    o.frequency.linearRampToValueAtTime(880, now + 0.15);
+    o.frequency.linearRampToValueAtTime(440, now + 0.3);
+    g.gain.setValueAtTime(0.03, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
+    o.connect(g); g.connect(a.destination);
+    o.start(now); o.stop(now + 0.32);
+  } catch(e){}
+}
+
+function sfxZap() {
+  if (!soundOn) return;
+  try {
+    const a = getAC();
+    const now = a.currentTime;
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = 'square';
+    o.frequency.setValueAtTime(120, now);
+    o.frequency.exponentialRampToValueAtTime(30, now + 0.12);
+    g.gain.setValueAtTime(0.04, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+    o.connect(g); g.connect(a.destination);
+    o.start(now); o.stop(now + 0.12);
+  } catch(e){}
+}
+
+function sfxClick() {
+  if (!soundOn) return;
+  try {
+    const a = getAC();
+    const now = a.currentTime;
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(1200, now);
+    g.gain.setValueAtTime(0.02, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
+    o.connect(g); g.connect(a.destination);
+    o.start(now); o.stop(now + 0.04);
+  } catch(e){}
+}
+
+function sfxBuzz() {
+  if (!soundOn) return;
+  try {
+    const a = getAC();
+    const now = a.currentTime;
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(130, now);
+    g.gain.setValueAtTime(0.05, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+    o.connect(g); g.connect(a.destination);
+    o.start(now); o.stop(now + 0.22);
+  } catch(e){}
+}
+
+function sfxFanfare() {
+  if (!soundOn) return;
+  const notes = [523.25, 659.25, 783.99, 1046.50, 987.77, 1318.51];
+  notes.forEach((f, idx) => {
+    setTimeout(() => {
+      try {
+        const a = getAC();
+        const now = a.currentTime;
+        const o = a.createOscillator(), g = a.createGain();
+        o.type = 'triangle';
+        o.frequency.setValueAtTime(f, now);
+        g.gain.setValueAtTime(0.05, now);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+        o.connect(g); g.connect(a.destination);
+        o.start(now); o.stop(now + 0.35);
+      } catch(e){}
+    }, idx * 110);
+  });
+}
+
+/* ====================================================
+   ✨ HIỆU ỨNG THỊ GIÁC: CHỮ NỔI (FLOAT TEXT) & RUNG MÀN HÌNH
+   ==================================================== */
+let floatingTexts = [];
+let shakeFrames = 0;
+let shakePower = 0;
+
+function showFloatText(txt, color = '#facc15', x = S.p.x + 10, y = S.p.y - 20) {
+  floatingTexts.push({
+    txt: txt,
+    color: color,
+    x: x,
+    y: y,
+    alpha: 1,
+    vy: -1.2,
+    life: 55
+  });
+}
+
+function triggerShake(frames = 10, power = 4) {
+  shakeFrames = frames;
+  shakePower = power;
+}
+
+// Móc vào vòng render để hiển thị chữ nổi và rung camera
+const _origRenderFX = render;
+render = function() {
+  if (shakeFrames > 0) {
+    const rx = (Math.random() - 0.5) * shakePower;
+    const ry = (Math.random() - 0.5) * shakePower;
+    ctx.save();
+    ctx.translate(rx, ry);
+    _origRenderFX();
+    ctx.restore();
+    shakeFrames--;
+  } else {
+    _origRenderFX();
+  }
+
+  // Cập nhật và vẽ các dòng chữ nổi bay lên
+  for (let i = floatingTexts.length - 1; i >= 0; i--) {
+    const ft = floatingTexts[i];
+    ft.y += ft.vy;
+    ft.alpha -= 1 / ft.life;
+
+    if (ft.alpha <= 0) {
+      floatingTexts.splice(i, 1);
+      continue;
+    }
+
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, ft.alpha);
+    ctx.font = 'bold 13px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillText(ft.txt, ft.x + 1, ft.y + 1);
+    ctx.fillStyle = ft.color;
+    ctx.fillText(ft.txt, ft.x, ft.y);
+    ctx.restore();
+  }
+};
+
+// Móc vào hàm cộng Coin/XP để tự động bật âm thanh và chữ nổi
+const _origAddCoinFX = addCoin;
+addCoin = function(n) {
+  _origAddCoinFX(n);
+  if (n > 0) {
+    sfxCoin();
+    showFloatText('+' + n.toLocaleString() + ' Coin 🪙', '#facc15');
+  }
+};
+
+const _origAddXPFX = addXP;
+addXP = function(n) {
+  _origAddXPFX(n);
+  if (n > 0) {
+    showFloatText('+' + n + ' XP ⭐', '#38bdf8', S.p.x + 10, S.p.y - 36);
+  }
+};
 
