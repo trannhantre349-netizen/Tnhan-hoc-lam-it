@@ -169,7 +169,7 @@ drawBuilding = function (b, active) {
 /* ---------- 5. AVATAR HỘI THOẠI (canvas 56x56) ---------- */
 const AV_MAP = [['Lan', 'lan'], ['Hương', 'huong'], ['Tuấn', 'tuan'], ['Đức', 'duc'],
   ['Linh', 'linh'], ['Khoa', 'khoa'], ['Mai', 'mai'], ['Sơn', 'son'],
-  ['Bạn', 'p'], ['Nhân', 'p'], ['Bảo vệ', 'khoa']];
+  ['Bạn', 'p'], ['Nhân', 'p'], ['Bảo vệ', 'khoa'], ['T-REX', 'cre_rex_idle']];
 drawAvatar = function (spk) {
   const acv = document.getElementById('av-cv'); if (!acv) return;
   const a = acv.getContext('2d');
@@ -179,7 +179,12 @@ drawAvatar = function (spk) {
   a.fillStyle = g; a.fillRect(0, 0, 56, 56);
   const hit = AV_MAP.find(([k]) => spk.includes(k));
   const img = hit ? IMG.chars[hit[1]] : null;
-  if (img) {
+  if (hit && hit[1].indexOf('cre_') === 0 && IMG.creatures) {
+    // frame sinh vật: cắt từ sheet theo SHEET, căn giữa vào ô tròn 56x56
+    const s = SHEET[hit[1]], size = Math.max(s.w, s.h);
+    const dw = 56 * s.w / size, dh = 56 * s.h / size;
+    a.drawImage(IMG.creatures, s.x, s.y, s.w, s.h, 28 - dw / 2, 28 - dh / 2, dw, dh);
+  } else if (img) {
     // crop phần đầu+vai (55% trên) của ảnh đã trim, phóng vừa khung tròn
     const sw = img.width, sh = img.height * 0.55;
     const size = Math.min(sw, sh);

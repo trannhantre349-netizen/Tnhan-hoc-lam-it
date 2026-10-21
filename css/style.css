@@ -2120,13 +2120,17 @@ body.modal-open .mobile-touch-bar, body.modal-open #chat-box { opacity: 0 !impor
 
 .shop-modal {
   width: 640px; max-width: calc(100vw - 24px); background: #0b1220; border: 2px solid #f59e0b; border-radius: 14px;
-  /* giới hạn chiều cao theo khung nhìn để header (tiêu đề + ✕) luôn dính trên, foot dính dưới.
+  /* Giới hạn chiều cao theo KHÔNG GIAN NỘI VI của #app (khung 960x600 px rồi mới
+     scale bằng transform), KHÔNG phải vh của viewport — vh làm modal cao hơn 600px
+     và bị overflow:hidden của #app cắt mất header + ✕. --shop-h do fitApp() tính.
      display:flex chỉ bật qua style nội tuyến khi openShop(); ở đây giữ layout column cho sp-list cuộn. */
-  max-height: min(88vh, 720px); flex-direction: column;
+  max-height: var(--shop-h, 560px); flex-direction: column; overflow: hidden; box-sizing: border-box;
   z-index: 132; box-shadow: 0 26px 70px rgba(0, 0, 0, .6);
 }
 .sp-head {
   display: flex; align-items: center; gap: 10px; padding: 9px 12px; flex-shrink: 0;
+  /* ghim đỉnh: nếu modal có cuộn thì header vẫn nằm trên cùng */
+  position: sticky; top: 0; z-index: 10;
   background: linear-gradient(180deg, #2a1c06, #17112a); border-bottom: 2px solid #f59e0b; color: #fff3d6;
 }
 .sp-logo {
@@ -2151,6 +2155,8 @@ body.modal-open .mobile-touch-bar, body.modal-open #chat-box { opacity: 0 !impor
   flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain; touch-action: pan-y;
 }
+/* tab dạng lưới (Tủ Đồ) luôn được cuộn; tab dọc phải co lại để không ăn chiều cao danh sách */
+.sp-list:not(:has(.wd-grid)) { flex: 0 1 auto; }
 .sp-list::-webkit-scrollbar { width: 9px; }
 .sp-list::-webkit-scrollbar-track { background: transparent; }
 .sp-list::-webkit-scrollbar-thumb { background: #3b4d6b; border-radius: 8px; border: 2px solid #0b1220; }

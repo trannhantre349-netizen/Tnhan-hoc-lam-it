@@ -22,6 +22,9 @@ const ASSETS = {
   sales_bg: 'assets/img/interior_office_wifi_isometric.png?v=1',
   noc_bg: 'assets/img/interior_noc_soc_isometric.png?v=1',
   lunar_bg: 'assets/lunar_base_bg.png?v=1',
+  /* Sheet 3 hàng x 4 cột (1024x572) nền xanh đậm #202A39 — bake-sprites tẩy
+     nền theo màu đọc từ 4 góc, giữ nguyên lưới cắt nên toạ độ ô không đổi. */
+  creatures: 'assets/img/baked/creatures_sheet.png?v=1',
   chars: {
     p: 'assets/img/baked/char_player.png',
     lan: 'assets/img/baked/npc_lan.png',
@@ -38,7 +41,7 @@ const ASSETS = {
   }
 };
 
-const IMG = { bg: null, chars: {}, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null };
+const IMG = { bg: null, chars: {}, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null, creatures: null };
 let assetsReady = false;
 
 /* ============================================================
@@ -127,7 +130,30 @@ const SHEET = {
   fence_iron_s: { x: 55,   y: 1602, w: 386, h: 163, sheet: 'traffic', pocket: 1 },
   pot_flowers:  { x: 2247, y: 1415, w: 103, h: 133, sheet: 'traffic' },
   pot_bush:     { x: 2092, y: 1419, w: 126, h: 132, sheet: 'traffic' },
-  bush:         { x: 1890, y: 1621, w: 179, h: 145, sheet: 'traffic' }
+  bush:         { x: 1890, y: 1621, w: 179, h: 145, sheet: 'traffic' },
+
+  /* ===== sheet creatures_sheet.png (1024x572, sheet:'creatures') — sinh vật =====
+     Lưới 3 hàng x 4 cột: hàng 1 Cyber-T-Rex (đứng, bước, glitch 404, gầm),
+     hàng 2 Mèo Server trên nóc tủ mini (ngủ Zzz, thức nhìn, cào rớt dây cáp),
+     hàng 3 bồ câu AI (cánh lên, cánh xuống, đậu) + ô 'cre_pkt' là hộp Packet
+     Loss cắt riêng ở cột 3 hàng 3 (phần dưới, không kèm chữ bake) để thả rơi.
+     MỖI Ô CÙNG HÀNG CÓ CHIỀU CAO NHƯ NHAU và lấy TRÚNG TÂM TIẾP ĐẤT làm trục
+     (đo từ ảnh: tâm chân Rex, tâm chân tủ mini của mèo, tâm chân chim) — nếu
+     cắt theo bbox khít thì khung có chữ "Zzz"/"404" cao hơn khung bên cạnh,
+     đổi frame là sinh vật bị lún xuống hoặc nhảy ngang. Riêng 'cre_rex_glitch'
+     cao 180 vì ôm cả dòng "404" phía trên đầu: vẽ thì phóng theo tỉ lệ
+     h/154 (đơn vị thân Rex) để thân không bị co. Đáy ô = mặt đất. */
+  cre_rex_idle:   { x: 39,  y: 32,  w: 194, h: 154, sheet: 'creatures' },
+  cre_rex_walk:   { x: 298, y: 32,  w: 194, h: 154, sheet: 'creatures' },
+  cre_rex_glitch: { x: 530, y: 6,   w: 200, h: 180, sheet: 'creatures' },
+  cre_rex_roar:   { x: 778, y: 32,  w: 190, h: 154, sheet: 'creatures' },
+  cre_cat_sleep:  { x: 88,  y: 206, w: 184, h: 175, sheet: 'creatures' },
+  cre_cat_look:   { x: 344, y: 206, w: 184, h: 175, sheet: 'creatures' },
+  cre_cat_play:   { x: 578, y: 206, w: 186, h: 175, sheet: 'creatures' },
+  cre_bird_up:    { x: 114, y: 407, w: 136, h: 131, sheet: 'creatures' },
+  cre_bird_dn:    { x: 361, y: 407, w: 142, h: 131, sheet: 'creatures' },
+  cre_bird_perch: { x: 830, y: 407, w: 146, h: 131, sheet: 'creatures' },
+  cre_pkt:        { x: 682, y: 494, w: 54,  h: 55,  sheet: 'creatures' }
 };
 
 /* Vẽ 1 món cắt từ sheet vào (dx, dy, dw, dh). Trả false nếu sheet chưa nạp. */
@@ -143,6 +169,18 @@ function sheetH(key, dw) { const s = SHEET[key]; return s ? dw * s.h / s.w : 0; 
 /* Chiều rộng tương ứng khi đặt cao dh */
 function sheetW(key, dh) { const s = SHEET[key]; return s ? dh * s.w / s.h : 0; }
 
+/* Vẽ 1 frame sinh vật (sheet:'creatures') neo ĐẾ tại (bx, by), cao dh px.
+   flip=1 -> lật ngược (art gốc luôn quay mặt sang phải). */
+function creDraw(g, key, bx, by, dh, flip) {
+  const s = SHEET[key];
+  if (!s || !IMG.creatures) return false;
+  const dw = dh * s.w / s.h;
+  g.save();
+  if (flip) { g.translate(bx, 0); g.scale(-1, 1); g.drawImage(IMG.creatures, s.x, s.y, s.w, s.h, -dw / 2, by - dh, dw, dh); }
+  else g.drawImage(IMG.creatures, s.x, s.y, s.w, s.h, bx - dw / 2, by - dh, dw, dh);
+  g.restore();
+  return true;
+}
 function loadOne(src) {
   return new Promise(res => {
     const im = new Image();
@@ -169,6 +207,7 @@ function loadOne(src) {
   jobs.push(loadOne(ASSETS.sales_bg).then(im => { IMG.sales_bg = im; }));
   jobs.push(loadOne(ASSETS.noc_bg).then(im => { IMG.noc_bg = im; }));
   jobs.push(loadOne(ASSETS.lunar_bg).then(im => { IMG.lunar_bg = im; }));
+  jobs.push(loadOne(ASSETS.creatures).then(im => { IMG.creatures = im; }));
 
   Object.entries(ASSETS.chars).forEach(([k, src]) => {
     jobs.push(loadOne(src).then(im => { IMG.chars[k] = im; }));

@@ -12,7 +12,7 @@
 
    Thêm tài nguyên mới? Cập nhật cả ASSETS.js và PRECACHE bên dưới.
    ============================================================ */
-const CACHE_NAME = 'it-game-v1.8';
+const CACHE_NAME = 'it-game-v1.22';
 
 const PRECACHE = [
   // --- vỏ ứng dụng ---
@@ -49,6 +49,8 @@ const PRECACHE = [
   './assets/img/baked/street_assets.png?v=1',
   './assets/img/baked/street_assets_extra.png?v=1',
   './assets/img/baked/street_env_traffic.png?v=1',
+  // --- sinh vật: sheet 3x4 đã tẩy nền (Cyber-T-Rex, Mèo Server, bồ câu AI) ---
+  './assets/img/baked/creatures_sheet.png?v=1',
   // --- nhân vật ---
   './assets/img/baked/char_player.png',
   './assets/img/baked/npc_lan.png',

@@ -33,6 +33,10 @@ const OUT = path.join(IMG, 'baked');
 const THR_BG = 240;   // nền trắng: mọi kênh lớn hơn mức này
 const THR_AA = 236;   // viền anti-alias sát nền
 const PAD = 6;        // lề giữ quanh bbox nhân vật
+/* Sheet quái vật gen trên nền xanh đậm (#202A39) chứ không phải nền trắng.
+   Với nền trắng, |kênh - 255| <= 14 tương đương đúng phép thử "> 240" cũ nên
+   ảnh đường phố / nhân vật ra byte y hệt như trước. */
+const THR_DK = 26, THR_DK_AA = 30;
 
 /* ---------- đọc object literal trong js/assets.js ---------- */
 function literal(src, name) {
@@ -94,10 +98,24 @@ function writeRGBA(file, w, h, d) {
   fs.writeFileSync(file, PNG.sync.write(p));
 }
 
-/* ---------- tẩy nền trắng ---------- */
+/* ---------- tẩy nền ---------- */
+/* Màu nền = trung vị 4 góc ảnh (JPEG lẫn nhiễu nên không lấy 1 pixel đơn). */
+function bgCorners(im) {
+  const s = [[0, 0], [im.w - 1, 0], [0, im.h - 1], [im.w - 1, im.h - 1]].map(([x, y]) => {
+    const i = (y * im.w + x) * 4; return [im.d[i], im.d[i + 1], im.d[i + 2]];
+  });
+  return [0, 1, 2].map(c => s.map(p => p[c]).sort((a, b) => a - b)[1]);
+}
 function keyWhite(im, boxes) {
   const W = im.w, H = im.h, N = W * H, d = im.d;
-  const white = (i, thr) => d[i * 4] > thr && d[i * 4 + 1] > thr && d[i * 4 + 2] > thr;
+  const BGc = bgCorners(im), isWhite = BGc.every(v => v > THR_BG - 1);
+  const KEYC = isWhite ? [255, 255, 255] : BGc;
+  const white = (i, thr) => {
+    const t = thr === THR_BG ? (isWhite ? 14 : THR_DK) : (isWhite ? 18 : THR_DK_AA);
+    return Math.abs(d[i * 4] - KEYC[0]) <= t &&
+           Math.abs(d[i * 4 + 1] - KEYC[1]) <= t &&
+           Math.abs(d[i * 4 + 2] - KEYC[2]) <= t;
+  };
   const kill = new Uint8Array(N), q = new Int32Array(N);
   let head = 0, tail = 0;
   const seed = i => { if (!kill[i] && white(i, THR_BG)) { kill[i] = 1; q[tail++] = i; } };
@@ -159,7 +177,7 @@ function keyWhite(im, boxes) {
     }
     if (w) residual.push(s.name + ':' + w);
   }
-  return { flooded, aa: fringe.length, pocketed, residual };
+  return { flooded, aa: fringe.length, pocketed, residual, bg: KEYC };
 }
 
 /* ---------- cắt theo bbox alpha ---------- */
@@ -201,6 +219,7 @@ for (const sh of sheets) {
   writeRGBA(to, im.w, im.h, im.d);
   lines.push(
     `${sh.key.padEnd(12)} ${path.basename(from)} [${im.note} ${im.w}x${im.h}] -> baked/  ` +
+    `nền=${JSON.stringify(st.bg)}  ` +
     `trong-suất=${st.flooded + st.aa}px (flood ${st.flooded} + AA ${st.aa})  ` +
     `pocket=${st.pocketed}px  ô-cắt=${sh.boxes.length}  trắng-còn-lại=[${st.residual.join(' ') || 'không'}]`
   );

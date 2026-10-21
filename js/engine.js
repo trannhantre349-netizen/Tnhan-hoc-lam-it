@@ -207,7 +207,12 @@ const blds = [
   { id: 'DC',       name: 'DATA CENTER',    x: 740, y: 240, w: 200, h: 130, c: '#0ea5e9', style: 'datacenter' },
   { id: 'SALES',    name: 'VP KINH DOANH',  x: 20,  y: 490, w: 190, h: 90,  c: '#10b981', style: 'sales' },
   { id: 'ISP',      name: 'TRẠM MẠNG ISP',  x: 740, y: 490, w: 200, h: 90,  c: '#ef4444', style: 'isp' },
-  { id: 'NOC_SOC',  name: 'TRUNG TÂM NOC/SOC', x: 290, y: 468, w: 380, h: 112, c: '#f43f5e', style: 'modern' }
+  /* NOC/SOC chỉ là KHỐI VA CHẠM + biển hiệu: ảnh toà nhà không có trong nền AI
+     (bản reskin của drawBuilding không vẽ sprite), nên hộp này phải đúng bằng cụm
+     bồn cây trước quảng trường. Hộp rộng 380 từng phủ kín cả dải qua đường → tường
+     vô hình chặn lối xuống bến xe "PHỔ JOB DẠO" (trigger cần y > 510, x 460..620).
+     cx vẫn 480 và b.y vẫn 468 → biển hiệu giữ nguyên chỗ cũ. */
+  { id: 'NOC_SOC',  name: 'TRUNG TÂM NOC/SOC', x: 420, y: 468, w: 120, h: 40,  c: '#f43f5e', style: 'modern' }
 ];
 
 /* ============ PRE-RENDER WORLD BG ============ */
@@ -1376,7 +1381,9 @@ function update() {
     S.p.step++;
     if (S.p.step % 16 === 0) beep(180, 'triangle', 0.03, 0.012);
   }
-  const _v = S.p.spd * _k * SPEED_BOOST * shopSpd() * ((mx && my) ? 0.7071 : 1);
+  /* cafeSpd() do game.js khai báo (buff ☕ Cà Phê Deadline +30%): guard typeof vì
+     update() chạy ngay lúc engine.js parse, khi game.js chưa tồn tại. */
+  const _v = S.p.spd * _k * SPEED_BOOST * shopSpd() * (typeof cafeSpd === 'function' ? cafeSpd() : 1) * ((mx && my) ? 0.7071 : 1);
   const _wb = SCENE_WALK[S.scene];
   const _yLo = _wb ? _wb.minY : 30, _yHi = _wb ? _wb.maxY : 552;
   const nx = Math.max(15, Math.min(925, S.p.x + mx * _v));
@@ -1840,6 +1847,10 @@ function render() {
       f: () => drawBuilding(b, !!targetAct && targetAct.t === 'bld' && targetAct.d === b)
     }));
     decor.forEach(d => list.push({ k: d.y, f: () => drawDecor(d) }));
+    /* Cyber-T-Rex (game.js) vẽ từ creatures_sheet — gửi vào depth sort để nhân vật
+       đứng sau bị nó đè, đứng trước thì đè lên nó. Guard typeof: engine chạy
+       update()/render() ngay lúc parse, trước khi game.js kịp nạp. */
+    if (typeof creRexSort === 'function') { const _cr = creRexSort(); if (_cr) list.push(_cr); }
     list.push({ k: FOUNTAIN.y + 30, f: drawCenterPiece });
     list.push({ k: S.p.y + 30, f: () => drawSprite(S.p.x, S.p.y, 'p') });
     list.sort((a, b) => a.k - b.k).forEach(o => o.f());

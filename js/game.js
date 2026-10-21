@@ -2475,6 +2475,7 @@ drawNetworkRoom = function () {
   } else {
     drawNetworkRoomVector(t);
   }
+  creCat(t);   // mèo server nằm trên nóc RACK01 — vẽ trước nhân vật vì ở tít trên cao
   drawSprite(120, 200, 'tuan'); drawSprite(S.p.x, S.p.y, 'p');
 };
 drawWorkbench = function (x, y, icon, title, sub, color, done) {
@@ -2789,7 +2790,7 @@ const AMB_K = {
 };
 const AMB_H = ['#1e293b', '#4a2c14', '#78350f', '#0f172a', '#a16207', '#312e81', '#7c2d12', '#292524'];
 const AMB_S = ['#f97316', '#14b8a6', '#8b5cf6', '#ec4899', '#84cc16', '#eab308', '#06b6d4', '#f43f5e', '#6366f1', '#22c55e', '#fb923c', '#0ea5e9'];
-for (let i = 0; i < 14; i++) ROLE_C['a' + i] = [AMB_H[(i * 3) % AMB_H.length], AMB_S[(i * 5) % AMB_S.length]];
+for (let i = 0; i < 40; i++) ROLE_C['a' + i] = [AMB_H[(i * 3) % AMB_H.length], AMB_S[(i * 5) % AMB_S.length]];
 const AMBS = {};
 const AMB_RING = [[320, 146], [640, 146], [726, 232], [726, 372], [640, 456], [320, 456], [234, 372], [234, 232]];
 function ambBuild(sc) {
@@ -2828,16 +2829,22 @@ function ambStep() {
   const now = performance.now(), dt = Math.min(.05, (now - (ambStep.t || now)) / 1000); ambStep.t = now;
   const px = S.p.x + 10 + (S.scene === 'STREET' ? window._camX || 0 : 0), py = S.p.y + 30;
   const busy = () => getComputedStyle(document.getElementById('dialog')).display !== 'none' || !!openModalEl();
-  ambList().forEach(n => {
+  const L = ambList();
+  /* Trần bong bóng: tán gẫu nền tối đa 3 người, cặp đi ngang gặp nhau tối đa 2 →
+     không bao giờ quá 4 hộp chữ cùng lúc, và hai hộp không được chồng nhau. */
+  const talking = L.filter(n => n.sayT > 0 || n.sayP);
+  const freeSlot = n => talking.length < 3 && talking.every(o =>
+    Math.abs(o.fx - n.fx) > 170 || Math.abs(o.fy - n.fy) > 110);
+  L.forEach(n => {
     n.sayT -= dt; n.cool -= dt; n.chat -= dt; n.wait -= dt; n.moving = false;
     // Phố Ngoài: bong bóng do bộ hẹn thoại meme IT (stMemeStep) quản lí để không bao giờ có 2 người nói cùng lúc
     if (S.scene !== 'STREET') {
-      if (Math.hypot(n.fx - px, n.fy - py) < 80 && n.cool <= 0 && !busy()) {
+      if (freeSlot(n) && Math.hypot(n.fx - px, n.fy - py) < 80 && n.cool <= 0 && !busy() && !n.sayP) {
         const K = AMB_K[n.kind] || [];
-        n.say = (Math.random() < .35 && K.length) ? K[Math.random() * K.length | 0] : AMB_G[Math.random() * AMB_G.length | 0];
-        n.sayT = 3.2; n.cool = 9 + Math.random() * 6; n.chat = 8 + Math.random() * 6; n.dir = px > n.fx ? 1 : -1; n.wait = Math.max(n.wait, 1.8);
+        n.say = ambSay(K, AMB_G, talking.map(o => o.sayP ? o.sayP.txt : o.say));
+        n.sayT = 3.2; n.cool = 4.5 + Math.random() * 3; n.chat = 4 + Math.random() * 3; n.dir = px > n.fx ? 1 : -1; n.wait = Math.max(n.wait, 1.8); talking.push(n);
       } else if (n.chat <= 0) {
-        const K = AMB_K[n.kind]; if (K && n.sayT <= 0) { n.say = K[Math.random() * K.length | 0]; n.sayT = 2.8; } n.chat = 9 + Math.random() * 9;
+        const K = AMB_K[n.kind]; if (K && n.sayT <= 0 && !n.sayP && freeSlot(n)) { n.say = ambSay(K, AMB_G, talking.map(o => o.sayP ? o.sayP.txt : o.say)); n.sayT = 2.8; talking.push(n); } n.chat = 4.5 + Math.random() * 4.5;
       }
     }
     if (!n.path || n.wait > 0) return;
@@ -2875,12 +2882,19 @@ function sayLines(txt, maxW) {
   return L;
 }
 function ambBubbles() {
+  const used = [];
   ambList().forEach(n => {
     if (n.sayT <= 0 || !n.say) return;
     ctx.save(); ctx.font = 'bold 11.5px ' + IZF; ctx.globalAlpha = Math.min(1, n.sayT * 2.5);
     const L = sayLines(n.say, 236), w = Math.min(256, Math.max.apply(null, L.map(s => ctx.measureText(s).width)) + 20), h = 9 + L.length * 14;
     const cam = S.scene === 'STREET' ? window._camX || 0 : 0;   // phố cuộn: kẹp trong khung nhìn, không ngoài màn hình
-    const bx = Math.max(cam + 4, Math.min(cam + 956 - w, n.fx - w / 2)), by = Math.max(2, n.fy - 41 - h);
+    const bx = Math.max(cam + 4, Math.min(cam + 956 - w, n.fx - w / 2));
+    /* Dân phố đông: hai người nói cạnh nhau (cặp tán gẫu) thì bong bóng chồng lên
+       nhau thành chữ đè chữ → nâng dần cái mới lên cho tới khi trống chỗ (tối đa 3 bậc). */
+    let by = Math.max(2, n.fy - 41 - h);
+    for (let k = 0; k < 3 && used.some(u => bx < u[0] + u[2] + 3 && bx + w + 3 > u[0] && by < u[1] + u[3] + 3 && by + h + 9 > u[1]); k++)
+      by = Math.max(2, by - h - 15);
+    used.push([bx, by, w, h + 7]);
     izb(bx, by, w, h, 10, '#fffdf4');
     ctx.fillStyle = '#fffdf4'; ctx.beginPath(); ctx.moveTo(n.fx - 5, by + h - 1); ctx.lineTo(n.fx + 5, by + h - 1); ctx.lineTo(n.fx, by + h + 6); ctx.fill();
     ctx.strokeStyle = IZO; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(n.fx - 5, by + h); ctx.lineTo(n.fx, by + h + 6); ctx.lineTo(n.fx + 5, by + h); ctx.stroke();
@@ -2900,6 +2914,10 @@ function fitApp() {
   const app = document.getElementById('app');
   const touch = document.getElementById('touch');
   if (!app) return;
+  /* Chiều cao tối đa cho modal trong KHÔNG GIAN NỘI VI của #app (khung 960x600 px
+     rồi mới scale). vh của viewport vô nghĩa với khung đã scale → modal tràn khỏi
+     #app và overflow:hidden cắt mất header + ✕. */
+  app.style.setProperty('--shop-h', Math.round(Math.min(h * 0.82, 600 * 0.92)) + 'px');
 
   if (isPortrait) {
     // Màn hình dọc: Khung game ở trên, phím bấm ở dưới
@@ -3447,16 +3465,19 @@ const IT_MEMES = [
 ];
 const stWalkers = () => ambList().filter(n => n.path && n.kind === 'walk');
 let stMemeNext = 0;
-const stSay = n => { n.say = IT_MEMES[(Math.random() * IT_MEMES.length) | 0]; n.sayT = 3.5; };
-const stMemeGap = () => { stMemeNext = performance.now() + 4000 + Math.random() * 3000; };
+const stSay = n => { n.say = ambSay(null, IT_MEMES, stWalkers().filter(o => o.sayT > 0).map(o => o.say)); n.sayT = 3.5; };
+const stMemeGap = () => { stMemeNext = performance.now() + 2000 + Math.random() * 1500; };
 function stMemeStep() {
   const now = performance.now();
   if (now < stMemeNext) return;
   if (getComputedStyle(document.getElementById('dialog')).display !== 'none' || openModalEl()) { stMemeNext = now + 1500; return; }
   const L = stWalkers();
-  if (L.some(n => n.sayT > 0) || CROWD.some(c => c.sayT > 0)) { stMemeNext = now + 700; return; }
+  // Dân đông gấp đôi nên phố cho phép 2 bong bóng cùng lúc, miễn cách nhau ≥200px khỏi cụm hiện trường
+  const spk = L.filter(n => n.sayT > 0);
+  if (spk.length >= 2 || CROWD.some(c => c.sayT > 0)) { stMemeNext = now + 700; return; }
   const cam = window._camX || 0;
-  const pool = L.filter(n => n.moving && n.fx > cam - 60 && n.fx < cam + 1020);
+  const pool = L.filter(n => n.moving && n.fx > cam - 60 && n.fx < cam + 1020 &&
+    (!spk.length || Math.abs(n.fx - spk[0].fx) > 200));
   if (!pool.length) { stMemeNext = now + 1200; return; }
   stSay(pool[(Math.random() * pool.length) | 0]);
   stMemeGap();
@@ -3474,9 +3495,103 @@ ambBuild = function (sc) {
   const w = (role, a, b, v) => ({ role, fx: a[0], fy: a[1], dir: 1, ph: 0, moving: false, wait: Math.random() * 2, v, i: 1, sayT: 0, say: '', cool: Math.random() * 3, chat: 4 + Math.random() * 6, kind: 'walk', act: '', sit: false, path: [a, b] });
   return [w('a0', [40, 338], [2840, 338], 40), w('a6', [2840, 480], [40, 480], 46), w('a1', [60, 520], [2820, 520], 36), w('a9', [900, 338], [1500, 338], 38)];
 };
+/* ============================================================
+   SINH VẬT VẼ TỪ SHEET — assets/img/baked/creatures_sheet.png (3 hàng x 4 cột)
+   Nền xanh đậm của ảnh đã tẩy ngoại tuyến bằng tools/bake-sprites.cjs; toạ độ
+   cắt từng frame nằm trong SHEET (js/assets.js) và vẽ bằng creDraw() ở file đó.
+   Chu kỳ hoạt động tính thẳng từ Date.now()/1000 nên không phải thêm trường nào
+   vào file lưu, và không đụng tới minigame / cửa hàng.
+   ============================================================ */
+const CRE = {
+  rex:  { x: 690, y: 470, h: 100, unit: 154 },  // quảng trường WORLD, sát lối vào DATA CENTER
+  cat:  { x: 255, y: 122, h: 62 },   // nóc tủ mini trên RACK01 — phòng Server
+  bird: { h: 46 },                   // bồ câu AI (toạ độ thế giới phố)
+  pkts: [],                          // hộp Packet Loss đang rơi (toạ độ thế giới)
+  birdLeg: -1,                       // chặng bay đã nhả hộp
+  rexRoar: -1                        // hết thời điểm gầm vì vừa bị chọc
+};
+
+/* Cyber-T-Rex: đứng <-> bước, mỗi 9s glitch "404" rồi gầm một nhịp.
+   FRAME 'cre_rex_glitch' cao 180 (ôm cả chữ 404 trên đầu) còn thân Rex chuẩn
+   chỉ 154 → phóng theo r.h * SHEET[key].h / r.unit để thân không bị co. */
+function creRex(t) {
+  const r = CRE.rex, c = t % 9;
+  let key = c < 6 ? (Math.floor(t * 1.7) % 2 ? 'cre_rex_walk' : 'cre_rex_idle')
+        : c < 7.2 ? 'cre_rex_glitch' : c < 8.4 ? 'cre_rex_roar' : 'cre_rex_idle';
+  if (t < CRE.rexRoar) key = 'cre_rex_roar';
+  const jx = key === 'cre_rex_glitch' ? Math.round(Math.sin(t * 47) * 3) : 0;   // rung lỗi
+  ctx.fillStyle = 'rgba(0,0,0,.3)';
+  ctx.beginPath(); ctx.ellipse(r.x, r.y, r.h * .4, r.h * .12, 0, 0, Math.PI * 2); ctx.fill();
+  creDraw(ctx, key, r.x + jx, r.y, r.h * SHEET[key].h / r.unit);
+}
+/* Mục cho depth sort WORLD trong engine.js (engine gọi qua guard typeof). */
+function creRexSort() {
+  if (!IMG.creatures) return null;
+  return { k: CRE.rex.y, f: () => creRex(Date.now() / 1000) };
+}
+/* Mèo Server: ngủ Zzz -> thức dậy -> cào rớt dây cáp (chu kỳ 12s). */
+function creCat(t) {
+  const c = CRE.cat, ph = t % 12;
+  const key = ph < 6.4 ? 'cre_cat_sleep' : ph < 8.6 ? 'cre_cat_look'
+            : ph < 10.6 ? 'cre_cat_play' : 'cre_cat_look';
+  creDraw(ctx, key, c.x, c.y, c.h);
+  if (key === 'cre_cat_play' && ph > 10.2) {        // đầu cáp tuột khỏi khay: tóe lửa
+    const k = (ph - 10.2) / .4, sx = c.x + c.h * .42, sy = c.y - c.h * .06;
+    ctx.strokeStyle = 'rgba(253,224,71,' + (1 - k) + ')'; ctx.lineWidth = 2;
+    for (let i = 0; i < 4; i++) {
+      const a = i * 1.57 + k * 2;
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + Math.cos(a) * 8, sy + Math.sin(a) * 8); ctx.stroke();
+    }
+  }
+}
+/* Bồ câu AI: đậu trên mép phải bảng hiệu của một căn, cất cánh (thả hộp Packet
+   Loss rơi xuống vỉa hè) rồi bay sang mái kế tiếp; hết dãy thì quay đầu.
+   Chặng bay đánh số theo Date.now() nên không phải lưu trạng thái vào file save.
+   Mỗi chỗ đậu = [x, y bàn chân chim, y mặt đất hộp rơi]. Neo mép PHẢI của bảng
+   hiệu (chứ không phải giữa căn) để chim không đè lên tên tiệm hay nhãn 🎫 Helpdesk. */
+const CRE_PERCH = ST_HOUSE_X.map(x => [x + 78, 62, 312]);
+const CRE_HOP = 5.2;                       // 3,2s bay + 2s đậu
+function creBird(t) {
+  const n = CRE_PERCH.length, per = 2 * n - 2;
+  const leg = Math.floor(t / CRE_HOP), p = t / CRE_HOP - leg;
+  const seq = k => { const s = ((k % per) + per) % per; return s < n ? s : per - s; };
+  const a = CRE_PERCH[seq(leg)], b = CRE_PERCH[seq(leg + 1)], fl = b[0] < a[0] ? 1 : 0;
+  if (CRE.birdLeg !== leg) {               // vừa cất cánh khỏi chỗ đậu a
+    CRE.birdLeg = leg;
+    CRE.pkts.push({ wx: a[0], y0: a[1], land: a[2], t0: t });
+    if (CRE.pkts.length > 4) CRE.pkts.shift();
+  }
+  if (p >= .62) { creDraw(ctx, 'cre_bird_perch', b[0], b[1], CRE.bird.h, fl); return; }
+  const u = p / .62;
+  creDraw(ctx, Math.floor(t * 5.2) % 2 ? 'cre_bird_up' : 'cre_bird_dn',
+    a[0] + (b[0] - a[0]) * u,
+    a[1] + (b[1] - a[1]) * u - Math.sin(u * Math.PI) * 14,   // vòng cung nhẹ (trời phố chỉ cao tới y=62)
+    CRE.bird.h, fl);
+}
+function crePkts(t) {
+  CRE.pkts = CRE.pkts.filter(p => t - p.t0 < 4.4);
+  CRE.pkts.forEach(p => {
+    const s = t - p.t0, k = Math.min(1, s / 2.8);           // rơi chậm dần rồi đáp
+    ctx.save();
+    if (k >= 1) ctx.globalAlpha = Math.max(0, 1 - (s - 2.8) / 1.6);
+    creDraw(ctx, 'cre_pkt', p.wx + (1 - k) * Math.sin(s * 5) * 14,   // chao nhẹ khi rơi
+      p.y0 + (p.land - p.y0) * (1 - Math.pow(1 - k, 2.2)), 34);
+    ctx.restore();
+  });
+}
+
 const _rndS = render;
 render = function () {
-  if (S.scene === 'STREET') { try { drawStreet(); ctx.save(); ctx.translate(-(window._camX || 0), 0); ambBubbles(); ctx.restore(); } catch (e) {} return; }
+  if (S.scene === 'STREET') {
+    try {
+      const _t = Date.now() / 1000, cam = window._camX || 0;
+      drawStreet();
+      ctx.save(); ctx.translate(-cam, 0);
+      creBird(_t);                                             // bồ câu đậu/bay trên mái nhà + hộp Packet Loss
+      ambBubbles(); crePkts(_t);
+      ctx.restore();
+    } catch (e) {} return;
+  }
   _rndS(); if (S.scene === 'WORLD') { try { drawGate(); } catch (e) {} }
 };
 
@@ -3498,12 +3613,18 @@ update = function () {
       });
       // người đi dạo gần tầm với (không giành chỗ [E] của các căn nhà có job)
       if (!targetAct) {
-        const mate = stWalkers().filter(n => Math.hypot(n.fx - px, n.fy - py) < 45)
+        /* Dân phố đi chung dải vỉa hè với đội IT tuần tra: người dạo ngang không được
+           nuốt nút [E] NÓI CHUYỆN của mentor đang đứng ngay trước mặt người chơi. */
+        const mtNear = ROAM.some(q => q.mt && q.sc === 'STREET' && Math.hypot(q.fx - px, q.fy - py) <= 62);
+        const mate = mtNear ? null : stWalkers().filter(n => Math.hypot(n.fx - px, n.fy - py) < 45)
           .sort((a, b) => Math.hypot(a.fx - px, a.fy - py) - Math.hypot(b.fx - px, b.fy - py))[0];
         if (mate) targetAct = { t: 'chat', n: mate };
       }
-    } else if (S.scene === 'WORLD' && !targetAct && S.p.x > 460 && S.p.x < 620 && S.p.y > 510) {
-      targetAct = { t: 'to_street' };
+    } else if (S.scene === 'WORLD') {
+      // đứng cạnh Cyber-T-Rex thì nó giành nhãn [E] (toà nhà DATA CENTER ngay sau lưng)
+      if (IMG.creatures && Math.hypot(S.p.x + 10 - CRE.rex.x, S.p.y + 18 - CRE.rex.y) < 66)
+        targetAct = { t: 'cre_rex', txt: '[E] CON QUÁI 404' };
+      if (!targetAct && S.p.x > 460 && S.p.x < 620 && S.p.y > 510) targetAct = { t: 'to_street' };
     }
   } catch (e) {}
 };
@@ -3538,6 +3659,16 @@ doAction = function () {
     if (targetAct.i === 8) repairDesk();
     else if (hq) hdOpen(hq.key);
     else winOpen(targetAct.i);
+    return;
+  }
+  if (targetAct && targetAct.t === 'cre_rex') {
+    CRE.rexRoar = Date.now() / 1000 + 1.8;      // chọc là nó gầm lại
+    triggerShake(12, 5);
+    beep(90, 'sawtooth', .3, .05);
+    showDlg('CYBER-T-REX', 'Sinh vật lỗi 404',
+      `🦖 <b>HTTP 404 — Not Found</b>\n\n"TA KHÔNG TÌM THẤY cái trang mà ngươi gọi! Grrrr..."\n\n` +
+      `404 nghĩa là máy chủ <b>không có tài nguyên đó</b> (sai đường dẫn, trang đã xoá) — khác <b>403</b> (có trang nhưng bị cấm) và <b>500</b> (máy chủ tự lỗi).\n\n` +
+      `<i>Nó quay lại gầm về phía DATA CENTER. Hình như vừa có gói tin nào lạc mất xác.</i>`);
     return;
   }
   _daS();
@@ -4522,6 +4653,7 @@ function updateBuffBar() {
   const tmp = [];
   if (typeof boostXpOn === 'function' && boostXpOn()) tmp.push({ ic: '☕', tip: 'x2 EXP · còn ' + Math.ceil((BOOST.xp - now) / 1000) + 's' });
   if (typeof boostSpdOn === 'function' && boostSpdOn()) tmp.push({ ic: '⚡', tip: '+20% tốc chạy · còn ' + Math.ceil((BOOST.spd - now) / 1000) + 's' });
+  if (typeof cafeOn === 'function' && cafeOn()) tmp.push({ ic: '🥤', tip: '+30% tốc chạy (Cà Phê Deadline) · còn ' + Math.ceil((CAFE.dead - now) / 1000) + 's' });
   const own = HUD_BUFFS.filter(b => invHas(b.k));
   const sig = tmp.map(b => b.tip).join('|') + '#' + own.map(b => b.k).join(',');
   if (sig !== buffSig) {          // chỉ vẽ lại khi danh sách đồ/buff đổi (buff đổi mỗi giây khi còn hiệu lực)
@@ -4540,6 +4672,9 @@ setInterval(() => { try { updateBuffBar(); } catch (e) {} }, 1000);
 /* lúc mới load, thẻ nhân vật có thể chưa đo đúng (font/layout chưa xong) → đo lại khi trang ổn định */
 window.addEventListener('load', updateBuffBar);
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => updateBuffBar());
+
+let currentShopTab = 'shop'; // 'shop' hoặc 'inv'
+
 function shopBox() {
   let m = document.getElementById('shop-modal');
   if (!m) {
@@ -4548,8 +4683,15 @@ function shopBox() {
     m.className = 'modal shop-modal';
     document.getElementById('app').appendChild(m);
   }
+  /* Layout chuẩn: modal đứng yên, căn giữa tuyệt đối trong #app; chiều cao lấy từ
+     --shop-h do fitApp() đặt (đơn vị nội vi 600px, không dùng vh của viewport) vì
+     style nội tuyến luôn thắng CSS class. Chỉ .sp-list cuộn, header/foot đứng yên. */
+  m.style.cssText = 'display:flex; flex-direction:column; position:absolute; top:50%; left:50%;'
+    + ' transform:translate(-50%,-50%); width:90%; max-width:650px;'
+    + ' max-height:var(--shop-h, 560px); overflow:hidden; box-sizing:border-box;';
   return m;
 }
+
 function shopRow(it) {
   if (it.instant) return shopRowInstant(it);
   const has = invHas(it.k);
@@ -4588,12 +4730,61 @@ function shopSummary() {
 }
 function renderShop() {
   const m = shopBox();
-  m.innerHTML = '<div class="sp-head"><span class="sp-logo">🛒</span><div><b>CỬA HÀNG IT</b>' +
-    '<small>PHỤ KIỆN NGHỀ CỨU MẠNG · TRẢ BẰNG COIN</small></div>' +
-    '<span class="sp-wallet">' + COIN_IC + ' <b>' + S.coin.toLocaleString() + '</b></span>' +
-    '<span class="sp-x" onclick="closeShop()">✕</span></div>' +
-    '<div class="sp-list">' + SHOP_ITEMS.map(shopRow).join('') + '</div>' +
-    '<div class="sp-foot" id="sp-foot">' + shopSummary() + '</div>';
+  const isShop = currentShopTab === 'shop';
+  
+  const tabShopStyle = isShop 
+    ? 'background:#f59e0b; color:#1e1b4b; border:none;' 
+    : 'background:#1e293b; color:#94a3b8; border:1px solid #334155;';
+  const tabInvStyle = !isShop 
+    ? 'background:#10b981; color:#064e3b; border:none;' 
+    : 'background:#1e293b; color:#94a3b8; border:1px solid #334155;';
+
+  const contentHtml = isShop
+    ? SHOP_ITEMS.map(shopRow).join('')
+    : items.map((it, idx) => {
+        return `<div class="sp-item owned">
+          <span class="sp-ic">${it.i}</span>
+          <div class="sp-info">
+            <b>${it.n}</b>
+            <span class="sp-eff">${it.d}</span>
+            <small>${idx < 5 ? 'Đồ nghề công ty cấp' : 'Đã sở hữu'}</small>
+          </div>
+          <span class="sp-own">✔ SẴN SÀNG</span>
+        </div>`;
+      }).join('');
+
+  m.innerHTML = `
+    <div class="sp-head">
+      <span class="sp-logo">🛒</span>
+      <div style="flex:1; margin:0 8px;">
+        <b>CỬA HÀNG IT</b>
+        <small>PHỤ KIỆN NGHỀ CỨU MẠNG · TRẢ BẰNG COIN</small>
+      </div>
+      <span class="sp-wallet">${COIN_IC} <b>${S.coin.toLocaleString()}</b></span>
+      <span class="sp-x" onclick="closeShop()">✕</span>
+    </div>
+
+    <div class="sp-tabs">
+      <button onclick="switchShopTab('shop')" style="flex:1; padding:8px 12px; border-radius:10px; font-weight:700; font-size:12px; cursor:pointer; ${tabShopStyle}">
+        🛠️ Phụ Kiện IT
+      </button>
+      <button onclick="switchShopTab('inv')" style="flex:1; padding:8px 12px; border-radius:10px; font-weight:700; font-size:12px; cursor:pointer; ${tabInvStyle}">
+        👕 Túi Đồ IT
+      </button>
+    </div>
+
+    <div class="sp-list">
+      ${contentHtml}
+    </div>
+    <div class="sp-foot" id="sp-foot">
+      ${shopSummary()}
+    </div>`;
+}
+
+function switchShopTab(tab) {
+  currentShopTab = tab;
+  renderShop();
+  if (typeof beep === 'function') beep(550, 'sine', 0.04);
 }
 function shopOpen() {
   const m = document.getElementById('shop-modal');
@@ -6991,4 +7182,1032 @@ addXP = function(n) {
     showFloatText('+' + n + ' XP ⭐', '#38bdf8', S.p.x + 10, S.p.y - 36);
   }
 };
+
+/* ============================================================
+   V11 — DÂN CƯ SỐNG ĐỘNG & NPC THÔNG MINH
+   • Shipper Giao Linh Kiện (sprite có sẵn IMG.chars.ship) bay từ Phố Ngoài lên
+     Lab Phần Cứng giao hộp linh kiện → lại gần bấm [E] = +150 EXP, rồi bay về.
+   • Barista Cà Phê Dạo đứng ở vỉa hè Phố Ngoài + sảnh Văn phòng → [E] mở popup
+     mua nhanh 100 Coin = +30% tốc chạy 3 phút (không đụng modal Cửa Hàng).
+   • NPC dạo tự bước tới cửa kính, mờ dần rồi "chuyển phòng" sang danh sách
+     ambient của phòng đó — thấy có người ra vào phố như thật.
+   • Bong bóng thoại chọn theo trạng thái người chơi (cấp / buff chạy nhanh).
+   Không thêm hộp va chạm nào, không ghi gì vào file lưu (trừ Coin/EXP sẵn có).
+   ============================================================ */
+
+/* ---------- 1. Thoại theo ngữ cảnh người chơi ----------
+   AMB_HI/AMB_LO/AMB_SPD/CAFE dùng `var` + function declaration (không dùng
+   const/arrow) vì syncHUD() ở dòng 5929 chạy updateBuffBar() NGAY LÚC game.js
+   đang parse, khi các khai báo cuối file chưa kịp khởi tạo: const sẽ rơi vào
+   vùng TDZ và làm hỏng toàn bộ phần còn lại của game.js. */
+var AMB_HI = [
+  'Kỹ sư Senior qua kìa!',
+  'Nghe đồn anh vừa cứu sập toàn bộ Data Center hả anh?',
+  'Anh này cấu hình router thuộc lòng, không cần đọc doc!',
+  'Chỗ nào có Senior đứng là em yên tâm.'
+];
+var AMB_LO = [
+  'Cố lên IT tập sự, bấm nhầm cáp mạng là ăn biên bản đấy!',
+  'Mới vào nghề mà đã ra phố nhận job, khá mà!',
+  'Nhớ dán nhãn hai đầu dây trước khi luồn tường nha em!',
+  'Ca đầu tiên hồi hộp đúng không? Từ từ rồi quen thôi.'
+];
+var AMB_SPD = [
+  'Chạy nhanh thế, trễ deadline à bro?',
+  'Đi đâu mà bay vậy anh?',
+  'Cà phê chưa mà chạy ghê vậy anh?'
+];
+var CAFE = { dead: 0 };                        // hạn buff = mốc thời gian, không ghi vào file lưu
+function cafeOn() { return Date.now() < (CAFE ? CAFE.dead : 0); }
+function cafeSpd() { return cafeOn() ? 1.3 : 1; }   // engine.js (dòng _v) gọi qua guard typeof
+function ambPick(a) { return a[(Math.random() * a.length) | 0]; }
+function ambCtxPool() {
+  if (cafeOn() || boostSpdOn()) return AMB_SPD;
+  if (S.level >= 20) return AMB_HI;
+  if (S.level < 10) return AMB_LO;
+  return null;
+}
+/* 65% ăn theo ngữ cảnh, phần còn lại vẫn là thoại nghề / thoại chung như cũ.
+   Riêng Căn cứ Mặt Trăng: thoại đặc trưng của trạm phải thắng ngữ cảnh Trái Đất,
+   nếu không 2/3 bong bóng sẽ là câu khen/chê cấp độ không ăn nhập gì tới vòm khí. */
+function ambSayPick(K, G) {
+  const C = ambCtxPool(), r = Math.random();
+  if (S.scene === 'LUNAR_BASE') {
+    if (C && r < .25) return ambPick(C);
+    if (K && K.length && r < .85) return ambPick(K);
+    return ambPick(G);
+  }
+  if (C && r < .65) return ambPick(C);
+  if (K && K.length && Math.random() < .5) return ambPick(K);
+  return ambPick(G);
+}
+/* Đoàn dân đông nên hai người rất dễ cùng rút một câu — chừa 3 lần rút để tránh
+   đúng câu đang hiện trên màn hình (avoid), không thì mới chịu lặp lại. */
+function ambSay(K, G, avoid) {
+  for (let t = 0; t < 3; t++) { const s = ambSayPick(K, G); if (!avoid || avoid.indexOf(s) < 0) return s; }
+  return ambSayPick(K, G);
+}
+const SHIP_CHATTER = ['Giao linh kiện Lab đây! Ai nhận giùm cái?', 'Em bay từ kho phố lên, hàng còn nguyên seal nha!', 'Hàng dễ vỡ hơn cả deadline của anh đó!'];
+const CAFE_CHATTER = ['Cà phê mới pha, nóng hổi đây anh!', 'Deadline dí thì tấp em một ly nè!', '100 coin thôi, chạy nhanh hơn 3 phút!'];
+Object.assign(AMB_K, { ship: SHIP_CHATTER, cafe: CAFE_CHATTER });
+
+/* ---------- 2. NPC đặc biệt: MỘT vật thể dùng chung, ambList() ghép theo cảnh ----------
+   Nhân vật bình thường sống trong cache AMBS[cảnh]; riêng nhân vật đi xuyên cảnh
+   thì giữ trong ROAM và chỉ được ghép vào danh sách khi n.sc === S.scene, nên
+   không bao giờ xuất hiện hai lần và không làm hỏng cache. */
+const ROAM = [];
+const _ambList0 = ambList;
+ambList = function () {
+  const L = _ambList0();
+  const R = ROAM.filter(n => n.sc === S.scene);
+  return R.length ? L.concat(R) : L;
+};
+const ambCache = sc => AMBS[sc] || (AMBS[sc] = ambBuild(sc));
+function roamN(role, sc, fx, fy, o) {
+  return Object.assign({ role, sc, fx, fy, dir: 1, ph: 0, moving: false, wait: 0, v: 26, i: 0,
+    sayT: 0, say: '', cool: 4 + Math.random() * 5, chat: 8, kind: 'walk', act: '', sit: false, path: null }, o);
+}
+const roamSay = (n, txt, s) => { n.say = txt; n.sayT = s || 3.2; n.cool = 10; };
+
+/* Barista: vỉa hè Phố Ngoài (giữa nhà 3 và nhà 4, ngoài tầm [E] của các căn) + sảnh VP */
+ROAM.push(
+  roamN('nam', 'STREET', 980, 340, { sp: 'cafe', kind: 'cafe', v: 22, path: [[900, 340], [1062, 340]] }),
+  roamN('linh', 'OFFICE', 618, 500, { sp: 'cafe', kind: 'cafe', dir: -1 })
+);
+
+/* ---------- 3. Shipper: máy trạng thái theo chặng ---------- */
+const SHIP_N = roamN('ship', 'NONE', 0, 0, { sp: 'ship', kind: 'ship', v: 96 });
+ROAM.push(SHIP_N);
+const SHIP = { leg: -1, ph: 'rest', offer: false, next: Date.now() + 14000 };
+/* from = điểm rơi khi vào cảnh, to = điểm cửa/điểm giao; give = dừng lại giao hàng */
+const SHIP_LEGS = [
+  { sc: 'STREET',       fx: 2560, fy: 340, tx: 92,  ty: 340 },
+  { sc: 'WORLD',        fx: 540,  fy: 500, tx: 118, ty: 402 },
+  { sc: 'HARDWARE_LAB', fx: 132,  fy: 512, tx: 700, ty: 500, give: true },
+  { sc: 'HARDWARE_LAB', fx: 700,  fy: 500, tx: 132, ty: 512 },
+  { sc: 'WORLD',        fx: 118,  fy: 402, tx: 540, ty: 500 },
+  { sc: 'STREET',       fx: 92,   fy: 340, tx: 2560, ty: 340 }
+];
+function shipLeg(k) {
+  const L = SHIP_LEGS[k], n = SHIP_N;
+  SHIP.leg = k; SHIP.ph = 'in';
+  n.sc = L.sc; n.fx = L.fx; n.fy = L.fy; n.dir = L.tx >= L.fx ? 1 : -1;
+  n.path = null; n.wait = 0; n.moving = false; n.fade = 0;
+}
+function shipRest() {
+  SHIP.leg = -1; SHIP.ph = 'rest'; SHIP.offer = false;
+  SHIP_N.sc = 'NONE'; SHIP_N.path = null; delete SHIP_N.fade;
+  SHIP.next = Date.now() + 75000 + Math.random() * 60000;   // chuyến sau 1.5–2.5 phút
+}
+function shipTake(n) {
+  SHIP.offer = false; n.wait = 0;
+  addXP(150); saveGame();
+  roamSay(n, 'Giao xong một chuyến, em bay tiếp đây!', 3.2);
+  showToast('📦 Shipper giao linh kiện: +150 EXP');
+  beep(880, 'triangle', .16, .05);
+}
+function shipStep(dt) {
+  if (SHIP.ph === 'rest') { if (Date.now() >= SHIP.next) shipLeg(0); return; }
+  const n = SHIP_N;
+  if (n.sc !== S.scene) return;                    // người chơi đi chỗ khác thì chờ tại chỗ
+  const L = SHIP_LEGS[SHIP.leg];
+  if (SHIP.ph === 'in') {
+    n.fade = Math.min(1, n.fade + dt * 2);
+    if (n.fade < 1) return;
+    delete n.fade; n.path = [[L.tx, L.ty]]; n.i = 0; SHIP.ph = 'walk';
+    return;
+  }
+  if (SHIP.ph === 'walk') {
+    if (Math.hypot(n.fx - L.tx, n.fy - L.ty) > 2) return;
+    n.fx = L.tx; n.fy = L.ty; n.path = null; n.moving = false;
+    if (L.give) { SHIP.ph = 'give'; SHIP.offer = true; n.wait = 26; roamSay(n, ambPick(SHIP_CHATTER), 3.4); return; }
+    SHIP.ph = 'out'; n.fade = 1;
+    return;
+  }
+  if (SHIP.ph === 'give') {
+    if (n.wait > 0) return;                        // còn đứng giao hàng → [E] nhận được
+    if (SHIP.offer) roamSay(n, 'Chắc anh bận… em giao kho khác, lần sau ghé nhé!', 3);
+    SHIP.offer = false; SHIP.ph = 'out'; n.fade = 1;
+    return;
+  }
+  n.fade = Math.max(0, n.fade - dt * 1.8);
+  if (n.fade > 0) return;
+  delete n.fade;
+  if (SHIP.leg + 1 >= SHIP_LEGS.length) shipRest(); else shipLeg(SHIP.leg + 1);
+}
+
+/* ---------- 4. NPC dạo vào cửa (Smart Transition) ---------- */
+const AMB_LOOPS = {
+  WORLD: AMB_RING,
+  OFFICE: [[110, 312], [400, 312], [690, 312], [400, 312]],
+  NET_ROOM: [[330, 440], [560, 440], [800, 440], [560, 440]],
+  HARDWARE_LAB: [[300, 382], [600, 382], [860, 382], [600, 382]]
+};
+/* sc = cảnh đang đứng, x/y = ngay khung cửa, to = phòng nhận, px/py = điểm hiện lại */
+const AMB_DOORS = [
+  { sc: 'STREET',   x: 92,  y: 340, to: 'WORLD',    px: 540, py: 500 },
+  { sc: 'WORLD',    x: 118, y: 146, to: 'OFFICE',   px: 140, py: 520 },
+  { sc: 'OFFICE',   x: 768, y: 352, to: 'NET_ROOM', px: 100, py: 480 },
+  { sc: 'OFFICE',   x: 82,  y: 528, to: 'WORLD',    px: 105, py: 165 },
+  { sc: 'NET_ROOM', x: 132, y: 522, to: 'OFFICE',   px: 755, py: 340 }
+];
+let doorNext = Date.now() + 20000;
+function doorSend() {
+  if (Date.now() < doorNext) return;
+  doorNext = Date.now() + 16000 + Math.random() * 18000;
+  if (getComputedStyle(document.getElementById('dialog')).display !== 'none' || openModalEl()) return;
+  /* Chỉ gửi sang phòng còn trống: NPC chuyển phòng là di chuyển, không phải sinh
+     thêm người — nếu không phòng nhận sẽ phình lên mãi và WORLD thì cạn dân. */
+  const D = AMB_DOORS.filter(d => d.sc === S.scene && ambRoomHas(d.to));
+  if (!D.length) return;
+  const cand = ambList().filter(n => !n.sp && !n.door && n.path && n.kind === 'walk');
+  if (cand.length < 2) return;                     // luôn chừa lại người đi trong phòng
+  const picks = [cand[(Math.random() * cand.length) | 0]];
+  if (Math.random() < .4 && cand.length > 2) { const o = cand.find(q => q !== picks[0]); if (o) picks.push(o); }
+  picks.forEach(n => {
+    const d = D.map(q => ({ q, s: Math.hypot(n.fx - q.x, n.fy - q.y) })).sort((a, b) => a.s - b.s)[0];
+    if (d.s > 480) return;                          // xa quá thì thôi, khỏi đi cả phút
+    n.door = d.q; n.path = [[d.q.x, d.q.y]]; n.i = 0; n.wait = 0;
+  });
+}
+function doorStep(dt) {
+  ambList().forEach(n => {
+    if (n.door) {
+      if (n.path) {
+        if (Math.hypot(n.fx - n.door.x, n.fy - n.door.y) > 2) return;
+        n.fx = n.door.x; n.fy = n.door.y; n.path = null; n.moving = false; n.fade = 1;
+      }
+      n.fade = Math.max(0, n.fade - dt * 1.5);
+      if (n.fade > 0) return;
+      const d = n.door, src = AMBS[S.scene], k = src.indexOf(n);
+      delete n.fade; delete n.door;
+      if (k >= 0) src.splice(k, 1);                 // rời danh sách cảnh cũ
+      n.fx = d.px; n.fy = d.py; n.wait = Math.random() * 2; n.rise = true; n.fade = .02;
+      const P = AMB_LOOPS[d.to];
+      if (P) { let bi = 0, bd = 1e9; P.forEach((q, i) => { const t = Math.hypot(q[0] - n.fx, q[1] - n.fy); if (t < bd) { bd = t; bi = i; } }); n.path = P; n.i = bi; }
+      const dst = ambCache(d.to); if (!dst.includes(n)) dst.push(n);
+      return;
+    }
+    if (n.rise) { n.fade = Math.min(1, n.fade + dt * 2); if (n.fade >= 1) { delete n.fade; n.rise = false; } }
+  });
+}
+
+/* ---------- 5. Vẽ thêm: hộp linh kiện, ly cà phê, tên (không đụng sprite gốc) ----------
+   reskin.js nạp SAU game.js và đã ghi đè ambDraw, nên móc vẽ phải gắn lúc chạy
+   (frame đầu tiên), không gắn lúc parse — nếu wrap ở đây sẽ bị reskin đè mất. */
+function ambExtra(n) {
+  if (n.gz) {                            // mũ bảo hộ + đèn viền của kỹ sư Mặt Trăng
+    const hx = n.fx, hy = n.fy - 39;
+    ctx.save();
+    ctx.fillStyle = 'rgba(186,230,253,.20)';
+    ctx.beginPath(); ctx.arc(hx, hy, 11.5, Math.PI, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(226,240,255,.8)'; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.arc(hx, hy, 11.5, Math.PI * .96, Math.PI * 2.04); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(hx - 3, hy - 2, 6, Math.PI * 1.15, Math.PI * 1.55); ctx.stroke();
+    ctx.fillStyle = n.moving ? '#4ade80' : '#fbbf24';
+    ctx.beginPath(); ctx.arc(hx + 9, hy + 4, 1.8, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+  /* Đồng nghiệp hỗ trợ: kẹp bảng checklist + nhãn vai trò (kỹ sư An vừa có mũ vừa có nhãn) */
+  if (n.mt) {
+    const bx = n.fx + n.dir * 19, by = n.fy - 9;
+    izb(bx - 8, by - 11, 16, 21, 2.5, '#fffdf4', 'rgba(255,255,255,.4)');
+    ctx.fillStyle = n.mt.col; rr(ctx, bx - 4, by - 14, 8, 5, 1.5); ctx.fill();
+    ctx.strokeStyle = '#64748b'; ctx.lineWidth = 1;
+    for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(bx - 5, by - 4 + i * 4); ctx.lineTo(bx + (i === 2 ? 1 : 5), by - 4 + i * 4); ctx.stroke(); }
+    roamTag(n, n.mt.tag + ' ' + n.mt.name, n.mt.col);
+    return;
+  }
+  if (n.sp === 'ship') {
+    if (n.moving) {                                                      // hỏa tiễn rít: lửa + khói vệt sau lưng
+      const fx0 = n.fx - n.dir * 20, fy0 = n.fy - 7, len = 24 + Math.sin(Date.now() / 55) * 6;
+      const gr = ctx.createLinearGradient(fx0, 0, fx0 - n.dir * len, 0);
+      gr.addColorStop(0, 'rgba(253,224,71,.92)'); gr.addColorStop(.55, 'rgba(249,115,22,.55)');
+      gr.addColorStop(1, 'rgba(249,115,22,0)');
+      ctx.fillStyle = gr; ctx.beginPath();
+      ctx.moveTo(fx0, fy0 - 7); ctx.lineTo(fx0 - n.dir * len, fy0); ctx.lineTo(fx0, fy0 + 7); ctx.closePath(); ctx.fill();
+    }
+    const bx = n.fx + n.dir * 21, by = n.fy - 8;
+    izb(bx - 9, by - 15, 18, 16, 3, '#c98a4b', 'rgba(255,255,255,.3)');
+    ctx.fillStyle = '#facc15'; ctx.fillRect(bx - 2, by - 15, 4, 16);       // dây buộc
+    if (SHIP.offer) {                                                      // nhấp nháy mời nhận
+      const p = (Math.sin(Date.now() / 220) + 1) / 2;
+      ctx.strokeStyle = 'rgba(250,204,21,' + (.35 + p * .55) + ')'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(bx, by - 7, 14 + p * 3, 0, Math.PI * 2); ctx.stroke();
+    }
+    roamTag(n, '📦 Shipper Linh Kiện', '#f97316');
+  } else if (n.sp === 'cafe') {
+    const bx = n.fx + n.dir * 15, by = n.fy - 12;
+    izb(bx - 7, by - 9, 14, 13, 3, '#fffdf4', 'rgba(255,255,255,.45)');
+    ctx.fillStyle = '#7a4a1e'; ctx.fillRect(bx - 5, by - 7, 10, 3);
+    ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1.5;
+    for (let i = 0; i < 2; i++) {                                          // khói bay
+      const o = Math.sin(Date.now() / 300 + i * 2) * 2.5;
+      ctx.beginPath(); ctx.moveTo(bx - 3 + i * 6, by - 11);
+      ctx.quadraticCurveTo(bx - 3 + i * 6 + o, by - 16, bx - 3 + i * 6 - o, by - 21); ctx.stroke();
+    }
+    roamTag(n, '☕ Barista Cà Phê Dạo', '#0ea5e9');
+  }
+}
+function roamTag(n, label, col) {
+  if (n.sayT > 0) return;   // đang nói → nhường chỗ cho bong bóng thoại (vẽ sát đầu hơn)
+  ctx.save(); ctx.font = 'bold 10.5px ' + IZF;
+  const w = ctx.measureText(label).width + 14, ty = n.fy - 66;
+  ctx.fillStyle = 'rgba(255,255,255,.94)'; rr(ctx, n.fx - w / 2, ty, w, 16, 8); ctx.fill();
+  ctx.strokeStyle = col; ctx.lineWidth = 1.4; rr(ctx, n.fx - w / 2, ty, w, 16, 8); ctx.stroke();
+  ctx.fillStyle = '#274b6e'; ctx.textAlign = 'center'; ctx.fillText(label, n.fx, ty + 11.5);
+  ctx.textAlign = 'left'; ctx.restore();
+}
+function ambHook() {
+  if (ambDraw._ex) return;
+  const base = ambDraw;
+  ambDraw = function (n) {
+    /* Phố Ngoài dài 2880px cuộn theo máy quay: người ngoài khung nhìn không vẽ
+       (dân số đông gấp đôi nên phải cắt, nếu không mỗi frame nạp 20+ sprite thừa). */
+    if (S.scene === 'STREET') {
+      const cam = window._camX || 0;
+      if (n.fx < cam - 90 || n.fx > cam + 1050) return;
+    }
+    const a = n.fade === undefined ? 1 : n.fade;
+    /* gz = kỹ sư Mặt Trăng: bước nhảy thấp trọng lực, thân nhấc lên tối đa 3.5px */
+    const lift = n.gz ? -Math.abs(Math.sin(Date.now() / 620 + n.fx * .07)) * 3.5 : 0;
+    if (a >= 1 && !lift) { base(n); ambExtra(n); return; }
+    ctx.save();
+    if (a < 1) ctx.globalAlpha = a;
+    if (lift) ctx.translate(0, lift);
+    base(n); ambExtra(n); ctx.restore();
+  };
+  ambDraw._ex = true;
+}
+
+/* ---------- 6. Nhịp chạy mỗi frame ---------- */
+function roamStep() {
+  ambHook();
+  /* Math.max(0, …): dt âm (đồng hồ bị lùi) sẽ làm fade tụt xuống vô hạn và
+     NPC kẹt ở trạng thái mờ mãi, không bao giờ hiện lại. */
+  const now = performance.now(), dt = Math.max(0, Math.min(.05, (now - (roamStep.t || now)) / 1000)); roamStep.t = now;
+  shipStep(dt);
+  doorSend();
+  doorStep(dt);
+  ambPending(dt);
+  ambMeet();
+  luRocketStep(dt);
+  if (S.scene !== 'STREET') return;      // ngoài phố ambStep làm phần này rồi
+  const px = S.p.x + 10 + (window._camX || 0), py = S.p.y + 30;
+  const busy = getComputedStyle(document.getElementById('dialog')).display !== 'none' || !!openModalEl();
+  if (busy) return;
+  /* Dân phố đông gấp đôi: cả người đi dạo (ambList) lẫn hai nhân vật đi xuyên cảnh
+     đều chủ động bắt chuyện khi người chơi lại gần, cooldown ngắn hơn cũ 2 lần. */
+  const usedTxt = () => ambList().filter(o => o.sayT > 0 || o.sayP).map(o => o.sayP ? o.sayP.txt : o.say);
+  ambList().forEach(n => {
+    if (n.sayT > 0 || n.sayP || n.cool > 0) return;
+    if (Math.hypot(n.fx - px, n.fy - py) > 90) return;
+    roamSay(n, ambSay(AMB_K[n.kind], AMB_G, usedTxt()), 3.2);
+    n.cool = 4.5 + Math.random() * 4;
+  });
+}
+
+const _updZ = update;
+update = function () {
+  _updZ();
+  try {
+    roamStep();
+    if (WIN || HD || shopOpen() || targetAct || openModalEl()) return;
+    const px = S.p.x + 10 + (S.scene === 'STREET' ? window._camX || 0 : 0), py = S.p.y + 30;
+    for (let k = 0; k < ROAM.length; k++) {
+      const n = ROAM[k];
+      if (n.sc !== S.scene || n.fade !== undefined) continue;
+      if (n.sp === 'ship' && !SHIP.offer) continue;      // bay transit thì không chặn [E] của toà nhà
+      if (Math.hypot(n.fx - px, n.fy - py) > 62) continue;
+      targetAct = { t: n.mt ? 'mentor' : 'amb_' + n.sp, n,
+        txt: n.mt ? '[E] NÓI CHUYỆN · ' + n.mt.short
+          : (n.sp === 'ship' ? '[E] NHẬN LINH KIỆN' : '[E] MUA CÀ PHÊ') };
+      break;
+    }
+  } catch (e) {}
+};
+
+const _daZ = doAction;
+doAction = function () {
+  const sp = targetAct && !WIN && !HD && !shopOpen() && !openModalEl() ? targetAct : null;
+  if (sp && sp.t === 'amb_ship') { shipTake(sp.n); return; }
+  if (sp && sp.t === 'amb_cafe') { cafeAsk(sp.n); return; }
+  if (sp && sp.t === 'mentor') { mtOpen(sp.n); return; }
+  _daZ();
+};
+
+/* ---------- 7. Popup mua nhanh của Barista (không phải modal Cửa Hàng) ---------- */
+const CAFE_CSS = 'display:flex;flex-direction:column;gap:9px;width:412px;padding:16px 22px 20px;' +
+  'background:linear-gradient(160deg,#1b2a14,#12100a);border:2px solid #f59e0b;border-radius:18px;' +
+  'color:#f3ead9;font:14px "Segoe UI",sans-serif;z-index:130;box-shadow:0 20px 60px #000c',
+  CAFE_BT = 'padding:9px 16px;border:0;border-radius:10px;font-weight:800;cursor:pointer;color:#fff;font-size:13.5px';
+function cafeBox() {
+  let m = document.getElementById('cafe-modal');
+  if (!m) { m = document.createElement('div'); m.id = 'cafe-modal'; m.className = 'modal'; document.getElementById('app').appendChild(m); }
+  m.style.cssText = CAFE_CSS;
+  return m;
+}
+function cafeAsk(n) {
+  const m = cafeBox(), du = S.coin >= 100;
+  m.innerHTML =
+    '<div style="font-size:17px;font-weight:800;color:#fbbf24">☕ Barista Cà Phê Dạo</div>' +
+    '<div style="line-height:1.75"><b>Cà Phê Deadline</b> — <b>100 Coin</b><br>' +
+    '➕ <b>30% tốc độ chạy</b> trong <b>3 phút</b>, chạy ngay không phải chờ.' +
+    (cafeOn() ? '<br><i>Ly trước vẫn còn tác dụng — mua là cộng thêm 3 phút.</i>' : '') + '</div>' +
+    '<div style="opacity:.8">Ví của em: <b>' + S.coin.toLocaleString() + '</b> Coin' +
+    (du ? '' : ' — <span style="color:#fca5a5">chưa đủ, ra phố nhận job cài Win nhé!</span>') + '</div>' +
+    '<div style="display:flex;gap:10px;margin-top:6px">' +
+    '<button onclick="cafeBuy()" style="' + CAFE_BT + ';background:' + (du ? '#f59e0b' : '#64748b') + '">☕ MUA NGAY</button>' +
+    '<button onclick="cafeClose()" style="' + CAFE_BT + ';background:#3f3a2e">✖ THÔI</button></div>';
+  m.style.display = 'flex';
+  roamSay(n, 'Cà phê mới pha, nóng hổi đây anh!', 3);
+  beep(620, 'triangle', .1, .04);
+}
+function cafeBuy() {
+  if (S.coin < 100) { showToast('💸 Chưa đủ 100 Coin!'); beep(180, 'square', .16, .04); return; }
+  S.coin -= 100;
+  CAFE.dead = Math.max(CAFE.dead, Date.now()) + 180000;
+  syncHUD(); saveGame(); cafeClose();
+  showToast('☕ Cà Phê Deadline: +30% tốc chạy trong 3 phút!');
+  beep(980, 'triangle', .2, .05);
+}
+function cafeClose() {
+  const m = document.getElementById('cafe-modal');
+  if (m) m.style.display = 'none';
+  releaseFocus();
+}
+
+/* ============================================================
+   V12 — BÙNG NỔ DÂN SỐ NPC & TÀU TIẾP VẬN MẶT TRĂNG
+
+   • Phủ kín người đi lại: Mặt Trăng 15 kỹ sư, Quảng trường 22, Phố Ngoài 22,
+     mỗi phòng nội thất thêm 4-5 nhân viên (đi giữa bàn làm việc, dãy rack và
+     cây nước). Dân số mỗi cảnh dựng một lần rồi cache trong AMBS[cảnh] như cũ.
+   • Tàu tiếp vận Mặt Trăng: 13-17 giây một lần một hỏa tiễn từ quỹ đạo hạ
+     xuống Sân bay vũ trụ, phủi bụi, rồi vút đi. Shipper Trái Đất giờ có vệt
+     lửa rít sau lưng khi bay chặng (WORLD/STREET/Lab).
+   • NPC đi ngang nhau thì dừng lại hỏi thăm: một người nói trước, người kia
+     đáp sau ~1.5 giây (sayP = câu chờ tới lượt). Tần suất bong bóng gấp đôi.
+   Không thêm hộp va chạm, không đụng điều khiển nhân vật chính, không ghi
+   gì vào file lưu. Toàn bộ làn đi đặt theo vùng trống đã đo trong
+   SCENE_BOXES / SCENE_WALK của engine.js.
+   ============================================================ */
+
+/* ---------- 1. Thoại mới ---------- */
+var AMB_LUN = [
+  'Ping từ Trái Đất lên đây tận 1.200ms!',
+  'Ai làm đứt cáp quang vũ trụ thế?',
+  'Hôm nay oxy trong Biodome hơi lạnh...',
+  'Kỹ sư Nhân IT vừa bay lên hỗ trợ kìa!',
+  'Bão Mặt Trời đêm qua làm lệch chảo thu số 3 rồi.',
+  'Anh kiểm tra giùm em áp suất vòm số 2 với!',
+  'Bụi Mặt Trăng lọt vào quạt rack nhiều ghê anh.',
+  'Xe rover lùi trúng cột anten, ai lái vậy?',
+  'Ca em xong rồi, ai trực tiếp vòm server không?',
+  'Đồ tiếp vận lên nữa là em đủ đầu bấm đấu cáp.'
+];
+/* Hai người đi ngang nhau: câu A → câu B */
+var AMB_TALK = [
+  ['Chào anh, hôm nay ổn không?', 'Ổn, mỗi tội ticket vẫn tồn cả đống.'],
+  ['Cái switch tầng 3 đấu xong chưa em?', 'Xong anh, em dán nhãn hai đầu dây rồi.'],
+  ['Sếp vừa họp xong, ai chưa nộp báo cáo thì gấp lên.', 'May quá, em gửi từ hôm kia rồi.'],
+  ['Con server kia lại kêu quạt to ghê.', 'Đêm qua nó sập một lần, may có anh IT trực.'],
+  ['Em ơi, mật khẩu con router đổi chưa?', 'Đổi rồi, em dán sau cánh tủ rack đấy.'],
+  ['Cuối tuần công ty đi từ thiện, anh đi không?', 'Đi, nhưng cho em xin cái áo rộng hơn.'],
+  ['Cà phê phòng mình hết từ sáng rồi.', 'Để em gọi con bé giao hàng ngoài phố.'],
+  ['Anh có thấy camera hành lang bị mờ không?', 'Thấy, nó báo lỗi ONVIF, mai em xử.'],
+  ['Ai vừa rút nguồn cái rack giữa vậy trời?', 'Em xin, em tưởng nó tắt từ lâu.'],
+  ['Tháng này sếp duyệt tăng ca, anh em cố lên.', 'Cố nhưng phải có cà phê đã anh ạ.']
+];
+var AMB_TALK_LUN = [
+  ['Chào ca trực, vòm 2 còn áp suất bình thường chứ?', 'Bình thường, mỗi tội lạnh hơn hôm qua hai độ.'],
+  ['Cái chảo thu lại lệch rồi, ai chạm vào nó?', 'Em báo bên Sân bay, tại con xe rover lùi trúng.'],
+  ['Hôm nay ping xuống Trái Đất bao nhiêu anh?', '1.200ms, bão Mặt Trời nên nó díu cả sóng.'],
+  ['Server trong Biodome chạy êm ghê.', 'Êm vì tuần trước em vừa thay bốn cái quạt.'],
+  ['Tàu tiếp vận hạ cánh kìa, ai đặt hàng vậy?', 'Bên Lab linh kiện, chắc lại thiếu đầu bấm.'],
+  ['Ca của anh còn lâu không?', 'Còn hai tiếng nữa em đáp về Trái Đất luôn.']
+];
+Object.assign(AMB_K, { lun: AMB_LUN });
+/* Tán gẫu Trái Đất + nội thất: chào hỏi, hỏi tiến độ, bàn về boss và server */
+[['Chào anh chị, em bên kỹ thuật nhé!', 'Tiến độ cái tủ rack của anh tới đâu rồi?',
+  'Boss vừa nhắn giờ nộp báo cáo hệ thống.', 'Cái server tổng chạy chậm từ sáng đó anh.'],
+].forEach(list => list.forEach(s => AMB_K.chat.push(s)));
+[['Em báo cáo sếp là mạng tầng hai ổn định rồi nhé.', 'Ai trực ca đêm nay, nhắc con server đừng sập.'],
+].forEach(list => list.forEach(s => AMB_K.desk.push(s)));
+[['Chào buổi chiều anh ơi!', 'Đi làm về sớm nha em.'],
+].forEach(list => list.forEach(s => AMB_K.walk.push(s)));
+
+/* ---------- 2. Bảng làn dân số ----------
+   p = các điểm đi (toạ độ bàn chân, khung 960x600), n = số người dùng chung làn,
+   v = tốc độ px/giây, k = kind thoại, gz = kỹ sư Mặt Trăng (mũ + lơ lửng). */
+const AMB_FLEET = {
+  /* Quảng trường: nền bg_city.png — vòng đài phun nước, vỉa hè bắc, dải nam */
+  WORLD: [
+    { p: AMB_RING, n: 2, v: 46, i: 2 },
+    { p: [[726, 372], [640, 456], [320, 456], [234, 372], [234, 232], [320, 146], [640, 146], [726, 232]], n: 2, v: 38, i: 1 },
+    { p: [[270, 205], [700, 205]], n: 2, v: 44 },
+    { p: [[700, 205], [270, 205]], v: 40 },
+    { p: [[240, 495], [400, 495]], n: 2, v: 42 },
+    { p: [[560, 495], [700, 495]], v: 38 },
+    { p: [[890, 440], [726, 440]], v: 40 },
+    { p: [[234, 440], [234, 205]], v: 36 },
+    { p: [[830, 470]], k: 'chat' }
+  ],
+  /* Phố Ngoài: vỉa hè 270..352 và bãi cỏ 458..600, tuyệt đối không đặt làn giữa
+     lòng đường 352..447 vì xe cộ chạy thật ở hai làn 401/425 */
+  STREET: [
+    { p: [[200, 320], [900, 320]], v: 34 }, { p: [[900, 320], [200, 320]], v: 32 },
+    { p: [[1000, 338], [1700, 338]], v: 38 }, { p: [[1700, 338], [1000, 338]], v: 35 },
+    { p: [[1750, 315], [2450, 315]], v: 32 }, { p: [[2450, 315], [1750, 315]], v: 33 },
+    { p: [[2500, 338], [2840, 338]], v: 36 },
+    { p: [[120, 300], [760, 300]], v: 30 }, { p: [[760, 300], [120, 300]], v: 29 },
+    { p: [[1300, 300], [1900, 300]], v: 34 },
+    { p: [[2100, 342], [2700, 342]], v: 30 },
+    { p: [[600, 345], [1250, 345]], v: 36 },
+    { p: [[300, 470], [1100, 470]], v: 40 }, { p: [[1100, 470], [300, 470]], v: 37 },
+    { p: [[1200, 500], [2000, 500]], v: 36 },
+    { p: [[2100, 530], [2800, 530]], v: 34 },
+    { p: [[500, 540], [1400, 540]], v: 38 },
+    { p: [[1600, 465], [2300, 465]], v: 42 }
+  ],
+  /* Căn cứ Mặt Trăng: ảnh lunar_base_bg lát 960x536 tại y=64. Sáu lõi công trình
+     trong SCENE_BOXES.LUNAR_BASE chặn tới y≈336, nên mọi làn đi nằm dưới chân
+     vòm hoặc dọc đại lộ tiền cảnh y≈560 (hố thiên thạch hai góc đã chừa lề). */
+  LUNAR_BASE: [
+    { p: [[210, 560], [830, 560]], n: 4, v: 30, gz: 1, k: 'lun' },
+    { p: [[830, 560], [210, 560]], n: 2, v: 26, gz: 1, k: 'lun' },
+    { p: [[300, 392], [470, 392], [470, 470], [300, 470]], n: 3, v: 24, gz: 1, k: 'lun' },
+    { p: [[645, 438], [880, 438]], n: 2, v: 22, gz: 1, k: 'lun' },
+    { p: [[150, 336], [285, 336]], n: 1, v: 20, gz: 1, k: 'lun' },
+    { p: [[500, 300], [580, 300]], n: 1, v: 18, gz: 1, k: 'lun' },
+    { p: [[700, 404]], gz: 1, k: 'lun' },
+    { p: [[352, 505]], gz: 1, k: 'lun' }
+  ],
+  OFFICE: [
+    { p: [[110, 312], [400, 312], [690, 312], [400, 312]], n: 2, v: 34 },
+    { p: [[140, 530], [880, 530]], v: 40 },
+    { p: [[880, 530], [140, 530]], v: 36 },
+    { p: [[420, 300], [420, 520]], v: 30 }
+  ],
+  NET_ROOM: [
+    { p: [[330, 440], [560, 440], [800, 440], [560, 440]], n: 2, v: 40 },
+    { p: [[320, 505], [820, 505]], v: 34 },
+    { p: [[820, 505], [320, 505]], v: 30 },
+    { p: [[150, 420], [150, 520]], v: 26 }
+  ],
+  HARDWARE_LAB: [
+    { p: [[120, 318], [860, 318]], n: 2, v: 34 },
+    { p: [[860, 318], [120, 318]], v: 30 },
+    { p: [[120, 520], [880, 520]], v: 28 },
+    { p: [[880, 520], [120, 520]], v: 25 }
+  ],
+  ACADEMY: [
+    { p: [[400, 420], [800, 420]], n: 2, v: 32 },
+    { p: [[800, 420], [400, 420]], v: 28 },
+    { p: [[770, 360], [770, 500]], v: 24 },
+    { p: [[450, 300]], k: 'desk' }
+  ],
+  IT: [
+    { p: [[120, 275], [540, 275]], n: 2, v: 32 },
+    { p: [[540, 275], [120, 275]], v: 28 },
+    { p: [[480, 300], [480, 540]], v: 26 },
+    { p: [[760, 470]], k: 'desk' }
+  ],
+  DC: [
+    { p: [[190, 450], [900, 450]], n: 2, v: 34 },
+    { p: [[900, 450], [190, 450]], n: 1, v: 30 },
+    { p: [[250, 300], [250, 520]], v: 26 },
+    { p: [[600, 440]], k: 'desk' }
+  ],
+  ISP: [
+    { p: [[180, 420], [470, 420]], n: 2, v: 30 },
+    { p: [[470, 420], [180, 420]], v: 26 },
+    { p: [[180, 520], [430, 520]], v: 24 },
+    { p: [[580, 470]], k: 'desk' }
+  ],
+  SALES: [
+    { p: [[230, 425], [690, 425]], n: 2, v: 30 },
+    { p: [[690, 425], [230, 425]], n: 2, v: 26 }
+  ],
+  NOC_SOC: [
+    { p: [[240, 300], [400, 215], [560, 215], [560, 470], [470, 500], [250, 440]], n: 3, v: 30 },
+    { p: [[402, 325]], k: 'desk' },
+    { p: [[600, 300]], k: 'desk' }
+  ]
+};
+const AMB_SIZE = {};                       // dân số thiết kế của từng cảnh (để chặn chuyển phòng làm phình phòng)
+function ambNpc(sp, k, s0) {
+  const P = sp.p, L = P.length, i0 = L > 1 ? ((sp.i || 0) + k) % L : 0;
+  const q = P[L > 1 ? (i0 + L - 1) % L : 0], t = P[i0];
+  return {
+    role: 'a' + ((s0 + k) % 40), fx: q[0], fy: q[1], dir: t[0] >= q[0] ? 1 : -1,
+    ph: Math.random() * 6, moving: false, wait: Math.random() * 2,
+    v: (sp.v || 40) * (.85 + Math.random() * .3), i: i0, sayT: 0, say: '', sayP: null,
+    cool: Math.random() * 5, chat: 3 + Math.random() * 7,
+    kind: sp.k || (L > 1 ? 'walk' : 'chat'), act: sp.act || '', sit: !!sp.sit,
+    path: L > 1 ? P : null, gz: sp.gz ? 1 : 0, fl: 1
+  };
+}
+/* Giữ nguyên từng NPC cũ đã tinh chỉnh theo ảnh nền, chỉ ghép thêm đoàn mới */
+const _ambBuildV12 = ambBuild;
+ambBuild = function (sc) {
+  const base = _ambBuildV12(sc), F = AMB_FLEET[sc];
+  if (!F) return base;
+  let j = 0; const out = base.slice(), s0 = (sc.length * 5 + sc.charCodeAt(0)) % 40;
+  F.forEach(sp => { for (let k = 0; k < (sp.n || 1); k++) out.push(ambNpc(sp, k, (s0 + j++) % 40)); });
+  AMB_SIZE[sc] = out.length;
+  return out;
+};
+function ambRoomHas(sc) { const L = ambCache(sc); return L.length < (AMB_SIZE[sc] || L.length) + 2; }
+
+/* ---------- 3. Hai NPC gặp nhau thì dừng lại trò chuyện ---------- */
+let ambMeetNext = 0;
+function ambMeet() {
+  const now = performance.now();
+  if (now < ambMeetNext) return;
+  ambMeetNext = now + 1400 + Math.random() * 1600;
+  if (getComputedStyle(document.getElementById('dialog')).display !== 'none' || openModalEl()) return;
+  const L = ambList(), free = L.filter(n => n.path && !n.sp && n.sayT <= 0 && !n.sayP && n.cool <= 0);
+  if (free.length < 2) return;
+  const spk = L.filter(n => n.sayT > 0 || n.sayP);
+  if (spk.length > 2) return;          // cặp gặp nhau đội thêm 2 hộp → giữ trần 4
+  const far = n => !spk.some(o => Math.abs(o.fx - n.fx) < 180 && Math.abs(o.fy - n.fy) < 120);
+  let best = null;
+  for (let i = 0; i < free.length; i++) for (let j = i + 1; j < free.length; j++) {
+    const a = free[i], b = free[j];
+    const dx = Math.abs(a.fx - b.fx), dy = Math.abs(a.fy - b.fy);
+    if (dx > 78 || dy > 36) continue;
+    if (!far(a) || !far(b)) continue;
+    if (!best || dx + dy < best.d) best = { a, b, d: dx + dy };
+  }
+  if (!best) return;
+  const t = ambPick(S.scene === 'LUNAR_BASE' ? AMB_TALK_LUN : AMB_TALK), a = best.a, b = best.b;
+  a.dir = b.fx >= a.fx ? 1 : -1; b.dir = a.dir > 0 ? -1 : 1;
+  a.wait = Math.max(a.wait, 3.2); b.wait = Math.max(b.wait, 5);
+  a.say = t[0]; a.sayT = 2.4; a.cool = 16 + Math.random() * 10;
+  b.sayP = { txt: t[1], t: 1.5 }; b.cool = 16 + Math.random() * 10;
+}
+function ambPending(dt) {
+  ambList().forEach(n => {
+    if (!n.sayP) return;
+    n.sayP.t -= dt;
+    if (n.sayP.t > 0) return;
+    n.say = n.sayP.txt; n.sayT = 2.8; n.sayP = null;
+  });
+}
+
+/* ---------- 4. Tàu tiếp vận Mặt Trăng ---------- */
+const LU_RK = { ph: 'wait', next: Date.now() + 9000, x: 0, y: 0, vx: 0, vy: 0, i: 0, t: 0 };
+const LU_RK_IN = [[1060, -70], [900, 110], [790, 250], [745, 366]];
+const LU_RK_LAND = 2.4;
+function luRocketStep(dt) {
+  if (S.scene !== 'LUNAR_BASE') return;
+  const R = LU_RK;
+  if (R.ph === 'wait') {
+    if (Date.now() >= R.next) { R.ph = 'in'; R.i = 1; R.x = LU_RK_IN[0][0]; R.y = LU_RK_IN[0][1]; }
+    return;
+  }
+  if (R.ph === 'in') {
+    const T = LU_RK_IN[R.i], dx = T[0] - R.x, dy = T[1] - R.y, d = Math.hypot(dx, dy) || 1, st = 240 * dt;
+    R.vx = dx / d; R.vy = dy / d;
+    if (d <= st) {
+      R.x = T[0]; R.y = T[1];
+      if (++R.i >= LU_RK_IN.length) { R.ph = 'land'; R.t = LU_RK_LAND; }
+    } else { R.x += R.vx * st; R.y += R.vy * st; }
+    return;
+  }
+  if (R.ph === 'land') {
+    R.t -= dt; R.vx = 0; R.vy = -1;
+    if (R.t <= 0) R.ph = 'out';
+    return;
+  }
+  R.x -= 200 * dt; R.y -= 290 * dt; R.vx = -.57; R.vy = -.82;
+  if (R.x < -90 || R.y < -90) { R.ph = 'wait'; R.next = Date.now() + 6500 + Math.random() * 3000; }
+}
+function luRocketDraw(t) {
+  const R = LU_RK;
+  if (R.ph === 'wait') return;
+  ctx.save();
+  const gy = 392, up = Math.max(0, Math.min(1, (gy - R.y) / 460));
+  ctx.fillStyle = 'rgba(0,0,0,' + (.30 - up * .22).toFixed(3) + ')';
+  ellipsePath(ctx, R.x, gy, 34 - up * 16, 11 - up * 5); ctx.fill();
+  if (R.ph === 'land') {                              // bụi cát toả tròn lúc chạm bãi
+    const a = 1 - R.t / LU_RK_LAND;
+    ctx.fillStyle = 'rgba(226,232,240,' + (.30 * (1 - a)).toFixed(3) + ')';
+    for (let i = 0; i < 8; i++) {
+      const ang = i * .79;
+      ellipsePath(ctx, R.x + Math.cos(ang) * (12 + a * 52), gy - 6 + Math.sin(ang) * (4 + a * 16), 8, 3.6); ctx.fill();
+    }
+  }
+  const rot = R.ph === 'out' ? -.6 : Math.atan2(R.vx, -R.vy);
+  ctx.translate(R.x, R.y); ctx.rotate(rot);
+  luFlame(ctx, 0, 30, 15, 26 + (R.ph === 'land' ? 6 : 0), t);
+  luShip(ctx, 0, 0, 60, 0);
+  ctx.restore();
+  if (R.ph === 'land' || R.y > 230) {
+    ctx.save(); ctx.font = 'bold 10.5px ' + IZF; ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(226,232,240,.9)'; ctx.fillText('🚀 TÀU TIẾP VẬN', R.x, R.y - 44);
+    ctx.restore(); ctx.textAlign = 'left';
+  }
+}
+const _luMat0 = luMat;
+luMat = function (t) { _luMat0(t); try { luRocketDraw(t); } catch (e) {} };
+
+/* ============================================================
+   V13 — ĐỘI IT TUẦN TRA ĐA KHU VỰC & MINI-QUIZ "VIỆC PHỤ"
+
+   • 7 đồng nghiệp hỗ trợ (Roaming Mentors) rải khắp WORLD / STREET /
+     LUNAR_BASE và ba phòng OFFICE - HARDWARE_LAB - NET_ROOM. Mỗi người đi
+     trên một làn đã đo trống ở V12 (lấy nguyên dải dân số cũ, không mở làn
+     mới, không thêm hộp va chạm) và mang nhãn vai trò trên đầu.
+   • Vòng ROAM trong update chạy SAU CÙNG và chỉ gán targetAct khi chưa ai
+     claim, nên cửa ra vào, bàn minigame, bến xe "PHỐ JOB DẠO" và bãi đáp
+     phi thuyền không bao giờ bị giành nút [E].
+   • Modal hội thoại: Avatar + Tên + Chức danh + nhãn vai trò, ba nút
+     [Hỏi thêm] (mẹo nghề đúng chuyên khu), [Nhận việc phụ] (trắc nghiệm
+     3 đáp án lấy từ ngân hàng IT/CCNA theo vùng), [Tạm biệt].
+     Đúng: +150 Coin, +100 XP, kèn chúc mừng. Sai: phân tích ngắn +
+     [Thử lại] / [Xin gợi ý]. Thưởng xong mỗi người nghỉ tay 60 giây và
+     lần sau ra câu khác để người chơi đi tìm người khác.
+   Mật độ dân số, tàu tiếp vận Mặt Trăng và luồng điều khiển V12 giữ nguyên.
+   ============================================================ */
+
+/* ---------- 1. Ngân hàng trắc nghiệm theo chuyên khu (3 đáp án) ---------- */
+const MT_Q = {
+  /* Helpdesk: máy tính, mạng văn phòng, xử lý sự cố người dùng */
+  hd: [
+    { q: 'Đồng nghiệp không in được qua máy in chia sẻ, ping tới máy chủ in vẫn thông. Kiểm tra đầu tiên?',
+      a: ['Mua thêm dây USB', 'Print Spooler có đang chạy, máy in đã Share chưa', 'Cài lại driver ba lần cho chắc'], c: 1,
+      tip: 'Mạng thông mà không in được thì lỗi nằm ở dịch vụ in, không phải ở cáp.',
+      why: 'Dịch vụ Print Spooler dừng hoặc chưa tick "Share this printer" là hai nguyên nhân phổ biến nhất; ping đã loại trừ hạ tầng mạng.' },
+    { q: 'Máy tính nhận địa chỉ 169.254.x.x. Vậy là thế nào?',
+      a: ['Địa chỉ tĩnh do quản trị gán', 'APIPA: không liên lạc được với DHCP server', 'Đang bật VPN'], c: 1,
+      tip: 'Dải 169.254/16 Windows tự xếp khi đi xin DHCP mà không ai trả lời.',
+      why: 'Không có DHCPOFFER nghĩa là vấn đề ở đường dẫn tới DHCP: dây, VLAN, hoặc scope đã cạn địa chỉ.' },
+    { q: 'Gõ IP thì vào được, gõ tên miền thì không. Thủ phạm nhiều khả năng nhất?',
+      a: ['DNS sai hoặc không phân giải được', 'Cáp mạng đứt', 'Màn hình đang lỗi'], c: 0,
+      tip: 'IP đi được chứng tỏ tầng mạng ổn, chỉ còn bước dịch tên là gãy.',
+      why: 'Đúng bệnh DNS: kiểm tra card đang lấy DNS nào, thử nslookup một tên khác rồi mới nghĩ tới chuyện khác.' },
+    { q: 'Đổi mật khẩu router xong, laptop báo "Connected, no internet". Xử lý gọn nhất?',
+      a: ['Quên mạng (Forget) rồi nhập lại mật khẩu mới, xin cấp IP lại', 'Cài lại Windows', 'Chuyển sang 4G luôn'], c: 0,
+      tip: 'Máy vẫn giữ bộ hồ sơ wifi cũ, gồm cả mật khẩu cũ.',
+      why: 'Profile wifi cũ khiến máy báo kết nối được nhưng tay bắt với AP không thành; Forget + reconnect là đủ.' },
+    { q: 'Máy in được nhưng kéo ra cả xấp giấy trắng, job cũ dồn đống. Làm gì trước?',
+      a: ['Xóa job kẹt trong print queue rồi khởi động lại Spooler', 'Thay trống mực ngay', 'Rút điện máy in một giờ'], c: 0,
+      tip: 'Một job lỗi nằm đầu hàng chờ sẽ chặn và làm hỏng mọi job sau nó.',
+      why: 'Hàng chờ in kẹt là lỗi kinh điển: xóa hết job, restart Spooler, cho in lại một trang test.' },
+    { q: 'Đèn cổng NIC tắt, không ping được ai. Sự cố nằm ở tầng nào?',
+      a: ['Tầng 1 — vật lý: dây lỏng, dây đứt hoặc cổng switch chết', 'Tầng 3 — định tuyến', 'Tầng 7 — ứng dụng'], c: 0,
+      tip: 'Không có đèn tức là chưa có tín hiệu, chưa nói tới cấu hình.',
+      why: 'Đèn link tắt là dấu hiệu lớp vật lý: đổi dây, đổi cổng, soi đầu bấm trước khi động tới IP.' },
+    { q: 'Máy khách không nhận IP động dù DHCP server còn địa chỉ. Lệnh tại chỗ nhanh nhất?',
+      a: ['ipconfig /release rồi ipconfig /renew', 'ipconfig /flushdns', 'netstat -ano'], c: 0,
+      tip: 'Cần xin lại thuê bao, không chỉ xóa cache phân giải tên.',
+      why: '/release + /renew buộc máy xin lease mới; /flushdns chỉ xử lý tên miền, không cấp IP.' },
+    { q: 'Ứng dụng nội bộ mở chậm, nhưng gọi thẳng bằng IP thì nhanh. Vì sao?',
+      a: ['Phân giải DNS chậm hoặc phải thử qua nhiều lần', 'Màn hình quá nhỏ', 'Do phím tắt bị lệch'], c: 0,
+      tip: 'Phần chậm nằm trước cả kết nối: bước dịch tên.',
+      why: 'DNS chậm hoặc phải lần lượt qua search suffix làm cộng thêm hàng giây vào mỗi phiên mới.' }
+  ],
+  /* Cáp & hạ tầng ngoại vi: bấm dây, kéo cáp, tủ phối quang, ODF */
+  cable: [
+    { q: 'Thứ tự 8 lõi của đầu RJ45 theo chuẩn T568B (dùng phổ thông nhất)?',
+      a: ['Bạch-lục, Lục, Bạch-cam, Xanh-lam, Bạch-xanh-lam, Cam, Bạch-nâu, Nâu',
+          'Cam, Hồng, Lục, Xanh — bấm sao cũng được', 'Chỉ cần đủ 8 lõi, thứ tự không quan trọng'], c: 0,
+      tip: 'Chuẩn B là cặp đôi trắng-màu xen kẽ, bắt đầu bằng cặp trắng-xanh lá.',
+      why: 'T568B: trắng lục, lục, trắng cam, xanh lam, trắng xanh lam, cam, trắng nâu, nâu. Hai đầu dùng hai chuẩn khác nhau sẽ thành dây chéo, không phải dây thẳng.' },
+    { q: 'Một chặng cáp UTP ngang phòng nên dài tối đa bao nhiêu để vẫn chạy Gigabit?',
+      a: ['100 m tính cả dây nhảy hai đầu', '300 m', '500 m'], c: 0,
+      tip: 'Quy ước thiết kế quốc tế cho channel là con số tròn 100.',
+      why: 'Channel 100 m (90 m cố định + 10 m dây nhảy); dài hơn là suy hao và lỗi gói tăng rõ, dù có thể vẫn lên đèn.' },
+    { q: 'Tủ phối quang ODF dùng để làm gì?',
+      a: ['Đấu nối, bảo vệ và sắp xếp đầu connector quang cho gọn', 'Đo điện áp ắc quy', 'Lọc nhiễu sóng radio'], c: 0,
+      tip: 'ODF đứng giữa sợi vào từ nhà mạng và sợi nhảy đi các ONU.',
+      why: 'ODF nơi mối hàn được xếp trong khay, điểm đấu nối và nhãn sợi tập trung ở đó, nên khi sự cố chỉ việc mở khay mà dò.' },
+    { q: 'Đầu SC/APC có mặt kính vát 8° để làm gì?',
+      a: ['Giảm phản xạ ngược về nguồn phát', 'Tăng công suất quang', 'Cắm nhanh hơn SC/UPC'], c: 0,
+      tip: 'Màu xanh lục trên đầu cắm chính là dấu hiệu APC.',
+      why: 'Mặt vát làm tia phản xạ lệch khỏi lõi sợi, giảm hồi xạ — rất quan trọng với hệ PON dùng chung bước sóng.' },
+    { q: 'Máy OTDR cầm ra hiện trường để đo thứ gì?',
+      a: ['Suy hao và vị trí điểm đứt/gỉa tính theo chiều dài sợi', 'Nhiệt độ tủ rack', 'Dòng tiêu thụ của ONU'], c: 0,
+      tip: 'OTDR bắn xung và nghe vọng, nên kết quả là biểu đồ theo km.',
+      why: 'OTDR cho thấy mỗi sự kiện (điểm nối, cong gập, đứt) ở bao xa và suy hao bao nhiêu dB — thứ mà power meter không có.' },
+    { q: 'Khi luồn cáp quang qua ống gen, bán kính uốn cho phép là bao nhiêu?',
+      a: ['Không nhỏ hơn khoảng 10-20 lần đường kính dây, có lò xo chụp đầu', 'Cứ gập đôi vì sợi rất mềm', 'Uốn vuông 90° cho gọn'], c: 0,
+      tip: 'Sợi thủy tinh gãy vì bẻ gập, không phải vì kéo.',
+      why: 'Uốn nhỏ hơn giới hạn gây suy hao vi cấp (micro-bend) và có thể gãy lõi ngay trong áo; luôn chụp lò xo ở đầu vào ống.' },
+    { q: 'Trước khi rút sợi khỏi bảng phối quang, việc bắt buộc?',
+      a: ['Đeo kính bảo hộ và không nhìn thẳng vào đầu sợi đang có sóng', 'Rót chút nước vào đầu connector', 'Chụp ảnh đăng báo cáo'], c: 0,
+      tip: 'Sóng quang không thấy được bằng mắt, nhưng đủ đốt võng mạc.',
+      why: 'Sóng laser/mắt nhìn gần hồng ngoại vô hình nên không có phản xạ chớp mắt; nhìn trực tiếp đầu sợi đang phát là nguy hiểm thật sự.' },
+    { q: 'Chuẩn PoE 802.3af cấp tối đa bao nhiêu cho thiết bị đầu dây?',
+      a: ['Khoảng 15,4 W ở phía cấp, thiết bị nhận ~12,95 W', '60 W', '150 W'], c: 0,
+      tip: 'Type 1 là af, Type 2 là at, cao hơn nữa là bt.',
+      why: '802.3af (Type 1) ~15,4 W ở PSE sau trừ tổn hao trên dây; at ~30 W, bt tới ~60-100 W.' }
+  ],
+  /* Viễn thông vũ trụ: vệ tinh, độ trễ, băng thông liên hành tinh */
+  sat: [
+    { q: 'Vì sao ping một chiều từ Mặt Trăng xuống Trái Đất cỡ 1.280 ms?',
+      a: ['Cách nhau ~384.400 km mà tốc độ ánh sáng hữu hạn', 'Vì vệ tinh chạy chậm', 'Vì server đặt ở Việt Nam'], c: 0,
+      tip: 'Lấy khoảng cách chia cho tốc độ ánh sáng là ra ngay.',
+      why: '384.400 km / ~300.000 km/s = ~1,28 giây; không lỗi mạng nào cả, đó là định mức vật lý của chặng đường.' },
+    { q: 'Liên kết đất → vệ tinh GEO → đất có trễ truyền xấp xỉ bao nhiêu?',
+      a: ['~240 ms', '~5 ms', '~3 giây'], c: 0,
+      tip: 'Vệ tinh GEO bay ở độ cao ~35.786 km, tính cả lên và xuống.',
+      why: '2 x 35.786 km / tốc độ ánh sáng = ~239 ms một chiều; round-trip thật tế còn đội thêm xử lý nên tới ~500 ms.' },
+    { q: 'Vì sao chòm vệ tinh LEO (quỹ đạo ~550 km) trễ thấp hơn GEO nhiều?',
+      a: ['Đường truyền ngắn hơn rất nhiều nên thời gian bay của sóng nhỏ', 'Vì băng thông của nó lớn hơn', 'Vì LEO không dùng TCP'], c: 0,
+      tip: 'Độ trễ truyền phụ thuộc khoảng cách, không phụ thuộc băng thông.',
+      why: 'Băng thông quyết định được bao nhiêu bit mỗi giây, còn khoảng cách quyết định bit đầu tiên tới khi nào — hai chuyện khác nhau.' },
+    { q: 'Liên kết laser giữa mặt đất và vệ tinh (FSO) dễ chết nhất vì yếu tố nào?',
+      a: ['Mây, mưa, bão bụi chắn mất đường nhìn', 'Nhiệt độ phòng server', 'Độ phân giải màn hình'], c: 0,
+      tip: 'FSO cần đúng một đường nhìn thông suốt.',
+      why: 'Hạt nước và bụi tán xạ chùm tia, chỉ cần mây mỏng đi qua là link rớt; vì vậy trạm FSO luôn có fallback RF.' },
+    { q: 'SNR trên liên kết vệ tinh tụt mạnh. Cách chuẩn nhất để vẫn giữ kết nối?',
+      a: ['Bật FEC và điều chế thích ứng ACM, giảm bậc modulation để chống lỗi', 'Đẩy MTU lên 9000', 'Tắt TCP chuyển sang UDP'], c: 0,
+      tip: 'Link xấu thì đổi cách mã hóa, không phải đổi giao diện.',
+      why: 'ACM (kiểu DVB-S2) tự hạ từ 8PSK/16QAM về QPSK cùng FEC mạnh hơn, hy sinh băng thông để giữ ống sóng không nứt.' },
+    { q: 'Vì sao phải nới cửa sổ TCP và timeout khi truyền file qua link không gian?',
+      a: ['Vì RTT quá lớn, cửa sổ phải đủ rộng mới làm đầy đường truyền', 'Vì server ít RAM', 'Vì cáp quang ngắn'], c: 0,
+      tip: 'Cái cần là đường ống đầy, không phải đường ống to.',
+      why: 'Tích băng thông – độ trễ: với RTT ~1 giây, cửa sổ TCP mặc định 64 KB chỉ đủ vài trăm kbps nên truyền mãi không xong.' },
+    { q: 'Vì sao lệnh gửi tàu trên Hoả Tinh trễ 4-24 phút một chiều?',
+      a: ['Vì khoảng cách hai hành tinh thay đổi theo vị trí quỹ đạo', 'Vì tàu chỉ nhận lệnh ban đêm', 'Vì trạm mặt đất hay tắt'], c: 0,
+      tip: 'Hai hành tinh quay quanh Mặt Trời với tốc độ khác nhau.',
+      why: 'Khi Hoả Tinh gần Trái Đất nhất chỉ ~55 triệu km, khi ở xa nhau tới hơn ~400 triệu km, nên thời gian truyền đổi liên tục theo chu kỳ hai quỹ đạo.' },
+    { q: 'Trên liên kết xuyên hành tinh, lệnh điều khiển thời gian thực cần ưu tiên gì?',
+      a: ['Độ trễ thấp: đường gần nhất, truyền thẳng, ít chặng', 'Băng thông cao nhất dù trễ bao nhiêu', 'Giá thành thấp nhất'], c: 0,
+      tip: 'Bấm một nút mà chờ nửa tiếng thì không gọi là điều khiển.',
+      why: 'Điều khiển cần vòng phản hồi ngắn; đường băng thông cao qua relay phù hợp tải dữ liệu lớn gửi theo lô.' }
+  ],
+  /* Nội thất: checklist thiết bị, linh kiện, nguồn UPS, switch/router */
+  hw: [
+    { q: 'Chỉ số nào của UPS cho biết phòng server trụ được bao lâu khi mất điện?',
+      a: ['Công suất danh định (VA/W) cộng runtime ắc quy đo thực tế', 'Màu vỏ tủ', 'Số cổng USB phía sau'], c: 0,
+      tip: 'VA nói tải được bao lớn, còn trụ bao lâu là chuyện dung lượng ắc quy.',
+      why: 'Runtime = Wh của dàn ắc quy chia cho tải thực đo; ắc quy già thì con số này tụt dù UPS vẫn báo OK.' },
+    { q: 'Nên để UPS chạy ở mức tải nào là khỏe máy, bền ắc quy?',
+      a: ['Khoảng 50-80% công suất danh định', '95-100% liên tục', 'Dưới 10% cho đỡ nóng'], c: 0,
+      tip: 'Quá tải thì nóng và già nhanh, non tải thì hiệu suất kém.',
+      why: 'Dải 50-80% đủ dư cho dòng xung khi bật máy và khi mất điện, còn UPS làm việc trong vùng hiệu suất tốt nhất.' },
+    { q: 'Switch Layer 3 khác Layer 2 ở điểm nào?',
+      a: ['L3 định tuyến được giữa các VLAN (SVI), L2 chỉ chuyển mạch theo MAC', 'L3 không có cổng vật lý', 'Chỉ L2 mới có quạt'], c: 0,
+      tip: 'Muốn hai VLAN nói chuyện với nhau thì cần ai đó làm việc ở tầng 3.',
+      why: 'L2 chuyển khung trong cùng broadcast domain; L3 có interface logic cho từng VLAN và routing giữa chúng, cộng ACL.' },
+    { q: 'Trước khi thay ắc quy UPS, thao tác an toàn bắt buộc?',
+      a: ['Ngắt tải, để UPS nguội, mang găng và kiểm tra đúng cực trước khi nối', 'Rút ắc quy khi đang đầy tải', 'Ngâm ắc quy vào nước cho hạ nhiệt'], c: 0,
+      tip: 'Dàn ắc quy UPS đấu nối tiếp nên điện áp cả khối rất cao.',
+      why: 'Tụ bên trong UPS giữ điện sau khi rút nguồn; phải xả, để nguội, dùng tua-vơ cách điện và tuyệt đối không đảo cực.' },
+    { q: 'Ổ cứng trong rack sáng đèn vàng (amber) nghĩa là gì?',
+      a: ['Ổ lỗi hoặc RAID đang degraded, phải kiểm tra ngay', 'Ổ chạy hoàn toàn bình thường', 'Cần đổi mật khẩu máy'], c: 0,
+      tip: 'Đèn xanh là OK, đèn vàng luôn là lời kêu gọi.',
+      why: 'Degraded nghĩa là còn chạy nhưng mất khả năng chống lỗi; để qua ca mà thêm một ổ nữa chết là mất dữ liệu.' },
+    { q: 'Khi thay RAM cho server, việc đầu tiên phải làm?',
+      a: ['Xả tĩnh điện: tắt nguồn, rút dây, chạm khung kim loại hoặc đeo vòng tiếp đất', 'Rửa thanh RAM bằng cồn cho sạch', 'Bấm mạnh vào khe cho khớp'], c: 0,
+      tip: 'Tĩnh điện người mang đi có thể giết linh kiện bên trong mà không để dấu vết.',
+      why: 'Tĩnh điện phóng qua người (ESD) làm hỏng linh kiện ngay cả khi không có vết cháy; luôn xả người và xả máy trước khi chạm vào linh kiện.' },
+    { q: 'RAM ECC khác RAM desktop thường ở điểm nào?',
+      a: ['Có bit kiểm tra, tự sửa lỗi bit đơn để khỏi hỏng dữ liệu', 'Mát hơn vì không có tản nhiệt', 'Cắm ngược chiều vẫn chạy'], c: 0,
+      tip: 'Chữ ECC nghĩa là mã sửa lỗi, không phải tên hãng.',
+      why: 'ECC thêm byte dự phòng để phát hiện và sửa lỗi đơn bit, phát hiện lỗi đôi — server cần vậy vì dữ liệu chạy trong RAM hàng tháng.' },
+    { q: 'Server quạt kêu to nhưng chưa sập. Kiểm tra gì đầu tiên?',
+      a: ['Bụi bám quạt, nhiệt độ phòng và log tốc độ từng quạt', 'Đổi màu đèn rack', 'Cài lại hệ điều hành'], c: 0,
+      tip: 'Quạt quay nhanh thường vì máy nóng, mà máy nóng thường vì bụi.',
+      why: 'Bụi chặn lưới và cánh khiến lưu lượng giảm, firmware đẩy quạt lên tối đa; đo lại nhiệt và log RPM mới kết luận được quạt hay ắc quy nguồn.' }
+  ]
+};
+const MT_TIP = {
+  hd: ['Nhận ticket thì hỏi "sự cố bắt đầu từ lúc nào, trước đó vừa thay đổi gì" — tám trên mười lộ nguyên nhân ngay câu này.',
+    'Khởi động lại theo thứ tự máy khách → switch → router → ONU. Làm ngược thì DHCP lại loạn và mất thêm nửa giờ.',
+    'Đổi mật khẩu router mà quên đổi trên máy in, camera, máy scan là chúng rớt mạng ngay hôm sau.',
+    'Trước khi kết luận "mạng chậm", ping gateway và ping một IP ra ngoài: chỉ chậm ở một đích thì lỗi thuộc về ứng dụng.',
+    'Nhãn hai đầu dây phải trùng mã số. Người tới sau rút đúng dây thay vì dò cả tủ.',
+    'Cấu hình xong thì xuất và in file cấu hình. Ngày mai có sự cố mà không bản lưu là dò lại từ đầu.'],
+  cable: ['Bấm đầu RJ45: tuốt vỏ khoảng 2,5 cm, duỗi thẳng xoắn tới sát đầu cắm và mặt cắt phải phẳng thì lưỡi dao mới ăn đủ 8 lõi.',
+    'Luồn cáp qua ống gen thì chừa vòng dự phòng 30-50 cm hai đầu; hôm sau mối hàn cần tới nó.',
+    'Kéo cáp ngang trần phải cách đèn huỳnh quang và dây nguồn tối thiểu 20 cm để tránh nhiễu.',
+    'Trước khi hàn sợi nào, lau cồn 90 rồi thấm khô bằng khăn không bụi — bụi là thủ phạm số một của suy hao.',
+    'ODF phải ghi rõ sợi nào đi đâu. Ba tháng sau quay lại mà không có sơ đồ là phải tháo cả tủ ra dò.',
+    'Đọc suy hao bằng dBm, quy đổi từng đoạn để biết điểm nào bất thường thay vì nhìn con số tổng rồi đoán.'],
+  sat: ['Trước khi phát lệnh lên Mặt Trăng, đối đồng hồ epoch của hai trạm; lệch vài giây là cả gói bị xếp lại.',
+    'Độ trễ cao không phải lỗi: timeout và keepalive của ứng dụng phải nới theo đúng đặc tính link vệ tinh.',
+    'Tránh truyền kiểu nhiều phiên nhỏ qua link 1,3 giây — một phiên lớn bao giờ cũng hiệu quả hơn.',
+    'FSO mất sóng là bật fallback RF ngay, không đứng chờ trời quang.',
+    'Ghi SNR và Es/No theo từng giờ, đủ một tuần là biết quỹ đạo nào hay bị che.',
+    'Khi có cảnh báo bão Mặt Trời, ưu tiên chặng relay và giảm bậc điều chế trước khi link tự rớt.'],
+  hw: ['Checklist phòng máy có năm mục: nhiệt độ, độ ẩm, đèn báo UPS, quạt rack và bụi — ba phút là xong một ca.',
+    'Ắc quy yếu nhất thường là dàn đã hai-ba năm: đo điện áp nghỉ từng cục rồi mới kết luận.',
+    'Trước khi cắm switch mới vào tủ: tắt cổng upstream, cấu hình và đặt tên xong mới bật.',
+    'Cáp nguồn và cáp mạng đi hai má máng khác nhau; đi chung là phát nhiễu cho nhau.',
+    'Ghi serial và vị trí U của từng thiết bị. Mất điện xong mà không có sơ đồ thì người khác không dám rút dây.',
+    'Đèn amber trên rack không bao giờ được để qua ca trực — ghi log RAID trước khi khởi động lại.']
+};
+const MT_PRAISE = ['Chuẩn bài! Tay này làm được việc đấy.', 'Đúng rồi, kinh nghiệm năm phút là đây.',
+  'Ok quá, nắm nghề chắc lắm em.', 'Chính xác — ra hiện trường là làm được ngay.'];
+const MT_WRONG = ['Chưa đúng rồi, đọc phân tích đi em.', 'Lệch rồi, ngẫm lại xem nhé.'];
+
+/* ---------- 2. Đội tuần tra đa khu vực ----------
+   role = sprite có sẵn trong IMG.chars (không thêm file ảnh mới), g = nhóm câu
+   hỏi, path = làn đã đo trống ở V12 (chỉ 2 điểm → ambStep đi tới đi lui, không
+   có đoạn quấn chéo). cd/qUsed/tUsed nằm trên NPC, không ghi vào file lưu. */
+const MT_CREW = [
+  { name: 'Bạn Khang', short: 'Khang', tag: '[Hỗ trợ Helpdesk]', title: 'Nhân viên hỗ trợ khu vực',
+    area: 'máy tính, mạng văn phòng, sự cố người dùng',
+    role: 'khoa', col: '#38bdf8', g: 'hd', sc: 'WORLD', path: [[280, 205], [690, 205]], v: 26,
+    hi: 'Chào em. Máy móc, mạng văn phòng, sự cố của người dùng — cứ hỏi anh.' },
+  { name: 'Anh Tuấn', short: 'Tuấn', tag: '[Kỹ sư cáp]', title: 'Kỹ sư cáp & hạ tầng ngoại vi',
+    area: 'bấm dây, kéo cáp, tủ phối quang',
+    role: 'tuan', col: '#22c55e', g: 'cable', sc: 'STREET', path: [[320, 470], [1080, 470]], v: 30,
+    hi: 'Anh vừa luồn xong hai chặng cáp ngoài phố. Em hỏi về hạ tầng nhé.' },
+  { name: 'Bác Ba', short: 'Bác Ba', tag: '[Tủ phối quang]', title: 'Bác thợ ODF & hàn quang',
+    area: 'ODF, hàn nối và đo suy hao quang',
+    role: 'duc', col: '#f97316', g: 'cable', sc: 'STREET', path: [[1220, 500], [1980, 500]], v: 22,
+    hi: 'Bác giữ tủ phối quang đầu phố. Sợi nào đi đâu bác thuộc lòng.' },
+  { name: 'Kỹ sư An', short: 'An', tag: '[Viễn thông vũ trụ]', title: 'Chuyên viên viễn thông liên hành tinh',
+    area: 'vệ tinh, độ trễ, băng thông liên hành tinh',
+    role: 'nam', col: '#a78bfa', g: 'sat', sc: 'LUNAR_BASE', path: [[310, 560], [490, 560]], v: 18, gz: 1,
+    hi: 'Trạm mình nói chuyện với Trái Đất mất 1,3 giây. Em hỏi sóng vũ trụ đi.' },
+  { name: 'Bạn Linh', short: 'Linh', tag: '[Đồng nghiệp văn phòng]', title: 'Trợ lý vận hành tầng',
+    area: 'checklist thiết bị và sự cố hằng ngày',
+    role: 'linh', col: '#0ea5e9', g: 'hw', sc: 'OFFICE', path: [[200, 530], [700, 530]], v: 24,
+    hi: 'Cả tầng này có việc gì cũng tìm anh IT. Em lấy checklist của anh chưa?' },
+  { name: 'Chị Mai', short: 'Mai', tag: '[Thủ kho thiết bị]', title: 'Kiểm tra linh kiện & nguồn UPS',
+    area: 'linh kiện, nguồn UPS, an toàn tĩnh điện',
+    role: 'mai', col: '#10b981', g: 'hw', sc: 'HARDWARE_LAB', path: [[200, 520], [800, 520]], v: 22,
+    hi: 'Linh kiện mới về chị vừa kiểm tra xong. Hỏi UPS hay RAM đều được.' },
+  { name: 'Anh Sơn', short: 'Sơn', tag: '[Trực phòng máy]', title: 'Net admin ca trực rack',
+    area: 'switch, router, đèn báo rack',
+    role: 'son', col: '#f87171', g: 'hw', sc: 'NET_ROOM', path: [[330, 505], [810, 505]], v: 24,
+    hi: 'Rack này anh trực. Switch, router, đèn báo gì anh nắm hết.' }
+];
+Object.assign(AMB_K, { mentor: ['Có gì khó thì gọi anh nhé!', 'Anh đi một vòng kiểm tra đây.',
+  'Ca này đông việc ghê, mà vui.', 'Em cần gì cứ ghé anh.', 'Khu này anh thuộc lòng từng ngách.'] });
+MT_CREW.forEach(c => ROAM.push(roamN(c.role, c.sc, c.path[0][0], c.path[0][1],
+  { mt: c, kind: 'mentor', v: c.v, path: c.path, gz: c.gz || 0, cd: 0, qUsed: [], tUsed: [] })));
+
+/* ---------- 3. Modal hội thoại & mini-quiz ---------- */
+const MT = { n: null, v: 'home', qi: -1, hint: false, tip: '', praise: MT_PRAISE[0] };
+const MT_CSS = 'display:flex;flex-direction:column;gap:9px;width:444px;padding:15px 20px 17px;' +
+  'background:linear-gradient(165deg,#132234,#0a1119);border:2px solid #38bdf8;border-radius:18px;' +
+  'color:#e8f1fb;font:14px "Segoe UI",sans-serif;z-index:130;box-shadow:0 20px 60px #000c',
+  /* Font khai báo rời từng thuộc tính: gộp vào shorthand 'font:' thì chuỗi style
+     đặt trong HTML attribute sẽ bị cắt ở dấu nháy kép của tên họ chữ. */
+  MT_BT = 'flex:1;width:100%;padding:9px 11px;border:0;border-radius:11px;cursor:pointer;color:#fff;' +
+  'font-family:Segoe UI,sans-serif;font-size:12.5px;font-weight:800;text-align:left;line-height:1.35',
+  MT_QT = 'padding:10px 12px;border-radius:12px;background:rgba(56,189,248,.1);' +
+  'border:1px solid rgba(56,189,248,.3);font-size:13.5px;line-height:1.5',
+  MT_TX = 'font-size:13px;line-height:1.6;opacity:.95',
+  MT_HNT = 'padding:8px 11px;border-radius:10px;background:rgba(250,204,21,.13);' +
+  'border:1px dashed rgba(250,204,21,.5);font-size:12.5px;line-height:1.5;color:#ffe9a8';
+function mtBox() {
+  let m = document.getElementById('mt-modal');
+  if (!m) { m = document.createElement('div'); m.id = 'mt-modal'; m.className = 'modal'; document.getElementById('app').appendChild(m); }
+  m.style.cssText = MT_CSS;
+  return m;
+}
+/* Rút chỉ số chưa dùng trong bảng (qUsed/tUsed), quay hết vòng thì làm lại */
+function mtFresh(n, key, len) {
+  if (!n[key]) n[key] = [];
+  if (n[key].length >= len) n[key] = [];
+  let i; do { i = (Math.random() * len) | 0; } while (n[key].indexOf(i) >= 0);
+  n[key].push(i);
+  return i;
+}
+function mtHead(n) {
+  const c = n.mt, im = IMG.chars && IMG.chars[n.role];
+  const av = im ? '<img src="' + im.src + '" alt="" style="width:52px;height:52px;object-fit:contain">' : '<div style="font-size:24px">🧑‍💻</div>';
+  return '<div style="display:flex;gap:11px;align-items:center">' +
+    '<div style="width:58px;height:58px;flex:0 0 58px;border-radius:50%;display:flex;align-items:center;' +
+    'justify-content:center;background:rgba(56,189,248,.13);border:2px solid ' + c.col + '">' + av + '</div>' +
+    '<div style="min-width:0"><div style="font-size:16.5px;font-weight:900;color:' + c.col + '">' + c.name + '</div>' +
+    '<div style="font-size:12px;opacity:.85;margin-top:1px">' + c.title + '</div>' +
+    '<div style="font-size:10.5px;margin-top:4px;display:inline-block;padding:1px 8px;border-radius:9px;' +
+    'background:' + c.col + '2b;border:1px solid ' + c.col + '80;color:#e2f3ff">' + c.tag + '</div></div></div>';
+}
+function mtBtn(txt, fn, bg, off) {
+  return '<button ' + (off ? 'disabled ' : '') + (off ? '' : 'onclick="' + fn + '" ') + 'style="' + MT_BT +
+    ';background:' + bg + (off ? ';cursor:not-allowed;opacity:.6' : '') + '">' + txt + '</button>';
+}
+function mtRender() {
+  const n = MT.n; if (!n) return;
+  const c = n.mt, m = mtBox(), q = MT.qi < 0 ? null : MT_Q[c.g][MT.qi];
+  const cd = Math.max(0, Math.ceil(((n.cd || 0) - Date.now()) / 1000));
+  let body = '', foot = '';
+  if (MT.v === 'quiz' && q) {
+    body = '<div style="' + MT_QT + '">' + q.q + '</div>' +
+      q.a.map((t, k) => mtBtn((k + 1) + '. ' + t, 'mtAns(' + k + ')', 'rgba(28,45,66,.92)')).join('') +
+      (MT.hint ? '<div style="' + MT_HNT + '">💡 ' + q.tip + '</div>' : '');
+    foot = mtBtn('← VỀ ĐẦU', 'mtHome()', '#3f4a5c') + mtBtn('✖ TẠM BIỆT', 'mtBye()', '#7f1d1d');
+  } else if (MT.v === 'wrong' && q) {
+    body = '<div style="font-size:14px;font-weight:900;color:#fca5a5">✖ CHƯA ĐÚNG</div>' +
+      '<div style="' + MT_TX + '">' + q.why + '</div>';
+    foot = mtBtn('🔁 THỬ LẠI', 'mtRetry()', '#0ea5e9') + mtBtn('💡 XIN GỢI Ý', 'mtHint()', '#7c3aed') +
+      mtBtn('✖ TẠM BIỆT', 'mtBye()', '#7f1d1d');
+  } else if (MT.v === 'right' && q) {
+    body = '<div style="font-size:15px;font-weight:900;color:#86efac">🎉 CHÍNH XÁC!</div>' +
+      '<div style="' + MT_TX + '">“' + MT.praise + '”</div>' +
+      '<div style="padding:9px 12px;border-radius:11px;background:rgba(22,163,74,.18);border:1px solid rgba(134,239,172,.5);' +
+      'font-size:13.5px;font-weight:800;color:#d9f9e4">🪙 +150 Coin &nbsp;·&nbsp; ⭐ +100 XP</div>';
+    foot = mtBtn('🤝 CẢM ƠN ANH!', 'mtBye()', '#16a34a');
+  } else {
+    body = MT.v === 'tip' ? '<div style="' + MT_QT + '">💡 ' + MT.tip + '</div>'
+      : '<div style="' + MT_TX + '">“' + c.hi + '”</div>' +
+        '<div style="font-size:11.5px;opacity:.7">Chuyên môn: ' + c.area + '</div>';
+    foot = mtBtn('💡 HỎI THÊM', 'mtTip()', '#0ea5e9') +
+      (cd ? mtBtn('⏳ NGHỈ TAY ' + cd + 's', '', '#39424f', 1) : mtBtn('📋 NHẬN VIỆC PHỤ', 'mtJob()', '#16a34a')) +
+      mtBtn('✖ TẠM BIỆT', 'mtBye()', '#7f1d1d');
+  }
+  m.innerHTML = mtHead(n) +
+    '<div style="display:flex;flex-direction:column;gap:8px;max-height:336px;overflow-y:auto">' + body + '</div>' +
+    '<div style="display:flex;gap:8px">' + foot + '</div>';
+  m.style.display = 'flex';
+  n.wait = Math.max(n.wait, 9);          // đứng lại tiếp khách khi modal đang mở
+}
+function mtOpen(n) {
+  MT.n = n; MT.v = 'home'; MT.qi = -1; MT.hint = false;
+  roamSay(n, 'Chào em, anh rảnh đây — hỏi gì cứ hỏi!', 3);
+  mtRender();
+  beep(660, 'triangle', .09, .04);
+}
+function mtHome() { MT.v = 'home'; MT.hint = false; sfxClick(); mtRender(); }
+function mtTip() {
+  const n = MT.n; if (!n) return;
+  const P = MT_TIP[n.mt.g];
+  MT.tip = P[mtFresh(n, 'tUsed', P.length)]; MT.v = 'tip'; sfxClick(); mtRender();
+}
+function mtJob() {
+  const n = MT.n; if (!n || (n.cd || 0) > Date.now()) return;
+  MT.qi = mtFresh(n, 'qUsed', MT_Q[n.mt.g].length); MT.v = 'quiz'; MT.hint = false;
+  sfxClick(); mtRender();
+}
+function mtAns(k) {
+  const n = MT.n; if (!n || MT.v !== 'quiz') return;
+  const q = MT_Q[n.mt.g][MT.qi];
+  if (k === q.c) {
+    MT.v = 'right'; MT.praise = ambPick(MT_PRAISE); n.cd = Date.now() + 60000;   // nghỉ tay để đi tìm người khác
+    addCoin(150); addXP(100); sfxFanfare(); saveGame();
+    roamSay(n, ambPick(MT_PRAISE), 3.4);
+    showToast('🎉 ' + n.mt.name + ' thưởng việc phụ: +150 Coin · +100 XP');
+  } else {
+    MT.v = 'wrong'; MT.hint = false; sfxBuzz();
+    roamSay(n, ambPick(MT_WRONG), 3);
+  }
+  mtRender();
+}
+function mtRetry() { MT.v = 'quiz'; sfxClick(); mtRender(); }
+function mtHint() { MT.v = 'quiz'; MT.hint = true; sfxClick(); mtRender(); }
+function mtBye() {
+  const n = MT.n;
+  mtClose();
+  if (n) roamSay(n, 'Thôi anh đi tiếp nhé — có gì cứ tìm anh!', 2.8);
+}
+function mtClose() {
+  const m = document.getElementById('mt-modal');
+  if (m) m.style.display = 'none';
+  MT.n = null;
+  releaseFocus();
+}
+
+
 
