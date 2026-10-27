@@ -226,7 +226,11 @@ for (const sh of sheets) {
 }
 
 for (const [k, p] of Object.entries(ASSETS.chars)) {
+  /* Chỉ những ảnh game trỏ vào baked/ mới cần bake. Ảnh artist xuất sẵn có
+     kênh alpha thật (vd sprite NỮ char_player_female.png) game nạp thẳng. */
+  if (!p.includes('baked/')) continue;
   const from = path.join(IMG, path.basename(p));
+  if (!fs.existsSync(from)) { lines.push(`char ${k.padEnd(7)} KHÔNG TÌM THẤY ${path.basename(from)} -> bỏ qua`); continue; }
   const im = readRGBA(from);
   /* Ảnh sprite mới gen nền trắng tinh (chưa có kênh alpha) thì tẩy nền trước
      khi cắt; ảnh đã có alpha sẵn thì giữ nguyên, không đụng pixel của nó. */

@@ -27,6 +27,11 @@ const ASSETS = {
   creatures: 'assets/img/baked/creatures_sheet.png?v=1',
   chars: {
     p: 'assets/img/baked/char_player.png',
+    /* V15: sprite NỮ đi trên bản đồ. Hai ảnh này artist xuất sẵn có kênh alpha
+       thật (nền trong suốt, không phải nền trắng) nên nạp thẳng, không qua
+       baked/ — bảng ASSETS.chars cũng là danh sách để tools/bake-sprites.cjs
+       nhận ra ảnh nào cần bake. */
+    pf: 'assets/img/char_player_female.png',
     lan: 'assets/img/baked/npc_lan.png',
     tuan: 'assets/img/baked/npc_tuan.png',
     huong: 'assets/img/baked/npc_huong.png',
@@ -38,10 +43,12 @@ const ASSETS = {
     nam: 'assets/img/baked/npc_nam.png',
     /* Phi thuyền Khu 3 — cùng pipeline tẩy nền trắng + cắt bbox alpha */
     ship: 'assets/img/baked/ship_gen.png'
-  }
+  },
+  /* V15: ảnh icon đại diện (avatar) khi chọn NỮ — khung chat, thẻ HUD, xem trước */
+  avf: 'assets/img/icon-113.png'
 };
 
-const IMG = { bg: null, chars: {}, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null, creatures: null };
+const IMG = { bg: null, chars: {}, avf: null, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null, creatures: null };
 let assetsReady = false;
 
 /* ============================================================
@@ -208,6 +215,7 @@ function loadOne(src) {
   jobs.push(loadOne(ASSETS.noc_bg).then(im => { IMG.noc_bg = im; }));
   jobs.push(loadOne(ASSETS.lunar_bg).then(im => { IMG.lunar_bg = im; }));
   jobs.push(loadOne(ASSETS.creatures).then(im => { IMG.creatures = im; }));
+  jobs.push(loadOne(ASSETS.avf).then(im => { IMG.avf = im; }));
 
   Object.entries(ASSETS.chars).forEach(([k, src]) => {
     jobs.push(loadOne(src).then(im => { IMG.chars[k] = im; }));
@@ -217,5 +225,7 @@ function loadOne(src) {
     // Nền đã có -> dựng lại background thế giới bằng ảnh AI
     try { if (typeof buildWorldBG === 'function') buildWorldBG(); } catch (e) {}
     try { if (typeof renderHudAvatar === 'function') renderHudAvatar(); } catch (e) {}
+    /* V14: bảng Tạo Nhân Vật có thể đã mở từ lúc ảnh chưa nạp xong → vẽ lại ô xem trước */
+    try { if (typeof ccPreview === 'function' && document.getElementById('cc-av')) ccPreview(); } catch (e) {}
   });
 })();

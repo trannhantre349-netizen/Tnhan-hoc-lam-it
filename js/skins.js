@@ -339,7 +339,10 @@ const _skAvatar = drawAvatar;
 drawAvatar = function (spk) {
   _skAvatar(spk);
   const s = String(spk || '');
-  if (!(s.includes('Nhân') || s.includes(PLAYER_NAME) || s === 'Bạn')) return;
+  if (!(s.includes('Nhân') || s.includes(playerName) || s === 'Bạn')) return;
+  /* V15: avatar NỮ là ảnh chân dung riêng (icon-113) — hình cắt theo khung nam
+     mà sơn lên thì lệch, nên bỏ qua lớp trang phục ở khung này. */
+  if (playerGender === 'female') return;
   const id = skEquipped(); if (id === 'default') return;
   const acv = document.getElementById('av-cv'); if (!acv) return;
   const img = IMG.chars.p; if (!img) return;

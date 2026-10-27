@@ -26,7 +26,7 @@
   <div id="player-card">
     <div id="pc-avatar"><canvas id="pc-av-cv" width="132" height="132"></canvas></div>
     <div>
-      <div id="pc-name">Nhân IT <span id="pc-lv-badge">Lv.<b id="hud-lv">5</b></span></div>
+      <div id="pc-name"><span id="pc-name-txt" onclick="ccOpen()" title="Đổi tên &amp; giới tính" style="cursor:pointer"></span><span id="pc-lv-badge">Lv.<b id="hud-lv">5</b></span></div>
       <div class="xp-bar"><i id="hud-xp-bar"></i><span class="xp-txt"><span id="hud-xp">230</span>/<span id="hud-xpmax">500</span></span></div>
       <div id="pc-wallet">
         <span class="wallet-chip coin"><span class="coin-ic" aria-hidden="true">C</span> <b id="hud-coin">2,000</b></span>
@@ -196,7 +196,7 @@
         <p class="inv-note">💾 <b>Xuất</b> ra file <b>it_rpg_save.json</b> để giữ tiến trình. Sang máy khác hoặc bị xoá cache thì bấm <b>Nạp</b> rồi chọn đúng file đó.</p>
       </div>
       <div class="main-pane">
-        <h3 style="color:#7dd3fc; font-size:15px;">Nhân <span style="color:#93a4bd; font-size:11px; font-weight:500;">— IT Support Engineer</span></h3>
+        <h3 style="color:#7dd3fc; font-size:15px;"><span id="prof-name"></span> <span style="color:#93a4bd; font-size:11px; font-weight:500;">— IT Support Engineer</span></h3>
         <p style="color:#93a4bd; font-size:11px; margin-top:6px;">Cấp độ: <b style="color:#fde047;">Lv.<span id="prof-lv">5</span></b> (<span id="prof-xp">230</span>/500 XP)</p>
         <p style="color:var(--lime); font-size:11px; margin-top:3px;">Danh hiệu: <b id="prof-title">Junior Network Engineer</b></p>
         <h4 style="color:#fde047; font-size:12px; margin:14px 0 8px 0;">🎓 KỸ NĂNG IT</h4>

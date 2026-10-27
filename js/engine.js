@@ -30,7 +30,6 @@ const S = {
   ship: false,
   // ===== RPG PROGRESS =====
   level: 5, xp: 230, xpMax: 300, coin: 2000, gem: 45,
-  name: 'Nhân IT',
   title: 'Junior Network Engineer',
   skills: {
     networking: 2, hardware: 1, crimping: 1, troubleshooting: 1, wireless: 1, datacenter: 1
@@ -61,6 +60,20 @@ const S = {
     phase: Math.random()*Math.PI*2, spd: 0.5+Math.random()
   }))
 };
+
+/* ============ TÊN NHÂN VẬT ============
+   Nguồn duy nhất: thẻ HUD, modal Hồ sơ, bảng tên chibi, chat, hội thoại và chứng chỉ.
+   Mặc định vẫn là 'Nhân-IT'. Tên không còn nằm trong save (S.name đã bỏ) nên đổi ở
+   đây là toàn bộ game theo.
+   Chuỗi thoại trong INTERIORS được dựng lúc parse (trước khi đổi tên được) nên
+   ghi token {player} và thay bằng playerName ngay lúc hiển thị (showDlg / ambSay). */
+let playerName = 'Nhân-IT';
+const PLAYER_NAME_MAX = 15;   // độ dài tên tối đa (ô nhập ở bảng Tạo Nhân Vật cắt theo số này)
+/* null = save chưa có hồ sơ nhân vật → bảng Tạo Nhân Vật sẽ mở (V14).
+   'male' giữ nguyên ảnh gốc, 'female' đổi sang ảnh riêng: sprite đi bản đồ
+   char_player_female.png và avatar icon-113.png (nạp ở assets.js, V15). */
+let playerGender = null;
+const pName = s => String(s).split('{player}').join(playerName);
 
 /* ----- Hiệu ứng phụ kiện Cửa hàng (S.inv) -----
    engine.js nạp TRƯỚC game.js và update()/addXP() được gọi ngay lúc parse (dòng KHỞI ĐỘNG GAME LOOP),
@@ -94,6 +107,9 @@ function addXP(n) {
 }
 function addCoin(n) { S.coin += n; syncHUD(); }
 function syncHUD() {
+  /* 2 ô tên (thẻ HUD + modal Hồ sơ) chỉ là bản sao hiển thị của playerName */
+  document.getElementById('pc-name-txt').innerText = playerName;
+  document.getElementById('prof-name').innerText = playerName;
   document.getElementById('hud-lv').innerText = S.level;
   document.getElementById('hud-xp').innerText = S.xp;
   document.getElementById('hud-xpmax').innerText = S.xpMax;
@@ -632,7 +648,7 @@ const INTERIORS = {
     accent: '#a855f7', floorA: '#1d1830', floorB: '#141024', wallA: '#2a1d4a', wallB: '#1a1230',
     npc: {
       name: 'Thầy Đức', role: 'Giảng viên CCNA', sprite: 'duc', x: 150, y: 340,
-      intro: '"Chào Nhân-IT! Đây là <b>Học viện CCNA</b>.\nEm muốn lấy chứng chỉ thì vào bàn thi làm <b>8 câu trắc nghiệm</b> nhé — đúng 6 câu là đạt!"',
+      intro: '"Chào {player}! Đây là <b>Học viện CCNA</b>.\nEm muốn lấy chứng chỉ thì vào bàn thi làm <b>8 câu trắc nghiệm</b> nhé — đúng 6 câu là đạt!"',
       done: '"Bài thi của em đạt chuẩn rồi! Cố gắng giữ phong độ nhé, kỹ sư mạng tương lai!"'
     },
     station: { icon: '🎓', title: 'PHÒNG THI CCNA', sub: 'Bấm [E] để thi thử 200-301', x: 660, y: 300, game: 'QUIZ' },
@@ -649,7 +665,7 @@ const INTERIORS = {
     accent: '#38bdf8', floorA: '#101d31', floorB: '#0b1524', wallA: '#152741', wallB: '#0c1a2d',
     npc: {
       name: 'Chị Linh', role: 'IT Helpdesk Lead', sprite: 'linh', x: 100, y: 300,
-      intro: '"Chào Nhân-IT! <b>Trụ sở IT</b> đây.\nHàng đợi ticket đang đầy, em vào bàn Helpdesk <b>phân loại 6 ticket</b> giúp chị nhé!"',
+      intro: '"Chào {player}! <b>Trụ sở IT</b> đây.\nHàng đợi ticket đang đầy, em vào bàn Helpdesk <b>phân loại 6 ticket</b> giúp chị nhé!"',
       done: '"Em phân loại ticket chuẩn đét! Đội Helpdesk mong có người như em hoài."'
     },
     station: { icon: '🎫', title: 'BÀN HELPDESK', sub: 'Bấm [E] để xử lý ticket', x: 648, y: 322, game: 'TICKET' },
@@ -665,7 +681,7 @@ const INTERIORS = {
     accent: '#0ea5e9', floorA: '#0c1a2b', floorB: '#081321', wallA: '#0f2740', wallB: '#0a1a2b',
     npc: {
       name: 'Anh Khoa', role: 'System Admin', sprite: 'khoa', x: 205, y: 455,
-      intro: '"Nhân-IT hả? <b>Data Center</b> đây, lạnh teo người!\nCó 5 server chưa đấu cáp, em ra Patch Panel <b>nối đúng sơ đồ</b> giúp anh!"',
+      intro: '"{player} hả? <b>Data Center</b> đây, lạnh teo người!\nCó 5 server chưa đấu cáp, em ra Patch Panel <b>nối đúng sơ đồ</b> giúp anh!"',
       done: '"Cáp đấu gọn gàng hết rồi. Uptime 99.99% là nhờ em đó!"'
     },
     /* station = tâm mặt bàn PATCH PANEL thật trong ảnh (x 548..788, y 262..412)
@@ -694,7 +710,7 @@ const INTERIORS = {
        (thảm canvas x 70..185, y 350..413) theo cùng quy ước L-shape. */
     npc: {
       name: 'Chị Mai', role: 'Trưởng phòng KD', sprite: 'mai', x: 230, y: 440,
-      intro: '"Nhân-IT ơi! Sàn bên chị <b>wifi chập chờn</b> quá, họp online cứ giật.\nEm xem lại <b>kênh 3 cục AP</b> giúp chị với!"',
+      intro: '"{player} ơi! Sàn bên chị <b>wifi chập chờn</b> quá, họp online cứ giật.\nEm xem lại <b>kênh 3 cục AP</b> giúp chị với!"',
       done: '"Sóng wifi giờ mượt cả sàn! Chị gửi lời cảm ơn tới phòng IT nhé!"'
     },
     station: { icon: '📶', title: 'BÀN QUY HOẠCH WIFI', sub: 'Bấm [E] để chọn kênh AP', x: 690, y: 400, game: 'WIFI', rad: 95 },
@@ -733,7 +749,7 @@ const INTERIORS = {
     accent: '#f43f5e', floorA: '#131a2b', floorB: '#0d1322', wallA: '#1b2440', wallB: '#111a30',
     npc: {
       name: 'Anh Nam', role: 'Trưởng Ca Trực', sprite: 'nam', x: 210, y: 380,
-      intro: '"Nhân-IT đấy à! Ca trực hôm nay gặp sự cố liên hoàn cả <b>NOC lẫn SOC</b>.\nCó 4 bàn máy tính tương ứng 4 ải: <b>1. Tường lửa ➔ 2. Diệt Malware ➔ 3. Loop Switch ➔ 4. Cân bằng tải</b>. Em xử lý cả 4 bàn để nhận chứng chỉ <b>Hung Thần IT</b> nhé!"',
+      intro: '"{player} đấy à! Ca trực hôm nay gặp sự cố liên hoàn cả <b>NOC lẫn SOC</b>.\nCó 4 bàn máy tính tương ứng 4 ải: <b>1. Tường lửa ➔ 2. Diệt Malware ➔ 3. Loop Switch ➔ 4. Cân bằng tải</b>. Em xử lý cả 4 bàn để nhận chứng chỉ <b>Hung Thần IT</b> nhé!"',
       done: '"Xuất sắc! Em đã hoàn thành cả 4 ải, xứng danh <b>Hung Thần IT</b> của Network City!"'
     },
     // 4 BÀN ĐÃ ĐƯA LÊN TRÙNG MÀN HÌNH MÁY TÍNH THEO HÌNH:
@@ -1506,7 +1522,7 @@ function drawSprite(x, y, r='p') {
   ctx.fillRect(x + 5, ty + 13, 2, 2); ctx.fillRect(x + 13, ty + 13, 2, 2);
 
   const names = {
-    p: ['Nhân (IT)', '#38bdf8'], lan: ['Chị Lan', '#facc15'], tuan: ['Tuấn (Net)', '#22c55e'], huong: ['Chị Hương', '#f59e0b'],
+    p: [playerName, '#38bdf8'], lan: ['Chị Lan', '#facc15'], tuan: ['Tuấn (Net)', '#22c55e'], huong: ['Chị Hương', '#f59e0b'],
     duc: ['Thầy Đức', '#a855f7'], linh: ['Chị Linh', '#38bdf8'], khoa: ['Anh Khoa', '#0ea5e9'],
     mai: ['Chị Mai', '#10b981'], son: ['Anh Sơn', '#ef4444'], nam: ['Anh Nam', '#f43f5e']
   };
@@ -1988,7 +2004,7 @@ function showDlg(spk, role, txt) {
   const d = document.getElementById('dialog');
   document.getElementById('dlg-name').innerText = spk;
   document.getElementById('dlg-role').innerText = role;
-  document.getElementById('dlg-txt').innerHTML = txt;
+  document.getElementById('dlg-txt').innerHTML = pName(txt);
   d.style.display = 'flex';
   beep(500, 'sine', 0.08, 0.03);
   drawAvatar(spk);
@@ -2015,7 +2031,7 @@ function doAction() {
       setZone('4. HARDWARE LAB', 'Lab Phần Cứng & IT Support'); beep(520);
       if (!S.missionsDone.pcBuild && !S.missionsDone.crimp && !S.missionsDone.diag) {
         setTimeout(() => showDlg("Chị Hương", "IT Support Lead",
-          `"Chào Nhân-IT! Chào mừng em đến <b>Lab Phần Cứng</b>.\nỞ đây có 3 trạm:<br>🛠️ <b>Lắp ráp PC</b> - 🩺 <b>Chẩn đoán sự cố</b> - 🔨 <b>Bấm cáp RJ45</b>\nEm cứ thử từng trạm để nâng cao tay nghề nhé!"`), 400);
+          `"Chào {player}! Chào mừng em đến <b>Lab Phần Cứng</b>.\nỞ đây có 3 trạm:<br>🛠️ <b>Lắp ráp PC</b> - 🩺 <b>Chẩn đoán sự cố</b> - 🔨 <b>Bấm cáp RJ45</b>\nEm cứ thử từng trạm để nâng cao tay nghề nhé!"`), 400);
       }
     } else if (INTERIORS[id]) {
       const cfg = INTERIORS[id];
@@ -2072,7 +2088,7 @@ function doAction() {
       S.qStep = 5; S.missionsDone.nat = true;
       addXP(300); addCoin(2000);
       showDlg("Chị Lan", "Kế toán",
-        `🎉 Mạng mượt rồi em ơi! Cảm ơn Nhân-IT nhiều nhé!\n🎁 Nhận: +100 EXP | +2,000 Coin | Danh hiệu <b>Junior Network Engineer</b>!`);
+        `🎉 Mạng mượt rồi em ơi! Cảm ơn {player} nhiều nhé!\n🎁 Nhận: +100 EXP | +2,000 Coin | Danh hiệu <b>Junior Network Engineer</b>!`);
       setTimeout(() => announceStage('nat'), 750);
       saveGame();
     } else if (S.missionsDone.nat) {
@@ -2081,7 +2097,7 @@ function doAction() {
       showDlg("Chị Lan", "Kế toán", `"Em kiểm tra câu lệnh NAT Overload trên R1 chưa? Chị vẫn chưa vào được mạng!"`);
     }
   } else if (targetAct.t === 'tuan') {
-    showDlg("Tuấn", "Net Admin", `"Chào Nhân-IT! Đây là RACK01.\nRouter R1 và Switch SW01 ở đây. Bấm [E] vào Rack để cấu hình nhé!"`);
+    showDlg("Tuấn", "Net Admin", `"Chào {player}! Đây là RACK01.\nRouter R1 và Switch SW01 ở đây. Bấm [E] vào Rack để cấu hình nhé!"`);
   } else if (targetAct.t === 'rack') {
     gateMission('nat', openCLI);
   } else if (targetAct.t === 'hw_workbench') {

@@ -25,7 +25,8 @@ drawPackets = function () {};
 const NPC_KEYS = ['lan', 'tuan', 'huong', 'duc', 'linh', 'khoa', 'mai', 'son'];
 
 function chibiImgFor(r) {
-  if (r === 'p') return IMG.chars.p;
+  /* V15: nhân vật chính là ảnh theo giới tính — NỮ dùng char_player_female.png */
+  if (r === 'p') return (playerGender === 'female' && IMG.chars.pf) ? IMG.chars.pf : IMG.chars.p;
   if (IMG.chars[r]) return IMG.chars[r];
   // npc đường phố (a0..a12) / vai trò ambient -> bốc theo hash cho ổn định
   let h = 0; const s = String(r);
@@ -61,7 +62,7 @@ const _sprPixel = _sprNoName;
 
 function drawNameTag(x, y, r) {
   const me = r === 'p';
-  const info = me ? [PLAYER_NAME, '#1d7fd6'] : IZ_NAMES[r];
+  const info = me ? [playerName, '#1d7fd6'] : IZ_NAMES[r];
   if (!info) return; // npc phố/ambient: không tag
   const [nm] = info;
   const cx = x + 10, ty = y - (me ? 46 : 40) + (me ? Math.sin(Date.now() / 330) * 1.5 : 0);
@@ -167,6 +168,15 @@ drawBuilding = function (b, active) {
 };
 
 /* ---------- 5. AVATAR HỘI THOẠI (canvas 56x56) ---------- */
+/* V15: avatar NỮ (icon-113.png) là ảnh mặt vuông đã bo nền sẵn nên vẽ PHỦ KÍN
+   khung (cover) khác sprite nam phải cắt 55% đỉnh đầu rồi mới phóng.
+   zoom > 1 đẩy mặt đầy khung hơn cho cân với khung chân dung nam. */
+function avFit(g, img, w, h) {
+  const s = Math.max(w / img.width, h / img.height) * AV_F_ZOOM;
+  const dw = img.width * s, dh = img.height * s;
+  g.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
+}
+const AV_F_ZOOM = 1.06;
 const AV_MAP = [['Lan', 'lan'], ['Hương', 'huong'], ['Tuấn', 'tuan'], ['Đức', 'duc'],
   ['Linh', 'linh'], ['Khoa', 'khoa'], ['Mai', 'mai'], ['Sơn', 'son'],
   ['Bạn', 'p'], ['Nhân', 'p'], ['Bảo vệ', 'khoa'], ['T-REX', 'cre_rex_idle']];
@@ -179,7 +189,11 @@ drawAvatar = function (spk) {
   a.fillStyle = g; a.fillRect(0, 0, 56, 56);
   const hit = AV_MAP.find(([k]) => spk.includes(k));
   const img = hit ? IMG.chars[hit[1]] : null;
-  if (hit && hit[1].indexOf('cre_') === 0 && IMG.creatures) {
+  const avf = hit && hit[1] === 'p' && playerGender === 'female' ? IMG.avf : null;
+  if (avf) {
+    try { a.imageSmoothingEnabled = true; a.imageSmoothingQuality = 'high'; } catch (e) {}
+    avFit(a, avf, 56, 56);                     // V15: ảnh avatar riêng của NỮ
+  } else if (hit && hit[1].indexOf('cre_') === 0 && IMG.creatures) {
     // frame sinh vật: cắt từ sheet theo SHEET, căn giữa vào ô tròn 56x56
     const s = SHEET[hit[1]], size = Math.max(s.w, s.h);
     const dw = 56 * s.w / size, dh = 56 * s.h / size;
@@ -203,9 +217,12 @@ const HUD_AV = { vBot: 0.48, fill: 0.922 };        // fill = sqrt(0.85): diện 
 let hudAvSig = '';
 function renderHudAvatar() {
   const cv = document.getElementById('pc-av-cv'); if (!cv) return;
-  const img = IMG.chars.p;
+  /* V15: NỮ dùng thẳng ảnh avatar icon-113 (chân dung đã vẽ sẵn), không cắt
+     từ sprite và không sơn lớp trang phục nam lên trên. */
+  const fem = playerGender === 'female' && IMG.avf;
+  const img = fem ? IMG.avf : IMG.chars.p;
   const sk = (typeof skEquipped === 'function') ? skEquipped() : 'default';
-  const sig = sk + '|' + cv.width + '|' + (img && assetsReady ? img.width + 'x' + img.height : 'pending');
+  const sig = (fem ? 'avf' : sk) + '|' + playerGender + '|' + cv.width + '|' + (img && assetsReady ? img.width + 'x' + img.height : 'pending');
   if (sig === hudAvSig) return;
   hudAvSig = sig;
   const g = cv.getContext('2d'), T = cv.width;
@@ -215,6 +232,7 @@ function renderHudAvatar() {
   g.fillStyle = bg; g.fillRect(0, 0, T, T);
   if (!img || !assetsReady) return;
   try { g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; } catch (e) {}
+  if (fem) { avFit(g, img, T, T); return; }
   const cropH = img.height * HUD_AV.vBot;                 // đỉnh đầu → ngang vai/ngực trên
   const s = (T * HUD_AV.fill) / Math.max(img.width, cropH);
   const dw = img.width * s, dh = img.height * s;

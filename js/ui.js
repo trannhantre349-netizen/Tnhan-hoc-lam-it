@@ -187,7 +187,7 @@ function sendChat() {
     openDevMenu();
     return;
   }
-  chatLog('all', `<b style="color:#1668b4">${typeof PLAYER_NAME !== 'undefined' ? PLAYER_NAME : 'Bạn'}:</b> ${v.replace(/</g, '&lt;')}`);
+  chatLog('all', `<b style="color:#1668b4">${typeof playerName !== 'undefined' ? playerName : 'Bạn'}:</b> ${v.replace(/</g, '&lt;')}`);
   const [who] = CHAT_NPC[Math.random() * CHAT_NPC.length | 0];
   setTimeout(() => chatLog('all', `<b>${who}:</b> ${CHAT_REPLY[Math.random() * CHAT_REPLY.length | 0]}`), 900 + Math.random() * 1200);
 }

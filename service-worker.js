@@ -12,7 +12,7 @@
 
    Thêm tài nguyên mới? Cập nhật cả ASSETS.js và PRECACHE bên dưới.
    ============================================================ */
-const CACHE_NAME = 'it-game-v1.22';
+const CACHE_NAME = 'it-game-v1.27';
 
 const PRECACHE = [
   // --- vỏ ứng dụng ---
@@ -53,6 +53,8 @@ const PRECACHE = [
   './assets/img/baked/creatures_sheet.png?v=1',
   // --- nhân vật ---
   './assets/img/baked/char_player.png',
+  './assets/img/char_player_female.png',
+  './assets/img/icon-113.png',
   './assets/img/baked/npc_lan.png',
   './assets/img/baked/npc_tuan.png',
   './assets/img/baked/npc_huong.png',

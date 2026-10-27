@@ -841,7 +841,8 @@ function renderAchGrid() {
    ==================================================== */
 const SAVE_KEY = 'network_city_it_support_rpg_v1';
 const saveData = () => ({
-  v: 1, level: S.level, xp: S.xp, xpMax: S.xpMax, coin: S.coin, gem: S.gem, name: S.name, title: S.title,
+  v: 1, level: S.level, xp: S.xp, xpMax: S.xpMax, coin: S.coin, gem: S.gem, title: S.title,
+  name: playerName, gender: playerGender,
   skills: S.skills, missionsDone: S.missionsDone, qStep: S.qStep, isFixed: S.isFixed, hd: S.hd, inv: S.inv,
   skin: S.skin, ship: S.ship, achievements: S.achievements
 });
@@ -858,9 +859,16 @@ const numMap = o => {
 };
 const STAGE_IDS = {}; STAGES.forEach(s => { STAGE_IDS[s.id] = 1; });
 function applySave(d) {
-  ['level', 'xp', 'xpMax', 'coin', 'gem', 'name', 'title', 'qStep', 'isFixed', 'skin', 'ship'].forEach(k => {
+  ['level', 'xp', 'xpMax', 'coin', 'gem', 'title', 'qStep', 'isFixed', 'skin', 'ship'].forEach(k => {
     if (d[k] !== undefined && d[k] !== null) S[k] = d[k];
   });
+  /* Hồ sơ nhân vật (V14). Chỉ nhận khi save có giới tính hợp lệ: save cũ trước
+     V14 cũng mang field name (giá trị cổ 'Nhân IT') nhưng không có gender → bỏ
+     qua để bảng Tạo Nhân Vật mở ra, người chơi tự đặt lại một lần. */
+  if (d.gender === 'male' || d.gender === 'female') {
+    playerGender = d.gender;
+    if (typeof d.name === 'string' && ccSafe(d.name)) playerName = ccSafe(d.name);
+  }
   /* Cân bằng lại nhịp lên cấp: mốc phẳng 300 EXP/cấp. Ép xpMax về 300 cho save cũ
      (đường cong 500·1.35^n trước đây) và lên cấp bù nếu EXP đang vượt ngưỡng mới. */
   S.xpMax = 300;
@@ -1496,7 +1504,7 @@ function certScene() {
   const d = new Date(), y = d.getFullYear();
   const dd = certPad(d.getDate()), mm = certPad(d.getMonth() + 1);
   const dateStr = dd + '/' + mm + '/' + y;
-  const name = String(S.name || 'Nhân IT').trim() || 'Nhân IT';
+  const name = String(playerName).trim();
   const used = bossState && bossState.done && bossState.used != null ? bossState.used : null;
   return {
     name,
@@ -2697,13 +2705,13 @@ function drawSalesOffice() {
 }
 
 /* ===== V5: TOÀ NHÀ + CÂY CHIBI, TÊN NHÂN VẬT ===== */
-const PLAYER_NAME = 'Nhân-IT';
+/* Tên người chơi giờ lấy từ playerName (engine.js) — bảng tên vẽ mỗi frame nên đổi tên là cập nhật ngay. */
 const IZ_NAMES = { lan:['Chị Lan','#facc15'], tuan:['Tuấn (Net)','#22c55e'], huong:['Chị Hương','#f59e0b'], duc:['Thầy Đức','#c084fc'],
   linh:['Chị Linh','#38bdf8'], khoa:['Anh Khoa','#0ea5e9'], mai:['Chị Mai','#10b981'], son:['Anh Sơn','#f87171'] };
 const _sprNoName = drawSprite;
 drawSprite = function (x, y, r = 'p') {
   _sprNoName(x, y, r);
-  const me = r === 'p', [nm, col] = me ? [PLAYER_NAME, '#38bdf8'] : (IZ_NAMES[r] || ['???', '#94a3b8']);
+  const me = r === 'p', [nm, col] = me ? [playerName, '#38bdf8'] : (IZ_NAMES[r] || ['???', '#94a3b8']);
   const cx = x + 10, h = me ? 24 : 17, ty = y - (me ? 33 : 24) + (me ? Math.sin(Date.now() / 330) * 1.5 : 0);
   ctx.save(); ctx.font = (me ? 'bold 14px ' : 'bold 10.5px ') + IZF;
   const w = ctx.measureText(nm).width + (me ? 38 : 16), g = ctx.createLinearGradient(0, ty, 0, ty + h);
@@ -2777,8 +2785,8 @@ drawSpr = function (name, x, y, s) {
 };
 
 /* ===== V6: DÂN CƯ TRONG THÀNH PHỐ (NPC đi lại, chào hỏi) ===== */
-const AMB_G = ['Chào IT!', 'A, vua mọi nghề!', 'IT đa phương tiện kìa!', 'Master Culi kìa!', 'Đại ca Nhân-IT!', 'Cứu tinh công ty đây rồi!', 'Thánh sửa máy in tới rồi!',
-  'IT ơi, wifi yếu quá!', 'Nhân-IT, restart thử chưa?', 'Ông trùm bấm cáp kìa!', 'IT ơi, em quên mật khẩu rồi!', 'Hôm nay có ca nào khó không IT?', 'Chào sếp IT!', 'Vua fix bug tới rồi!'];
+const AMB_G = ['Chào IT!', 'A, vua mọi nghề!', 'IT đa phương tiện kìa!', 'Master Culi kìa!', 'Đại ca {player}!', 'Cứu tinh công ty đây rồi!', 'Thánh sửa máy in tới rồi!',
+  'IT ơi, wifi yếu quá!', '{player}, restart thử chưa?', 'Ông trùm bấm cáp kìa!', 'IT ơi, em quên mật khẩu rồi!', 'Hôm nay có ca nào khó không IT?', 'Chào sếp IT!', 'Vua fix bug tới rồi!'];
 const AMB_K = {
   drink: ['Ực ực… nước mát quá!', 'Cây nước này lạnh ghê!', 'Hết nước rồi, IT thay bình giúp em!'],
   meet: ['Suỵt… đang họp mà!', 'Deadline tuần sau nha cả nhà!', 'Máy chiếu lại không lên hình rồi…', 'Ai share màn hình giùm cái!'],
@@ -5956,6 +5964,9 @@ if (LOADED) {
       (cur ? ' — Tiếp tục Ải ' + (cur.i + 1) + ': ' + cur.s.name : ' — Đã phá đảo!'));
   }, 600);
 }
+/* Save mới tinh (hoặc save cũ chưa có hồ sơ) → mở bảng Tạo Nhân Vật (V14).
+   Muốn đổi lại: bấm vào tên trên thẻ HUD. */
+if (playerGender === null) setTimeout(ccOpen, LOADED ? 900 : 350);
 
 /* ============ HÀM XÁC NHẬN RESET TIẾN TRÌNH ============ */
 function confirmResetGame() {
@@ -6903,7 +6914,7 @@ function openHungThanCert() {
       <div style="font-size:11px;letter-spacing:2px;color:#fde047">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM — NETWORK CITY CYBER COMMAND</div>
       <h1 style="margin:10px 0 4px;font-size:26px;color:#facc15;text-shadow:0 0 16px rgba(250,204,21,.7)">🏆 CHỨNG CHỈ: HUNG THẦN IT 🏆</h1>
       <div style="font-size:13px;color:#93c5fd;font-style:italic">Chứng nhận thành tích đặc biệt xuất sắc trong vận hành An ninh mạng & Điều hành NOC/SOC</div>
-      <div style="margin:16px 0;font-size:15px">Trao tặng cho Kỹ sư: <b style="font-size:22px;color:#38bdf8;text-decoration:underline">${S.name || 'Nhân IT'}</b></div>
+      <div style="margin:16px 0;font-size:15px">Trao tặng cho Kỹ sư: <b style="font-size:22px;color:#38bdf8;text-decoration:underline">${playerName}</b></div>
       <div style="max-width:700px;margin:0 auto;font-size:12.5px;line-height:1.7;color:#e2e8f0;background:rgba(255,255,255,.05);padding:12px;border-radius:8px">
         Đã một mình trấn áp thành công 4 đại sự cố tại Trung Tâm Điều Hành NOC/SOC: 
         Đập tan bão tấn công từ chối dịch vụ (DDoS) bằng Next-Gen Firewall, thanh trừng triệt để mã độc đào coin ẩn, dập tắt bão broadcast loop mạng trên Core Switch, và cân bằng tải hoàn hảo cụm máy chủ doanh nghiệp.
@@ -6967,7 +6978,7 @@ function downloadHungThanPNG() {
   g.fillText('Trao tặng cho Kỹ sư:', 480, 220);
   
   g.fillStyle = '#38bdf8'; g.font = 'bold 28px sans-serif';
-  g.fillText(S.name || 'Nhân IT', 480, 260);
+  g.fillText(playerName, 480, 260);
   
   g.fillStyle = '#cbd5e1'; g.font = '14px sans-serif';
   g.fillText('Đã hoàn thành xuất sắc 4 đại sự cố tại Trung Tâm Điều Hành Mạng & An Ninh Mạng (NOC/SOC):', 480, 310);
@@ -7244,8 +7255,9 @@ function ambSayPick(K, G) {
 /* Đoàn dân đông nên hai người rất dễ cùng rút một câu — chừa 3 lần rút để tránh
    đúng câu đang hiện trên màn hình (avoid), không thì mới chịu lặp lại. */
 function ambSay(K, G, avoid) {
-  for (let t = 0; t < 3; t++) { const s = ambSayPick(K, G); if (!avoid || avoid.indexOf(s) < 0) return s; }
-  return ambSayPick(K, G);
+  /* pName trước khi so avoid: avoid chứa đúng chuỗi đang hiển thị (đã thay tên) */
+  for (let t = 0; t < 3; t++) { const s = pName(ambSayPick(K, G)); if (!avoid || avoid.indexOf(s) < 0) return s; }
+  return pName(ambSayPick(K, G));
 }
 const SHIP_CHATTER = ['Giao linh kiện Lab đây! Ai nhận giùm cái?', 'Em bay từ kho phố lên, hàng còn nguyên seal nha!', 'Hàng dễ vỡ hơn cả deadline của anh đó!'];
 const CAFE_CHATTER = ['Cà phê mới pha, nóng hổi đây anh!', 'Deadline dí thì tấp em một ly nè!', '100 coin thôi, chạy nhanh hơn 3 phút!'];
@@ -7599,7 +7611,7 @@ var AMB_LUN = [
   'Ping từ Trái Đất lên đây tận 1.200ms!',
   'Ai làm đứt cáp quang vũ trụ thế?',
   'Hôm nay oxy trong Biodome hơi lạnh...',
-  'Kỹ sư Nhân IT vừa bay lên hỗ trợ kìa!',
+  'Kỹ sư {player} vừa bay lên hỗ trợ kìa!',
   'Bão Mặt Trời đêm qua làm lệch chảo thu số 3 rồi.',
   'Anh kiểm tra giùm em áp suất vòm số 2 với!',
   'Bụi Mặt Trăng lọt vào quạt rack nhiều ghê anh.',
@@ -8208,6 +8220,118 @@ function mtClose() {
   MT.n = null;
   releaseFocus();
 }
+
+/* ============================================================
+   V14 — TẠO NHÂN VẬT: ĐẶT TÊN & CHỌN GIỚI TÍNH
+   ------------------------------------------------------------
+   Bảng mở khi save chưa có hồ sơ (playerGender === null) và mỗi lần bấm
+   vào tên trên thẻ HUD. Đây là THÀNH PHẦN THÊM MỚI:
+     • Tên chảy qua playerName + token {player} (V13) nên bảng tên chibi,
+       hội thoại NPC, chat, thẻ HUD, modal Hồ sơ và chứng chỉ tự theo,
+       không phải sửa bất kỳ chỗ hiển thị nào ở trên.
+     • Giới tính chọn nguồn ảnh vẽ (V15): NAM = char_player.png như trước đây,
+       NỮ = char_player_female.png cho sprite đi lại và icon-113.png cho mọi
+       khung avatar — cả hai nạp sẵn ở assets.js, chỉ đổi ảnh, không đổi khung.
+   ============================================================ */
+const CC_MAX = PLAYER_NAME_MAX;   // độ dài tên tối đa hiện trên nhãn + maxlength của ô nhập
+const CC_DEF = 'Nhân-IT';     // tên mặc định khi bỏ trống
+/* Font phải khai báo rời (font-family:, không bọc tên họ chữ trong nháy kép):
+   chuỗi style đặt trong HTML attribute sẽ bị cắt ở dấu nháy kép đầu tiên. */
+const CC_CSS = 'display:flex;flex-direction:column;gap:9px;width:416px;padding:15px 20px 17px;' +
+  'background:linear-gradient(165deg,#132234,#0a1119);border:2px solid #38bdf8;border-radius:18px;' +
+  'color:#e8f1fb;font-size:14px;font-family:Segoe UI,sans-serif;z-index:140;box-shadow:0 20px 60px #000c',
+  CC_LB = 'font-size:10.5px;font-weight:800;letter-spacing:.7px;color:#7dd3fc',
+  CC_IN = 'width:100%;box-sizing:border-box;padding:9px 11px;border-radius:11px;border:1.5px solid #2a4a6b;' +
+  'background:#08111c;color:#fff;font-size:14px;font-weight:700;font-family:Segoe UI,sans-serif;outline:none',
+  CC_GD = 'flex:1;padding:9px 6px;border:1.5px solid #2a4a6b;border-radius:12px;cursor:pointer;' +
+  'background:rgba(28,45,66,.92);color:#cfe6ff;font-family:Segoe UI,sans-serif;font-size:12.5px;font-weight:800',
+  CC_OK = 'flex:1;padding:11px;border:0;border-radius:12px;cursor:pointer;color:#fff;background:#16a34a;' +
+  'font-family:Segoe UI,sans-serif;font-size:13.5px;font-weight:900;letter-spacing:.4px';
+const CC = { g: 'male', name: '' };
+/* Tên do người chơi gõ sẽ được nạp vào innerHTML (dlg-txt, chatLog, bảng Hồ sơ)
+   qua pName() → phải sạch ký tự HTML trước khi kịp vào save. Hàm này là FUNCTION
+   KHAI BÁO và chỉ đọc biến của engine.js: applySave() gọi nó ngay lúc game.js chạy
+   tới loadGame() (~dòng 5945), trước khi các const cuối file kịp khởi tạo. */
+function ccSafe(s) { return String(s).replace(/[<>&"]/g, '').trim().slice(0, PLAYER_NAME_MAX); }
+function ccBox() {
+  let m = document.getElementById('cc-modal');
+  if (!m) { m = document.createElement('div'); m.id = 'cc-modal'; m.className = 'modal'; document.getElementById('app').appendChild(m); }
+  m.style.cssText = CC_CSS;
+  return m;
+}
+function ccBtn(g) {
+  return CC_GD + (CC.g === g ? (g === 'female'
+    ? ';border-color:#f472b6;background:rgba(244,114,182,.22);color:#fff'
+    : ';border-color:#38bdf8;background:rgba(56,189,248,.22);color:#fff') : '');
+}
+function ccRender() {
+  const m = ccBox();
+  m.innerHTML =
+    '<div style="font-size:16.5px;font-weight:900;color:#38bdf8">🧑‍💻 TẠO NHÂN VẬT</div>' +
+    '<div style="' + CC_LB + '">TÊN NHÂN VẬT · TỐI ĐA ' + CC_MAX + ' KÝ TỰ (bỏ trống = ' + CC_DEF + ')</div>' +
+    '<input id="cc-name" type="text" maxlength="' + CC_MAX + '" placeholder="' + CC_DEF + '" value="' + CC.name + '"' +
+    ' style="' + CC_IN + '" oninput="ccType(this.value)" onkeydown="if(event.key===\'Enter\')ccDone()">' +
+    '<div style="' + CC_LB + '">GIỚI TÍNH</div>' +
+    '<div style="display:flex;gap:10px;align-items:stretch">' +
+      '<canvas id="cc-av" width="76" height="104" style="flex:0 0 76px;border-radius:12px;' +
+      'background:linear-gradient(180deg,#dff2ff,#7ec8ff);border:1.5px solid #2a4a6b"></canvas>' +
+      '<div style="flex:1;display:flex;flex-direction:column;gap:8px">' +
+        '<button id="cc-male" type="button" onclick="ccPick(\'male\')" style="' + ccBtn('male') + '">👨 NAM</button>' +
+        '<button id="cc-female" type="button" onclick="ccPick(\'female\')" style="' + ccBtn('female') + '">👩 NỮ</button>' +
+        '<div style="font-size:10.5px;opacity:.75;text-align:center">Xem trước hình trong game</div>' +
+      '</div>' +
+    '</div>' +
+    '<div style="display:flex;gap:9px">' +
+      '<button type="button" onclick="ccDone()" style="' + CC_OK + '">▶ VÀO GAME</button>' +
+      '<button type="button" onclick="ccCancel()" style="' + CC_GD + ';flex:0 0 104px">✖ ĐÓNG</button>' +
+    '</div>';
+  m.style.display = 'flex';
+}
+/* Hình xem trước: NAM = nguyên bản sprite nam đang dùng; NỮ = ảnh avatar
+   icon-113.png (IMG.avf) phủ kín khung, đúng như thẻ HUD + khung chat. */
+function ccPreview() {
+  const cv = document.getElementById('cc-av'); if (!cv) return;
+  const g = cv.getContext('2d');
+  g.clearRect(0, 0, cv.width, cv.height);
+  if (!assetsReady) return;
+  try { g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; } catch (e) {}
+  if (CC.g === 'female') { if (IMG.avf) avFit(g, IMG.avf, cv.width, cv.height); return; }
+  const img = IMG.chars && IMG.chars.p; if (!img) return;
+  const h = cv.height, w = h * img.width / img.height, x = (cv.width - w) / 2;
+  g.drawImage(img, x, 0, w, h);
+}
+function ccType(v) { CC.name = ccSafe(v); }
+function ccPick(g) {
+  CC.g = g; sfxClick();
+  const m = document.getElementById('cc-male'), f = document.getElementById('cc-female');
+  if (m) m.style.cssText = ccBtn('male');
+  if (f) f.style.cssText = ccBtn('female');
+  ccPreview();
+}
+function ccOpen() {
+  closeAll();                 // một modal một lúc, giống các modal khác của game
+  CC.g = playerGender === 'female' ? 'female' : 'male';
+  CC.name = playerName;
+  ccRender(); ccPreview();
+  setTimeout(() => { const el = document.getElementById('cc-name'); if (el) { el.focus(); el.select(); } }, 60);
+  beep(620, 'triangle', .09, .04);
+}
+function ccCancel() {
+  const m = document.getElementById('cc-modal');
+  if (m) m.style.display = 'none';
+  releaseFocus();
+}
+function ccDone() {
+  playerName = ccSafe(CC.name) || CC_DEF;
+  playerGender = CC.g === 'female' ? 'female' : 'male';
+  ccCancel();
+  syncHUD();
+  renderHudAvatar();
+  saveGame();
+  sfxFanfare();
+  showToast('🧑‍ ' + playerName + ' · ' + (playerGender === 'female' ? 'Nữ' : 'Nam') + ' — sẵn sàng nào!');
+}
+
 
 
 
