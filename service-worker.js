@@ -12,7 +12,7 @@
 
    Thêm tài nguyên mới? Cập nhật cả ASSETS.js và PRECACHE bên dưới.
    ============================================================ */
-const CACHE_NAME = 'it-game-v1.28';
+const CACHE_NAME = 'it-game-v1.30';
 
 const PRECACHE = [
   // --- vỏ ứng dụng ---
@@ -29,6 +29,7 @@ const PRECACHE = [
   './js/skins.js',
   './js/ui.js',
   './js/bunnies.js',
+  './js/vfx.js',
   // --- icon PWA ---
   './assets/img/icon-192.png',
   './assets/img/icon-512.png',
