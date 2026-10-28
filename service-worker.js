@@ -12,7 +12,7 @@
 
    Thêm tài nguyên mới? Cập nhật cả ASSETS.js và PRECACHE bên dưới.
    ============================================================ */
-const CACHE_NAME = 'it-game-v1.30';
+const CACHE_NAME = 'it-game-v1.31';
 
 const PRECACHE = [
   // --- vỏ ứng dụng ---
@@ -30,6 +30,7 @@ const PRECACHE = [
   './js/ui.js',
   './js/bunnies.js',
   './js/vfx.js',
+  './js/sfx.js',
   // --- icon PWA ---
   './assets/img/icon-192.png',
   './assets/img/icon-512.png',
@@ -79,7 +80,11 @@ const PRECACHE = [
   './assets/fonts/jetbrains-mono-greek.woff2',
   './assets/fonts/jetbrains-mono-vietnamese.woff2',
   './assets/fonts/jetbrains-mono-latin-ext.woff2',
-  './assets/fonts/jetbrains-mono-latin.woff2'
+  './assets/fonts/jetbrains-mono-latin.woff2',
+  './assets/audio/step.mp3',
+  './assets/audio/coin.mp3',
+  './assets/audio/pop.mp3',
+  './assets/audio/bgm.mp3'
 ];
 
 /* ---------- install: nạp trước toàn bộ, không để 1 file lỗi chặn cả app ---------- */
