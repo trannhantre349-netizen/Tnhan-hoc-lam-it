@@ -25,6 +25,9 @@ const ASSETS = {
   /* Sheet 3 hàng x 4 cột (1024x572) nền xanh đậm #202A39 — bake-sprites tẩy
      nền theo màu đọc từ 4 góc, giữ nguyên lưới cắt nên toạ độ ô không đổi. */
   creatures: 'assets/img/baked/creatures_sheet.png?v=1',
+  /* V16: sheet 29 chú thỏ (ô 152px, đáy ô = chân) — nguồn assets/bunny.png là
+     JPEG nền xám, tẩy nền + đóng gói ngoại tuyến bằng tools/bake-bunnies.cjs. */
+  bunny: 'assets/img/baked/bunny_sheet.png?v=1',
   chars: {
     p: 'assets/img/baked/char_player.png',
     /* V15: sprite NỮ đi trên bản đồ. Hai ảnh này artist xuất sẵn có kênh alpha
@@ -48,7 +51,7 @@ const ASSETS = {
   avf: 'assets/img/icon-113.png'
 };
 
-const IMG = { bg: null, chars: {}, avf: null, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null, creatures: null };
+const IMG = { bg: null, chars: {}, avf: null, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null, creatures: null, bunny: null };
 let assetsReady = false;
 
 /* ============================================================
@@ -215,6 +218,7 @@ function loadOne(src) {
   jobs.push(loadOne(ASSETS.noc_bg).then(im => { IMG.noc_bg = im; }));
   jobs.push(loadOne(ASSETS.lunar_bg).then(im => { IMG.lunar_bg = im; }));
   jobs.push(loadOne(ASSETS.creatures).then(im => { IMG.creatures = im; }));
+  jobs.push(loadOne(ASSETS.bunny).then(im => { IMG.bunny = im; }));
   jobs.push(loadOne(ASSETS.avf).then(im => { IMG.avf = im; }));
 
   Object.entries(ASSETS.chars).forEach(([k, src]) => {

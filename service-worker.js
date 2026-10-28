@@ -12,7 +12,7 @@
 
    Thêm tài nguyên mới? Cập nhật cả ASSETS.js và PRECACHE bên dưới.
    ============================================================ */
-const CACHE_NAME = 'it-game-v1.27';
+const CACHE_NAME = 'it-game-v1.28';
 
 const PRECACHE = [
   // --- vỏ ứng dụng ---
@@ -28,6 +28,7 @@ const PRECACHE = [
   './js/reskin.js',
   './js/skins.js',
   './js/ui.js',
+  './js/bunnies.js',
   // --- icon PWA ---
   './assets/img/icon-192.png',
   './assets/img/icon-512.png',
@@ -51,6 +52,8 @@ const PRECACHE = [
   './assets/img/baked/street_env_traffic.png?v=1',
   // --- sinh vật: sheet 3x4 đã tẩy nền (Cyber-T-Rex, Mèo Server, bồ câu AI) ---
   './assets/img/baked/creatures_sheet.png?v=1',
+  // --- V16: sheet 29 chú thỏ đã tẩy nền (bake bằng tools/bake-bunnies.cjs) ---
+  './assets/img/baked/bunny_sheet.png?v=1',
   // --- nhân vật ---
   './assets/img/baked/char_player.png',
   './assets/img/char_player_female.png',

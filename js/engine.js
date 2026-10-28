@@ -1867,6 +1867,10 @@ function render() {
        đứng sau bị nó đè, đứng trước thì đè lên nó. Guard typeof: engine chạy
        update()/render() ngay lúc parse, trước khi game.js kịp nạp. */
     if (typeof creRexSort === 'function') { const _cr = creRexSort(); if (_cr) list.push(_cr); }
+    /* Bầy thỏ (bunnies.js) gửi TỪNG con vào đúng danh sách này để được che
+       khuất chuẩn xác bởi toà nhà / cây / đài phun / người chơi. Guard typeof
+       vì engine chạy render() ngay lúc parse, trước khi bunnies.js kịp nạp. */
+    if (typeof bunnySort === 'function') bunnySort(list);
     list.push({ k: FOUNTAIN.y + 30, f: drawCenterPiece });
     list.push({ k: S.p.y + 30, f: () => drawSprite(S.p.x, S.p.y, 'p') });
     list.sort((a, b) => a.k - b.k).forEach(o => o.f());
