@@ -24,6 +24,20 @@
    FPS: mỗi con đúng 1 drawImage từ một sheet duy nhất + 1 bóng ellipse; AI
    tính theo dt nên không đổi tốc độ khi khung hình tụt; bunnyBudget() tự ẩn
    bớt thỏ khi thời gian khung trung bình vượt ~22ms và thả dần khi mượt lại.
+
+   V17 TƯƠNG TÁC (cũng ADD-ONLY, vẫn chỉ trong file này):
+   · Click/Tap "thỏ rớt đồ": một listener pointerdown dán thẳng lên #cv. Vì
+     listener nằm trên canvas chứ không phải document, cú chạm vào HUD, dock,
+     minimap, ô hội thoại hay bất kỳ modal nào KHÔNG rơi xuống thỏ (chúng là
+     phần tử ở lớp khác, sự kiện không rơi xuống canvas). Toạ độ quy đổi qua
+     getBoundingClientRect của #cv nên đúng cả khi #app bị fitApp() scale, và
+     cộng thêm _camX ở Phố Ngoài (game chỉ cuộn ngang, không có _camY).
+     Thỏ bị chạm -> hoảng loạn x3..x4 tốc độ, chạy tán loạn ~1.3-2.2s, mờ dần
+     rồi tái sinh ở một điểm đi được khác. Thưởng 10..50 Coin hoặc 1..5 XP
+     qua đúng addCoin()/addXP() của engine (hai hàm này đã tự gọi syncHUD()).
+   · Bong bóng trò chuyện: đo khoảng cách thỏ <-> người chơi mỗi khung, trong
+     bán kính 74px thì thỏ ngẫu nhiên nói (cooldown 9..21s, tối đa 2 bong
+     bóng cùng lúc để không tranh chữ với dân phố). Vẽ bằng canvas thuần.
    ============================================================ */
 
 const MAX_BUNNIES = 40;                        // trần tuyệt đối của một bầy
@@ -45,7 +59,46 @@ const BUN_LOOKS = [
 const BUN_GEEKS = [4, 19, 5, 20, 26, 21, 25, 27, 28];
 const BUN_FACE_L = { 10: 1, 17: 1 };        // ô nghệ thuật vẽ quay mặt sang TRÁI
 
-const BUN = { herd: {}, t: 0, ms: 16, eff: 1, mini: [], miniT: 0 };
+/* ---------- V17: tương tác ---------- */
+const BUN_COIN = [10, 50];                   // thưởng Coin khi click trúng
+const BUN_XP = [1, 5];                       // thưởng XP
+const BUN_COIN_CHANCE = .6;
+const BUN_PANIC = [1.3, 2.2];                // giây tán loạn trước khi mờ dần
+const BUN_MUL = [3, 4];                      // x3..x4 tốc độ thường
+const BUN_FADE = .5;                         // giây tan biến
+const BUN_SAY_R = 74;                        // bán kính thỏ "nói" với người chơi
+const BUN_SAY_MAX = 2;                       // trần bong bóng thỏ cùng lúc
+const BUN_TAP_MS = 130;                      // chặn chuột+touch cùng nổ một cú
+
+const BUN_LINES = [
+  'Rút phích cắm cắm lại chưa?',
+  'Lỗi này do cáp quang bị cá mập cắn rồi!',
+  'Code chạy rồi thì đừng có đụng vào!',
+  'Bug là tính năng, không phải lỗi!',
+  'Ping 8.8.8.8 xem nào!',
+  'Lưu file chưa đấy? Ctrl+S đi!',
+  'CCNA không khó, khó ở chỗ học mãi không thuộc!',
+  'Sếp đang nhìn kìa, giả vờ gõ phím đi!',
+  'Subnet mask là /24, nhớ lấy nha!',
+  'DHCP cấp IP mà mày không hiểu à?',
+  'Cáp Cat5e mà đòi nhanh như Cat8 hả?',
+  'Ta là thỏ OSI layer 7: layer chính trị!',
+  'Wifi yếu là do con mèo nằm lên router!',
+  'Ctrl+Alt+Del rồi cầu nguyện đi!',
+  'Switch hay Hub? phân biệt chưa mà đi bắt thỏ!',
+  'Tắt nguồn mở nguồn lại là xong hết!',
+  'VLAN ơi là VLAN...',
+  'Thỏ không biết debug, thỏ chỉ biết nhảy!'
+];
+let _bunLineI = -1;
+function bunLine() {
+  let i = 0;
+  do { i = (Math.random() * BUN_LINES.length) | 0; } while (i === _bunLineI && BUN_LINES.length > 1);
+  _bunLineI = i;
+  return BUN_LINES[i];
+}
+
+const BUN = { herd: {}, t: 0, ms: 16, eff: 1, mini: [], miniT: 0, float: [], tapT: 0 };
 
 /* ---------- vùng đi được, tính theo CHÂN (engine tính theo góc trên-trái) ---------- */
 /* Móng trăng của lunar_base_bg cong: dải SCENE_WALK cho phép tới y=151 nhưng từ
@@ -103,7 +156,12 @@ function bunBlocked(sc, x, y) {
     return propCollides(sc, x - 10, y - 30);
   } catch (e) { return false; }
 }
-/* Phố Ngoài cuộn theo camX: thỏ ngoài tầm nhìn không vẽ (vẫn đi bình thường). */
+/* Phố Ngoài cuộn theo camX (chỉ cuộn NGANG, game không có _camY). */
+function bunCam() { return S.scene === 'STREET' ? (window._camX || 0) : 0; }
+/* Người chơi quy về TOẠ ĐỘ THẾ GIỚI chung với thỏ: ở Phố Ngoài S.p.x là vị trí
+   trong khung hình nên phải cộng camX. */
+function bunPlayer() { return { x: S.p.x + 10 + bunCam(), y: S.p.y + 30 }; }
+/* Thỏ ngoài tầm nhìn ở Phố Ngoài không vẽ, không bắt click, không nói. */
 function bunOnScreen(b) {
   if (S.scene !== 'STREET') return true;
   const cam = window._camX || 0;
@@ -128,7 +186,53 @@ class BunnyNPC {
     this.rest = .3 + Math.random() * 2.6;
     this.scared = 0; this.fleeCd = Math.random() * 3;
     this.lod = Math.random();                 // con nào có lod trên bunnyBudget() sẽ bị ẩn
+    /* V17: panic/fade cho click-to-loot, sayT/sayCd cho bong bóng trò chuyện */
+    this.a = 1; this.panic = 0; this.mul = 1; this.dead = 0; this.looted = 0;
+    this.say = null; this.sayT = 0; this.sayCd = 1 + Math.random() * 8;
     this.place(sc);
+  }
+
+  revive(sc) {
+    this.a = 1; this.dead = 0; this.panic = 0; this.mul = 1; this.looted = 0;
+    this.state = 'rest'; this.rest = .4 + Math.random() * 2.2;
+    this.bounce = 0; this.tvy = 0; this.say = null; this.sayT = 0;
+    this.place(sc);
+  }
+
+  /* Nhảy tán loạn tới một điểm đi được cách chỗ hiện tại 120..260px */
+  flee(sc) {
+    const b = bunBand(sc);
+    for (let k = 0; k < 12; k++) {
+      const a = Math.random() * 6.2832, r = 120 + Math.random() * 140;
+      const x = Math.max(b.x0, Math.min(b.x1, this.fx + Math.cos(a) * r));
+      const y = Math.max(b.y0, Math.min(b.y1, this.fy + Math.sin(a) * r * .6));
+      if (x === this.fx && y === this.fy) continue;
+      if (bunBlocked(sc, x, y)) continue;
+      this.tx = x; this.ty = y; this.state = 'hop'; return true;
+    }
+    return false;
+  }
+
+  /* Hitbox theo THÂN thỏ (rộng ~0.66*h, cao từ chân lên đỉnh + bounce), không
+     phải ô 152px của sheet — ô vuông to thì click chỗ nào cũng trúng. */
+  hit(wx, wy) {
+    if (this.a < .45 || this.dead || !bunOnScreen(this)) return false;
+    const hw = this.h * .33, top = this.fy + this.bounce - this.h * 1.02;
+    return wx >= this.fx - hw && wx <= this.fx + hw && wy >= top && wy <= this.fy + 6;
+  }
+
+  /* Đủ gần người chơi -> ngẫu nhiên nói một câu IT/CCNA (cooldown + trần 2 hộp) */
+  talk(dt, px, py, busy, talking) {
+    this.sayCd -= dt;
+    if (this.sayT > 0) return;
+    if (this.sayCd > 0 || busy || this.panic > 0 || this.dead || this.a < 1) return;
+    if (Math.hypot(this.fx - px, this.fy - py) > BUN_SAY_R) return;
+    if (talking >= BUN_SAY_MAX) { this.sayCd = .7; return; }
+    this.say = bunLine();
+    this.sayT = 2.1 + Math.random() * 1.0;              // tồn tại 2..3.1s
+    this.sayCd = 9 + Math.random() * 12;
+    talking++;
+    return talking;
   }
 
   place(sc) {
@@ -155,6 +259,15 @@ class BunnyNPC {
 
   step(dt, sc) {
     this.scared -= dt;
+    if (this.panic > 0) this.panic -= dt;
+    /* Hết giờ tán loạn -> mờ dần rồi biến mất, tái sinh ở một điểm khác */
+    if (this.dead) {
+      this.a -= dt / BUN_FADE;
+      this.bounce = 0;
+      if (this.a <= 0) this.revive(sc);
+      return;
+    }
+    if (this.looted && this.panic <= 0) { this.dead = 1; return; }
     if (this.state === 'rest') {
       this.rest -= dt;
       this.ph += dt * 2.4;
@@ -168,9 +281,11 @@ class BunnyNPC {
       return;
     }
     const dx = this.tx - this.fx, dy = this.ty - this.fy, d = Math.hypot(dx, dy);
-    const st = this.spd * dt * (this.scared > 0 ? 2.2 : 1);
+    const mul = this.panic > 0 ? this.mul : (this.scared > 0 ? 2.2 : 1);
+    const st = this.spd * dt * mul;
     if (d <= st) {
       this.fx = this.tx; this.fy = this.ty;
+      if (this.panic > 0 && this.flee(sc)) return;        // còn hoảng: nhảy tiếp vòng khác
       this.state = 'rest'; this.bounce = 0; this.tvy = 0;
       this.rest = (this.geek ? 5 : .4) + Math.random() * (this.geek ? 9 : 2.8);
       return;
@@ -191,6 +306,14 @@ class BunnyNPC {
   /* (x, y) là vị trí CHÂN. Phố Ngoài đã dịch ctx theo -camX nên đưa toạ độ thế giới thẳng vào. */
   draw(g, x, y, hh) {
     const sh = IMG.bunny; if (!sh) return;
+    const fading = this.a < 1;
+    if (fading) { g.save(); g.globalAlpha = Math.max(0, this.a); }
+    this.paint(g, x, y, hh);
+    if (fading) g.restore();
+  }
+
+  paint(g, x, y, hh) {
+    const sh = IMG.bunny;
     const c = this.cell(), h = hh || this.h;
     const sx = (c % BUN_COLS) * BUN_CELL, sy = ((c - c % BUN_COLS) / BUN_COLS) * BUN_CELL;
     const by = y + this.bounce, lift = 1 + this.bounce / h * 1.6;
@@ -227,11 +350,119 @@ function bunnyStep() {
      bớt. Ngưỡng hồi phục phải CAO HƠN 16.7ms — máy 60fps chạy đúng 16.7ms mỗi
      khung, đặt 15ms là bầy đã tụt xuống đáy rồi không bao giờ trở lại. */
   BUN.eff = Math.max(.25, Math.min(1, BUN.ms > 24 ? BUN.eff - .02 : BUN.ms < 20 ? BUN.eff + .012 : BUN.eff));
+  /* Chữ nổi rơi đồ tự trôi ngay cả khi bảng đang mở (thỏ đứng lại nhưng hiệu ứng phải xong) */
+  for (let i = BUN.float.length - 1; i >= 0; i--) {
+    const f = BUN.float[i];
+    if (f.t <= 0 || f.sc !== S.scene) { BUN.float.splice(i, 1); continue; }
+    f.t -= dt; f.y -= dt * 24;
+  }
   if (!IMG.bunny || dt <= 0) return;
   if (typeof openModalEl === 'function' && openModalEl()) return;   // bảng đang mở: engine cũng đang dừng người chơi
   const sc = S.scene, herd = bunnyHerd();
-  const px = S.p.x + 10, py = S.p.y + 30;
-  for (let i = 0; i < herd.length; i++) { herd[i].react(px, py, sc, dt); herd[i].step(dt, sc); }
+  const P = bunPlayer(), px = P.x, py = P.y;
+  const busy = typeof anyCtlModalOpen === 'function' && anyCtlModalOpen();
+  let talking = 0;
+  for (const b of herd) if (b.sayT > 0 && b.a >= 1) talking++;
+  for (let i = 0; i < herd.length; i++) {
+    const b = herd[i];
+    b.react(px, py, sc, dt);
+    b.step(dt, sc);
+    const t = b.talk(dt, px, py, busy, talking);
+    if (t) talking = t;
+  }
+}
+
+/* ---------- V17-A: click / chạm -> thỏ rớt đồ ---------- */
+function bunLoot(b) {
+  const coin = Math.random() < BUN_COIN_CHANCE;
+  const amt = coin
+    ? BUN_COIN[0] + ((Math.random() * (BUN_COIN[1] - BUN_COIN[0] + 1)) | 0)
+    : BUN_XP[0] + ((Math.random() * (BUN_XP[1] - BUN_XP[0] + 1)) | 0);
+  /* addCoin()/addXP() của engine đã tự gọi syncHUD() -> thanh trạng thái cập nhật ngay */
+  if (coin) { if (typeof addCoin === 'function') addCoin(amt); }
+  else if (typeof addXP === 'function') addXP(amt);
+  b.looted = 1; b.dead = 0;
+  b.panic = BUN_PANIC[0] + Math.random() * (BUN_PANIC[1] - BUN_PANIC[0]);
+  b.mul = BUN_MUL[0] + Math.random() * (BUN_MUL[1] - BUN_MUL[0]);
+  b.fleeCd = 0; b.scared = 0; b.sayT = 0; b.say = null;
+  b.flee(S.scene);
+  if (BUN.float.length > 14) BUN.float.shift();          // phòng khi spam click
+  BUN.float.push({
+    sc: S.scene, x: b.fx, y: b.fy - b.h - 8, t: 1.25,
+    txt: '+' + amt + (coin ? ' Coin' : ' XP'), col: coin ? '#fde047' : '#5eead4'
+  });
+  if (typeof beep === 'function') beep(coin ? 920 : 760, 'triangle', .09, .03);
+}
+/* Dán listener lên #cv chứ KHÔNG phải document: cú chạm vào HUD / dock / modal
+   có target là phần tử đó, không nổi tới canvas -> click không xuyên UI. */
+function bunTap(ev) {
+  try {
+    if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+    if (!IMG.bunny || typeof cv === 'undefined' || !cv) return;
+    if (typeof anyCtlModalOpen === 'function' && anyCtlModalOpen()) return;
+    if (typeof openModalEl === 'function' && openModalEl()) return;
+    const now = performance.now();
+    if (now - (BUN.tapT || 0) < BUN_TAP_MS) return;      // chuột + touch cùng nổ một cú
+    const r = cv.getBoundingClientRect();
+    if (r.width < 60 || r.height < 40) return;
+    const p = (ev.touches && ev.touches[0]) || ev;
+    const sx = (p.clientX - r.left) * 960 / r.width;     // #app có thể bị fitApp scale
+    const sy = (p.clientY - r.top) * 600 / r.height;
+    if (sx < 0 || sy < 0 || sx > 960 || sy > 600) return;
+    BUN.tapT = now;
+    const wx = sx + bunCam(), wy = sy;
+    const herd = BUN.herd[S.scene]; if (!herd) return;
+    const eff = bunnyBudget();
+    let hitB = null;
+    for (let i = 0; i < herd.length; i++) {
+      const b = herd[i];
+      if (b.lod > eff || !b.hit(wx, wy)) continue;
+      if (!hitB || b.fy > hitB.fy) hitB = b;             // con đứng trước (chân thấp hơn) ăn click
+    }
+    if (hitB) bunLoot(hitB);
+  } catch (e) {}
+}
+if (typeof cv !== 'undefined' && cv) cv.addEventListener('pointerdown', bunTap);
+
+/* ---------- V17-B: vẽ bong bóng + chữ nổi (screen space, có dịch camX) ---------- */
+function bunBubble(b) {
+  if (!b.say || b.sayT <= 0 || b.a < 1 || !bunOnScreen(b)) return;
+  ctx.save();
+  ctx.font = '700 10.5px ' + (typeof IZF !== 'undefined' ? IZF : 'sans-serif');
+  const L = (typeof sayLines === 'function' ? sayLines(b.say, 130) : [b.say]).slice(0, 3);
+  let tw = 0;
+  for (const s of L) tw = Math.max(tw, ctx.measureText(s).width);
+  const w = Math.min(168, tw + 16), hh = 8 + L.length * 12;
+  const cam = bunCam();
+  const bx = Math.max(cam + 6, Math.min(cam + 954 - w, b.fx - w / 2));
+  const by = Math.max(2, b.fy + b.bounce - b.h - 13 - hh);
+  ctx.globalAlpha = Math.min(1, b.sayT * 3);
+  if (typeof izb === 'function') izb(bx, by, w, hh, 8, '#fffdf4');
+  ctx.fillStyle = '#fffdf4';
+  ctx.beginPath();
+  ctx.moveTo(b.fx - 5, by + hh - 1); ctx.lineTo(b.fx + 5, by + hh - 1); ctx.lineTo(b.fx, by + hh + 6);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#1e293b'; ctx.textAlign = 'center';
+  for (let i = 0; i < L.length; i++) ctx.fillText(L[i], bx + w / 2, by + 14 + i * 12);
+  ctx.restore();
+}
+function bunFloat(f) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, f.t * 2.4));
+  ctx.font = '800 14px ' + (typeof IZF !== 'undefined' ? IZF : 'sans-serif');
+  ctx.textAlign = 'center'; ctx.lineWidth = 3.5;
+  ctx.strokeStyle = 'rgba(10,16,34,.8)'; ctx.strokeText(f.txt, f.x, f.y);
+  ctx.fillStyle = f.col; ctx.fillText(f.txt, f.x, f.y);
+  ctx.restore();
+}
+function bunOverlay() {
+  const cam = bunCam();
+  ctx.save();
+  if (cam) ctx.translate(-cam, 0);                      // thỏ & hiệu vẽ theo toạ độ thế giới
+  const herd = BUN.herd[S.scene];
+  if (herd) for (let i = 0; i < herd.length; i++) bunBubble(herd[i]);
+  for (let i = 0; i < BUN.float.length; i++) if (BUN.float[i].sc === S.scene) bunFloat(BUN.float[i]);
+  ctx.restore();
 }
 
 /* ---------- WORLD: ghép từng con vào depth sort thật của engine.js ---------- */
@@ -329,3 +560,6 @@ const _updBun = update;
 update = function () { try { bunnyStep(); } catch (e) {} _updBun(); };
 const _mgFrmBun = mgFrame;
 mgFrame = function () { _mgFrmBun(); try { bunnyMiniFrame(); } catch (e) {} };
+/* Bong bóng + chữ nổi vẽ SAU toàn cảnh (đúng idiom ambBubbles ở game.js:2915) */
+const _rndBun = render;
+render = function () { _rndBun(); try { bunOverlay(); } catch (e) {} };
