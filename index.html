@@ -586,6 +586,12 @@
 <!-- V19: Âm thanh Web Audio (bước chân / thỏ rớt đồ / thỏ nói) — file ADD-ONLY,
      nạp CUỐI để bọc update() và hook bunLoot + BunnyNPC.prototype.talk. -->
 <script src="js/sfx.js"></script>
+<!-- V21: Khu 4 "Thiên Đàng IT" — 2 file ADD-ONLY. heaven.js vẽ map mây và
+     nối update/render/doAction/propCollides/drawDecor/bunBand; mg-coding.js
+     là 2 minigame lập trình ở 3 trạm mây, bọc mgFrame/doAction của các lớp
+     trước nên nạp SAU heaven.js (và sau tất cả file cũ). -->
+<script src="js/heaven.js"></script>
+<script src="js/mg-coding.js"></script>
 <script>
 /* ============================================================
    PWA — đăng ký Service Worker + nút "Cài đặt ứng dụng" + chặn reload
