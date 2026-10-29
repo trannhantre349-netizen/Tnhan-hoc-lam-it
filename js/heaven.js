@@ -35,11 +35,15 @@
    Cảnh mới KHÔNG đụng vào save: S.scene không nằm trong saveData(), còn
    3 cờ minigame đăng ký vào STAGE_IDS để applySave() giữ nguyên kiểu
    boolean như ải Mặt Trăng.
-   ---------- BẢNG MÀU (V21.1) ----------
-   Khu này đứng chơi rất lâu nên cố ý KHÔNG dùng trắng/xanh nhạt làm nền:
-   trời là xanh lam sâu chuyển hoàng hôn, mây là ngà-xám có bóng tối quanh
-   biên, và mọi chữ treo đều đi qua hvCap() (nền tối + viền đen + bóng đổ)
-   để không chìm trên mặt mây.
+   ---------- BẢNG MÀU (V21.2) ----------
+   Khu này đứng chơi rất lâu nên CẤM HOÀN TOÀN màu trắng tinh khi vẽ mây:
+   mặt đất mây = xám xanh pastel #93B2C9 (tối dần về đáy), mây trang trí
+   lơ lửng = rgba(200,215,230,.5), bóng mây = shadowBlur 46 với
+   rgba(0,30,60,.4). Bước cuối của cảnh là hvShade() phủ rgba(0,10,30,.15)
+   lên cả canvas như "kính râm". Mọi chữ treo đi qua hvCap() (nền tối đậm +
+   viền đen + bóng đổ) để tương phản không giảm theo nền.
+   Ngoại lệ duy nhất: trụ sáng thang máy ở WORLD (Khu 1, hvBeamWorld) vẫn
+   trắng vì đó là cột ánh sáng trên nền phố nắng, không phải mặt mây.
    ============================================================ */
 
 /* ---------- 1. CẤU HÌNH TOẠ ĐỘ ---------- */
@@ -113,9 +117,10 @@ function hvDeckPath(g) {
   g.closePath();
 }
 /* Bông mây: 3 cung tròn lồng nhau (giữa to, hai bên nhỏ) — vẽ bằng bezier.
-   rgb = màu lõi, mặc định trắng; gọi truyền ngà/xám để bớt chói. */
+   rgb = màu lõi; Khu 4 KHÔNG truyền trắng tinh nữa (mặc định chỉ còn là
+   giá trị dự phòng cho các lời gọi cũ). */
 function hvPuff(g, x, y, r, a, rgb) {
-  g.fillStyle = 'rgba(' + (rgb || '255,255,255') + ',' + a + ')';
+  g.fillStyle = 'rgba(' + (rgb || '158,184,206') + ',' + a + ')';
   g.beginPath();
   g.moveTo(x - r * 1.5, y);
   g.bezierCurveTo(x - r * 1.6, y - r * 1.15, x - r * .55, y - r * 1.35, x - r * .18, y - r * .92);
@@ -166,11 +171,11 @@ function hvSky(t) {
   sg.addColorStop(0, 'rgba(255,205,140,.6)'); sg.addColorStop(.3, 'rgba(250,178,112,.2)'); sg.addColorStop(1, 'rgba(240,160,100,0)');
   ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(128, 84, 148, 0, 6.2832); ctx.fill();
   ctx.fillStyle = 'rgba(255,226,182,.8)'; ctx.beginPath(); ctx.arc(128, 84, 20, 0, 6.2832); ctx.fill();
-  /* mây xa trôi — ngà xám, alpha thấp vì trời đã tối */
+  /* mây xa trôi lơ lửng: xám xanh nhạt, trong suất thấp (rgba(200,215,230,.5)) */
   for (let i = 0; i < HV_SKY.far.length; i++) {
     const c = HV_SKY.far[i], sp = 5 + i * 2.4;
     const x = ((c[0] + t * sp) % 1160) - 100;
-    hvPuff(ctx, x, c[1], c[2], .22 + (i % 3) * .05, '206,226,246');
+    hvPuff(ctx, x, c[1], c[2], .5, '200,215,230');
   }
   /* tia sáng rơi xiên — chỉ còn 1/3 độ mạnh so với bản trắng trước đây */
   ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .055 + Math.sin(t * .8) * .015;
@@ -184,50 +189,64 @@ function hvSky(t) {
   ctx.restore();
 }
 function hvDeck(t) {
-  /* 0) quầng bóng lạnh quanh mây: vẽ TRƯỚC, nét to hơn thân mây ~23px để
-        đám mây nổi khối trên nền trời đậm, không "chìm nghỉm" vào trời. */
+  /* 0) quầng bóng xanh đen quanh mây: vẽ TRƯỚC, nét to hơn thân mây ~23px để
+        khối mây tách khỏi trời và giảm hẳn cảm giác chói. */
   ctx.save();
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  ctx.strokeStyle = 'rgba(9,26,50,.22)'; ctx.lineWidth = 92; hvDeckPath(ctx); ctx.stroke();
-  ctx.strokeStyle = 'rgba(24,52,88,.32)'; ctx.lineWidth = 62; hvDeckPath(ctx); ctx.stroke();
+  ctx.strokeStyle = 'rgba(0,30,60,.3)'; ctx.lineWidth = 92; hvDeckPath(ctx); ctx.stroke();
+  ctx.strokeStyle = 'rgba(0,30,60,.34)'; ctx.lineWidth = 62; hvDeckPath(ctx); ctx.stroke();
   ctx.restore();
-  /* 1) thân mây: xám ngà dịu → xanh slate đáy (bỏ hẳn trắng 100%) */
+  /* 1) THÂN MÂY LÀM MẶT ĐẤT = XÁM XANH PASTEL #93B2C9 (cấm trắng tinh),
+        đổ bóng xanh đen đậm bằng shadowBlur → mây nổi khối, dịu mắt. */
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,30,60,.4)'; ctx.shadowBlur = 46; ctx.shadowOffsetY = 22;
   hvDeckPath(ctx);
   const g = ctx.createLinearGradient(0, 250, 0, 580);
-  g.addColorStop(0, 'rgba(214,228,245,.94)'); g.addColorStop(.55, 'rgba(183,201,226,.95)'); g.addColorStop(1, 'rgba(126,153,187,.97)');
+  g.addColorStop(0, '#93b2c9'); g.addColorStop(.5, '#7d9cb6'); g.addColorStop(1, '#5d7d99');
   ctx.fillStyle = g; ctx.fill();
+  ctx.restore();
   /* 2) viền bông 46px: miền vẽ RỘNG hơn miền va chạm 23px → chắc chắn
         mọi điểm đi được đều nằm trên mây đã tô. */
   ctx.save();
   ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.lineWidth = 46;
-  ctx.strokeStyle = 'rgba(214,228,245,.7)'; hvDeckPath(ctx); ctx.stroke();
+  ctx.strokeStyle = 'rgba(147,178,201,.9)'; hvDeckPath(ctx); ctx.stroke();
   ctx.restore();
-  /* 3) gờ sáng trên mép mây (nhẹ) rồi nét tối chân mây (đậm) → có khối */
-  ctx.save(); ctx.lineWidth = 2.6; ctx.strokeStyle = 'rgba(246,251,255,.45)'; hvDeckPath(ctx); ctx.stroke(); ctx.restore();
-  ctx.save(); ctx.lineWidth = 1.6; ctx.strokeStyle = 'rgba(30,58,94,.5)'; hvDeckPath(ctx); ctx.stroke(); ctx.restore();
-  /* 4) bông mây đực trên gờ (đỉnh 0..10 = nửa trên đa giác) */
+  /* 3) gờ sáng nhẹ trên mép + nét tối chân mây → khối rõ, không còn nét trắng gắt */
+  ctx.save(); ctx.lineWidth = 2.6; ctx.strokeStyle = 'rgba(186,209,226,.55)'; hvDeckPath(ctx); ctx.stroke(); ctx.restore();
+  ctx.save(); ctx.lineWidth = 1.8; ctx.strokeStyle = 'rgba(0,26,52,.55)'; hvDeckPath(ctx); ctx.stroke(); ctx.restore();
+  /* 4) bông mây trên gờ (đỉnh 0..10 = nửa trên đa giác). KHÔNG đổ bóng riêng
+        cho từng bông: shadowBlur là nét vẽ đắt nhất của cảnh (11 bông = +2ms
+        mỗi frame) mà bóng của chúng nằm lọt trong bóng thân mây anyway. */
   for (const i of HV_SKY.rim) {
     const p = HV_POLY[i];
-    hvPuff(ctx, p[0], p[1] + 4, 26 + (i % 3) * 7, .42, '206,221,240');
+    hvPuff(ctx, p[0], p[1] + 4, 26 + (i % 3) * 7, .9, '158,184,206');
+    ctx.fillStyle = 'rgba(0,26,52,.22)';
+    ctx.beginPath(); ctx.ellipse(p[0], p[1] + 14, 22 + (i % 3) * 5, 7, 0, 0, 6.2832); ctx.fill();
   }
-  /* 5) gờ dưới: bóng xanh xám cho thấy khối mây dày */
+  /* 5) gờ dưới: bóng xanh đen cho thấy khối mây dày */
   for (let i = 12; i < 24; i += 2) {
     const p = HV_POLY[i];
-    ctx.fillStyle = 'rgba(48,78,118,.42)';
+    ctx.fillStyle = 'rgba(0,26,52,.34)';
     ctx.beginPath(); ctx.ellipse(p[0], p[1] + 16, 40, 15, 0, 0, 6.2832); ctx.fill();
   }
-  /* 6) vân sáng chạy trên mặt mây (thời gian trôi = mây trôi) */
+  /* 6) vân mây trôi + bóng râm đáy, tất cả nằm trong clip của mặt mây */
   ctx.save(); hvDeckPath(ctx); ctx.clip();
   for (let i = 0; i < 7; i++) {
     const x = ((t * (9 + i * 3)) % 1200) - 120, y = 300 + i * 34;
-    ctx.fillStyle = 'rgba(238,246,255,.16)';
+    ctx.fillStyle = 'rgba(196,214,230,.16)';
     ctx.beginPath(); ctx.ellipse(x, y, 92, 13, 0, 0, 6.2832); ctx.fill();
   }
-  /* bóng râm phía dưới khối mây — tăng chiều sâu, vẽ trong clip nên không loang ra trời */
-  const sh = ctx.createLinearGradient(0, 470, 0, 580);
-  sh.addColorStop(0, 'rgba(30,60,98,0)'); sh.addColorStop(1, 'rgba(24,52,88,.3)');
-  ctx.fillStyle = sh; ctx.fillRect(0, 470, 960, 130);
+  const sh = ctx.createLinearGradient(0, 430, 0, 580);
+  sh.addColorStop(0, 'rgba(0,26,52,0)'); sh.addColorStop(1, 'rgba(0,26,52,.38)');
+  ctx.fillStyle = sh; ctx.fillRect(0, 430, 960, 150);
   ctx.restore();
+}
+/* "Kính râm" cho cả Khu 4: một lớp phủ xanh đen nhạt lên toàn bộ canvas của
+   scene, vẽ SAU phần cảnh nhưng TRƯỚC các chữ nổi để HUD DOM + nhãn [E]
+   không bị giảm tương phản thêm. */
+function hvShade() {
+  ctx.fillStyle = 'rgba(0,10,30,.15)';
+  ctx.fillRect(0, 0, 960, 600);
 }
 /* Bãi đáp / cổng về: vòng xoáy mây + trụ sáng xuống dưới */
 function hvGate(t) {
@@ -239,12 +258,12 @@ function hvGate(t) {
   ellipsePath(ctx, HV_LAND.x, HV_LAND.y, HV_LAND.r, HV_LAND.r * .4); ctx.stroke();
   ctx.setLineDash([]); ctx.lineDashOffset = 0;
   for (let k = 0; k < 3; k++) {
-    ctx.strokeStyle = 'rgba(255,255,255,' + (.5 - k * .13) + ')'; ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(206,226,244,' + (.5 - k * .13) + ')'; ctx.lineWidth = 2;
     ellipsePath(ctx, HV_LAND.x, HV_LAND.y - 2, (HV_LAND.r - 14 - k * 13) * (.9 + p * .1), (HV_LAND.r - 14 - k * 13) * .36);
     ctx.stroke();
   }
   const lg = ctx.createLinearGradient(0, HV_LAND.y - 150, 0, HV_LAND.y);
-  lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(1, 'rgba(191,240,255,' + (.2 + p * .12) + ')');
+  lg.addColorStop(0, 'rgba(178,214,238,0)'); lg.addColorStop(1, 'rgba(178,214,238,' + (.2 + p * .12) + ')');
   ctx.fillStyle = lg;
   ctx.beginPath(); ctx.moveTo(HV_LAND.x - 26, HV_LAND.y - 4); ctx.lineTo(HV_LAND.x + 26, HV_LAND.y - 4);
   ctx.lineTo(HV_LAND.x + 12, HV_LAND.y - 150); ctx.lineTo(HV_LAND.x - 12, HV_LAND.y - 150); ctx.closePath(); ctx.fill();
@@ -255,11 +274,13 @@ function hvGate(t) {
 function hvPc(pc, t, active) {
   const done = !!S.missionsDone[pc.id], bob = Math.sin(t * 1.6 + pc.x * .01) * 2.4;
   const x = pc.x, y = pc.y + bob;
-  ctx.fillStyle = 'rgba(10,28,52,.32)';
+  ctx.fillStyle = 'rgba(0,26,52,.34)';
   ctx.beginPath(); ctx.ellipse(x, y + 6, 46, 13, 0, 0, 6.2832); ctx.fill();
-  hvPuff(ctx, x, y + 2, 30, .8, '236,244,253');
+  hvPuff(ctx, x, y + 2, 30, .95, '150,176,198');
+  ctx.fillStyle = 'rgba(0,26,52,.2)';
+  ctx.beginPath(); ctx.ellipse(x, y + 12, 30, 8, 0, 0, 6.2832); ctx.fill();
   /* chân bàn */
-  ctx.fillStyle = '#d5e2f3'; rr(ctx, x - 20, y - 26, 40, 8, 4); ctx.fill();
+  ctx.fillStyle = '#9db4c9'; rr(ctx, x - 20, y - 26, 40, 8, 4); ctx.fill();
   /* thân màn hình */
   const mw = 62, mh = 40, mx = x - mw / 2, my = y - 26 - mh;
   ctx.fillStyle = '#233044'; rr(ctx, mx - 3, my - 3, mw + 6, mh + 6, 7); ctx.fill();
@@ -275,8 +296,8 @@ function hvPc(pc, t, active) {
   }
   ctx.globalAlpha = 1;
   /* bàn phím + chuột */
-  ctx.fillStyle = '#c9d8ec'; rr(ctx, x - 22, y - 17, 30, 9, 3); ctx.fill();
-  ctx.fillStyle = '#8ea6c4'; ctx.beginPath(); ctx.ellipse(x + 16, y - 13, 5, 3.4, 0, 0, 6.2832); ctx.fill();
+  ctx.fillStyle = '#8ba3ba'; rr(ctx, x - 22, y - 17, 30, 9, 3); ctx.fill();
+  ctx.fillStyle = '#7a92aa'; ctx.beginPath(); ctx.ellipse(x + 16, y - 13, 5, 3.4, 0, 0, 6.2832); ctx.fill();
   /* hào quang trạm đang đứng cạnh */
   const pulse = .5 + Math.sin(t * 3.2) * .5;
   ctx.strokeStyle = active ? 'rgba(253,224,71,.95)' : (done ? 'rgba(74,222,128,.5)' : 'rgba(125,211,252,.45)');
@@ -326,6 +347,9 @@ function hvScene() {
   hvCap(ctx, 480, 22, '☁️ KHU 4 · THIÊN ĐÀNG IT — ĐÁM MÂY LẬP TRÌNH', { font: 'bold 13px ', h: 24, r: 12, blur: 14 });
   if (targetAct) hvLabel(targetAct.txt || '');
   try { if (typeof bunOverlay === 'function') bunOverlay(); } catch (e) {}
+  /* bước CUỐI của cảnh: lớp "kính râm" phủ toàn bộ canvas HEAVEN (HUD là DOM
+     nằm trên canvas nên không bị ảnh hưởng). */
+  hvShade();
 }
 
 /* ---------- 5. CỘT SÁNG Ở WORLD (đi qua depth sort thật) ---------- */
@@ -387,19 +411,19 @@ function hvCutFrame(c, p, cap) {
   /* đường cong tam giác: 0 → 1 (nửa đầu) → 0 (nửa sau), làm mượt bằng cosine */
   const a = .5 - .5 * Math.cos(Math.PI * 2 * p);
   c.clearRect(0, 0, 960, 600);
-  /* trắng ngà mây chứ không trắng 100% — cắt cảnh vẫn rõ nhưng không lóe */
-  c.fillStyle = 'rgba(238,245,253,' + (a * .94).toFixed(3) + ')'; c.fillRect(0, 0, 960, 600);
+  /* cắt cảnh bằng xám xanh hoàng hôn, không chớp trắng */
+  c.fillStyle = 'rgba(112,144,172,' + (a * .97).toFixed(3) + ')'; c.fillRect(0, 0, 960, 600);
   const cg = c.createRadialGradient(480, 300, 40, 480, 300, 520);
-  cg.addColorStop(0, 'rgba(206,232,250,' + (a * .5).toFixed(3) + ')'); cg.addColorStop(1, 'rgba(150,196,232,0)');
+  cg.addColorStop(0, 'rgba(158,188,212,' + (a * .5).toFixed(3) + ')'); cg.addColorStop(1, 'rgba(70,104,136,0)');
   c.fillStyle = cg; c.fillRect(0, 0, 960, 600);
   if (cap && a > .55) {
     c.globalAlpha = Math.min(1, (a - .55) / .3);
     c.font = 'bold 26px ' + IZF; c.textAlign = 'center';
-    c.lineWidth = 4; c.strokeStyle = 'rgba(6,20,40,.55)'; c.strokeText(cap, 480, 296);
-    c.fillStyle = '#12467a';
+    c.lineWidth = 5; c.strokeStyle = 'rgba(3,14,28,.85)'; c.strokeText(cap, 480, 296);
+    c.fillStyle = '#eaf4fb';
     c.fillText(cap, 480, 296);
-    c.font = 'bold 13px ' + IZF; c.fillStyle = '#4d7ea8';
-    c.fillText('✦ ✦ ✦', 480, 324);
+    c.font = 'bold 13px ' + IZF; c.fillStyle = '#bcd8ea';
+    c.fillText('✦ ✦ ' + '✦', 480, 324);
     c.globalAlpha = 1; c.textAlign = 'left';
   }
 }
@@ -513,13 +537,13 @@ function hvWings(g, x, y, h, ph) {
   g.save();
   for (const s of [-1, 1]) {
     g.save(); g.translate(x, hy); g.scale(s, 1);
-    g.fillStyle = 'rgba(255,255,255,.94)';
+    g.fillStyle = 'rgba(214,232,246,.92)';
     g.beginPath();
     g.moveTo(2, 0);
     g.bezierCurveTo(w * .5, -w * (.72 + f * .3), w * 1.12, -w * (.5 - f * .35), w * .92, w * .12);
     g.bezierCurveTo(w * .62, w * .04, w * .3, w * .18, 2, 0);
     g.closePath(); g.fill();
-    g.strokeStyle = 'rgba(186,230,253,.85)'; g.lineWidth = 1; g.stroke();
+    g.strokeStyle = 'rgba(96,130,164,.9)'; g.lineWidth = 1; g.stroke();
     g.restore();
   }
   g.restore();
@@ -527,7 +551,7 @@ function hvWings(g, x, y, h, ph) {
 function hvHalo(g, x, y, h) {
   g.strokeStyle = HV_HALO; g.lineWidth = 2.2;
   g.beginPath(); g.ellipse(x, y - h * 1.06, h * .24, h * .075, 0, 0, 6.2832); g.stroke();
-  g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1;
+  g.strokeStyle = 'rgba(214,232,246,.6)'; g.lineWidth = 1;
   g.beginPath(); g.ellipse(x, y - h * 1.06, h * .24, h * .075, 0, 0, 6.2832); g.stroke();
 }
 const _hvOldPaint = BunnyNPC.prototype.paint;
@@ -536,7 +560,7 @@ BunnyNPC.prototype.paint = function (g, x, y, hh) {
   const h = hh || this.h;
   hvWings(g, x, y, h, this.ph);
   const canFilter = ('filter' in g);
-  if (canFilter) g.save(), g.filter = 'brightness(1.85) saturate(.22) contrast(.96)';
+  if (canFilter) g.save(), g.filter = 'brightness(1.42) saturate(.5) contrast(1.02)';
   _hvOldPaint.call(this, g, x, y, hh);
   if (canFilter) g.restore();
   hvHalo(g, x, y, h);
