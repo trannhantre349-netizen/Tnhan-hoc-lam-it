@@ -40,6 +40,11 @@ const ASSETS = {
      đổi phần mở rộng (magic FFD8) — browser nạp theo nội dung nên vẫn chạy,
      chỉ tools/ đọc PNG thủ công mới cần ngửi magic bytes. */
   hvBg: 'assets/img/heaven_bg.png?v=1',
+  /* Bản ĐÃ XOÁ 3 trạm vẽ tay khỏi heaven_bg.png (pill chữ nổi + laptop xám +
+     cánh vàng + vòng cáp), giữ nguyên mọi chi tiết khác. Sinh ngoại tuyến bằng
+         node tools/clean-heaven-bg.cjs  ->  baked/heaven_bg_clean.png 1024x614
+     heaven.js ưu tiên file này, chỉ quay về hvBg khi file chưa nạp được. */
+  hvBgClean: 'assets/img/baked/heaven_bg_clean.png?v=1',
   chars: {
     p: 'assets/img/baked/char_player.png',
     /* V15: sprite NỮ đi trên bản đồ. Hai ảnh này artist xuất sẵn có kênh alpha
@@ -63,7 +68,7 @@ const ASSETS = {
   avf: 'assets/img/icon-113.png'
 };
 
-const IMG = { bg: null, chars: {}, avf: null, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null, creatures: null, bunny: null, hvStations: null, hvBg: null };
+const IMG = { bg: null, chars: {}, avf: null, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null, creatures: null, bunny: null, hvStations: null, hvBg: null, hvBgClean: null };
 let assetsReady = false;
 
 /* ============================================================
@@ -233,6 +238,7 @@ function loadOne(src) {
   jobs.push(loadOne(ASSETS.bunny).then(im => { IMG.bunny = im; }));
   jobs.push(loadOne(ASSETS.hvStations).then(im => { IMG.hvStations = im; }));
   jobs.push(loadOne(ASSETS.hvBg).then(im => { IMG.hvBg = im; }));
+  jobs.push(loadOne(ASSETS.hvBgClean).then(im => { IMG.hvBgClean = im; }));
   jobs.push(loadOne(ASSETS.avf).then(im => { IMG.avf = im; }));
 
   Object.entries(ASSETS.chars).forEach(([k, src]) => {

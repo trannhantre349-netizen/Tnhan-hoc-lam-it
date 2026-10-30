@@ -71,15 +71,31 @@ const HV_POLY = [
    Toạ độ = tâm vòng xoáy cyan "IT HEAVEN" đo từ ảnh heaven_bg.png. */
 const HV_LAND = { x: 205, y: 458, r: 62 };
 
-/* 3 Trạm Máy Tính Đám Mây — kind = module trong mg-coding.js.
-   x,y = ĐIỂM KÍCH HOẠT [E] (tâm va chạm của nhân vật), đặt ngay trước chân bệ
-   đá vẽ trong ảnh; ly = mép trên của biển chữ đã vẽ sẵn trên ảnh, dùng để treo
-   huy hiệu ✅ cho khỏi đè lên màn hình máy tính. */
-const HV_PCS = [
-  { id: 'hv_pc1', kind: 'sort', hard: 0, x: 375, y: 418, r: 62, ly: 268, icon: '💻', name: 'SẮP XẾP THUẬT TOÁN', xp: 45, coin: 700, skill: 'troubleshooting' },
-  { id: 'hv_pc2', kind: 'bug', hard: 0, x: 608, y: 536, r: 62, ly: 383, icon: '🐞', name: 'BẮT BUG', xp: 55, coin: 850, skill: 'networking' },
-  { id: 'hv_pc3', kind: 'sort', hard: 1, x: 830, y: 420, r: 62, ly: 272, icon: '🖥️', name: 'SẮP XẾP CODE NÂNG CAO', xp: 70, coin: 1000, skill: 'datacenter' }
+/* 3 ô trong sheet assets/img/baked/heaven_stations.png (1023x706 = 3 ô 341x706
+   bằng nhau). Đây là box vẽ ra khung canvas 960x600 — trạm được cắt bằng
+   drawImage 9 tham số chứ không vẽ hình học nào.
+   HV_FOOT_Y = tỷ lệ dọc của CHÂN ĐÁM MÂY trong ô (đo alpha bbox của sheet:
+   nội dung chạy từ y3 đến y659 trên 706 -> 0.933), dùng để tính điểm kích hoạt. */
+const HV_FOOT_Y = .933;
+const HV_SPR = [
+  { dx: 302, dy: 141, dw: 140, dh: 290 },   // trạm 1 — SẮP XẾP THUẬT TOÁN
+  { dx: 534, dy: 229, dw: 140, dh: 290 },   // trạm 2 — BẮT BUG
+  { dx: 762, dy: 154, dw: 140, dh: 290 }    // trạm 3 — SẮP XẾP CODE NÂNG CAO
 ];
+
+/* 3 Trạm Máy Tính Đám Mây — kind = module trong mg-coding.js.
+   x,y = ĐIỂM KÍCH HOẠT [E] (tâm va chạm của nhân vật), LUÔN LUÔN lấy từ chân
+   ô sprite ngay dưới đây — sửa HV_SPR là hitbox tự theo, không phải đoán lại. */
+const HV_PCS = [
+  { id: 'hv_pc1', kind: 'sort', hard: 0, x: 375, y: 418, r: 62, icon: '💻', name: 'SẮP XẾP THUẬT TOÁN', xp: 45, coin: 700, skill: 'troubleshooting' },
+  { id: 'hv_pc2', kind: 'bug', hard: 0, x: 608, y: 536, r: 62, icon: '🐞', name: 'BẮT BUG', xp: 55, coin: 850, skill: 'networking' },
+  { id: 'hv_pc3', kind: 'sort', hard: 1, x: 830, y: 420, r: 62, icon: '🖥️', name: 'SẮP XẾP CODE NÂNG CAO', xp: 70, coin: 1000, skill: 'datacenter' }
+];
+HV_PCS.forEach((pc, i) => {
+  const s = HV_SPR[i];
+  pc.x = Math.round(s.dx + s.dw / 2);
+  pc.y = Math.round(s.dy + s.dh * HV_FOOT_Y);
+});
 
 /* Dải đi bộ thô theo trục Y — engine clampWalkY() dùng cái này, còn đa
    giác thật thì do propCollides() bọc ở mục 6 quy định.
@@ -147,18 +163,24 @@ const HV_POLY_BG = [
   [960, 600], [200, 600], [178, 588], [156, 576], [134, 564], [112, 550],
   [92, 536], [72, 520], [60, 500], [58, 470], [66, 448], [42, 424], [0, 410]
 ];
+/* Ảnh nền Khu 4 = bản đã được tools/clean-heaven-bg.cjs xoá 3 trạm vẽ tay;
+   nếu chưa nạp được thì rơi về ảnh gốc (vẫn chạy, chỉ là thấy trạm cũ trong ảnh). */
+function hvBgImg() { return IMG.hvBgClean || IMG.hvBg; }
 const HV_BLOCK = [
   { x: 215, y: 345, a: 105, b: 32 },   // khối đá + trụ cổng neon IT HEAVEN
-  { x: 375, y: 375, a: 62, b: 28 },    // bệ đá trạm 1
-  { x: 608, y: 492, a: 64, b: 28 },    // bệ đá trạm 2
-  { x: 830, y: 380, a: 64, b: 28 },    // bệ đá trạm 3
   { x: 420, y: 505, a: 55, b: 28 },    // bụi bóng đèn giữa mây
   { x: 930, y: 495, a: 42, b: 24 }     // rương pha lê góc dưới phải
 ];
-function hvCloudPoly() { return IMG.hvBg ? HV_POLY_BG : HV_POLY; }
+/* Bệ mây của 3 sprite trạm: chặn player lách vào trong đám mây vẽ của trạm.
+   Dẫn xuất thẳng từ HV_SPR nên kéo trạm là vùng chặn tự theo. */
+HV_PCS.forEach((pc, i) => {
+  const s = HV_SPR[i];
+  HV_BLOCK.push({ x: s.dx + s.dw / 2, y: s.dy + s.dh * .88, a: s.dw * .30, b: s.dh * .055 });
+});
+function hvCloudPoly() { return hvBgImg() ? HV_POLY_BG : HV_POLY; }
 /* Đã nới sẵn lề 9px của hvOnCloud vào bán kính → khỏi lo hai lớp lề cộng trùng. */
 function hvArtBlock(x, y) {
-  if (!IMG.hvBg) return false;
+  if (!hvBgImg()) return false;
   for (let i = 0; i < HV_BLOCK.length; i++) {
     const e = HV_BLOCK[i], dx = (x - e.x) / (e.a + 9), dy = (y - e.y) / (e.b + 9);
     if (dx * dx + dy * dy <= 1) return true;
@@ -786,30 +808,33 @@ function hvLabel(txt) {
   ctx.fillStyle = '#0b1220'; ctx.fillText(txt, bx, y0 + 14);
   ctx.textAlign = 'left';
 }
-/* V22: trên ảnh tĩnh thì trạm đã có hình sẵn — chỉ treo quầng sáng nhận diện
-   trạng thái (xanh = xong, vàng = đang đứng cạnh, cyan = chờ) chứ KHÔNG vẽ lại
-   khối hộp/màn phím nào. Vẽ TRƯỚC depth sort nên nhân vật đứng trước che được. */
+/* V22: quầng sáng nhận diện trạng thái trạm (xanh = xong, vàng = đang đứng cạnh,
+   cyan = chờ). Không vẽ hình học nào — chỉ là sprite glow có sẵn. Vẽ TRƯỚC depth
+   sort nên nhân vật đứng trước che được. */
 function hvStationGlow(pc, t, active) {
   const p = .5 + Math.sin(t * 2.6 + pc.x * .01) * .5;
   const rgb = active ? '253,224,71' : (S.missionsDone[pc.id] ? '74,222,128' : '103,232,249');
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  hvGlow(ctx, pc.x, pc.y - 40, 62, rgb, active ? .15 + p * .09 : (S.missionsDone[pc.id] ? .10 : .06));
+  hvGlow(ctx, pc.x, pc.y - 46, 66, rgb, active ? .15 + p * .09 : (S.missionsDone[pc.id] ? .10 : .06));
   ctx.restore();
 }
-/* Huy hiệu ✅ đặt phía trên biển chữ đã vẽ trong ảnh (pc.ly) → không che màn hình. */
-function hvStationBadge(pc) {
-  if (!S.missionsDone[pc.id]) return;
-  hvCap(ctx, pc.x, pc.ly - 22, '✅ ' + pc.icon + ' ' + pc.name, {
-    font: 'bold 10.5px ', h: 17, r: 8, fg: '#c8f7d9', bg: 'rgba(6,26,20,.95)'
-  });
+/* Cắt 1/3 trái - giữa - phải của sheet heaven_stations.png và vẽ lên đám mây.
+   Mỗi ô rộng img.width/3, cao nguyên chiều cao sheet; tên trạm, màn hình, cánh
+   và bệ mây đều đã có trong ảnh nên hàm này KHÔNG vẽ thêm hình chữ nhật,
+   đường viền hay chữ nào. */
+function hvStationSprite(i) {
+  const im = IMG.hvStations;
+  if (!im) return;
+  const s = HV_SPR[i], cw = im.width / 3;
+  ctx.drawImage(im, i * cw, 0, cw, im.height, s.dx, s.dy, s.dw, s.dh);
 }
 function hvScene() {
-  const t = Date.now() / 1000, bg = IMG.hvBg;
+  const t = Date.now() / 1000, bg = hvBgImg();
   const act = i => !!(targetAct && targetAct.t === 'hv_pc' && HV_PCS[targetAct.i] === HV_PCS[i]);
   if (bg) {
-    /* ẢNH NỀN TĨNH 960x600: trời sao, mặt mây, cổng IT HEAVEN, 3 trạm và 2 tháp
-       server đều đã vẽ sẵn trong heaven_bg.png. Bản này BỎ hẳn gradient bầu trời,
-       mây bezier, cáp neon, cổng vẽ tay và khối hộp máy tính bằng Canvas. */
+    /* ẢNH NỀN TĨNH 960x600 (bản đã xoá 3 trạm vẽ tay): trời sao, mặt mây, cổng
+       IT HEAVEN và 2 tháp server đều có sẵn trong ảnh. Bỏ hẳn gradient bầu trời,
+       mây bezier, cáp neon và cổng vẽ tay bằng Canvas. */
     ctx.drawImage(bg, 0, 0, 960, 600);
     HV_PCS.forEach((pc, i) => hvStationGlow(pc, t, act(i)));
   } else {
@@ -823,13 +848,15 @@ function hvScene() {
   }
   /* depth sort: trạm/thảm/đồ trang trí nào thấp hơn (gần người xem hơn) vẽ sau */
   const list = [];
-  if (!bg) {
+  if (bg) {
+    /* chân ô sprite là mép dưới box → đứng sau thì bị nhân vật che, đúng phối cảnh */
+    HV_PCS.forEach((pc, i) => list.push({ k: HV_SPR[i].dy + HV_SPR[i].dh, f: () => hvStationSprite(i) }));
+  } else {
     HV_PCS.forEach((pc, i) => list.push({ k: pc.y, f: () => hvPc(pc, t, act(i)) }));
     HV_DEC.forEach(d => list.push({ k: d.y - 6, f: () => hvDec(d, t) }));
   }
   list.push({ k: S.p.y + 30, f: () => drawSprite(S.p.x, S.p.y, 'p') });
   list.sort((a, b) => a.k - b.k).forEach(o => o.f());
-  if (bg) HV_PCS.forEach(hvStationBadge);
   /* biển khu */
   hvCap(ctx, 480, 22, '☁️ KHU 4 · THIÊN ĐÀNG IT — ĐÁM MÂY LẬP TRÌNH', { font: 'bold 13px ', h: 24, r: 12, blur: 16, olw: 4 });
   if (targetAct) hvLabel(targetAct.txt || '');

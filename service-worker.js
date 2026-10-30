@@ -12,7 +12,7 @@
 
    Thêm tài nguyên mới? Cập nhật cả ASSETS.js và PRECACHE bên dưới.
    ============================================================ */
-const CACHE_NAME = 'it-game-v1.47';
+const CACHE_NAME = 'it-game-v1.48';
 
 const PRECACHE = [
   // --- vỏ ứng dụng ---
@@ -62,11 +62,15 @@ const PRECACHE = [
   //     từ assets/img/heaven_stations.png — ảnh nguồn JPEG không alpha, game không nạp) ---
   './assets/img/baked/heaven_stations.png?v=1',
   // --- Khu 4: ẢNH NỀN TĨNH cả cảnh Thiên Đàng (1024x614, vẽ ra 960x600).
-  //     Trên ảnh đã có trời sao + mặt mây + cổng IT HEAVEN + 3 trạm + 2 tháp
-  //     server nên heaven.js vẽ thẳng nó thay cho gradient/mây bezier/khối hộp.
-  //     File là JPEG đổi tên nên không qua tools/bake-*.cjs được (pngjs sẽ
-  //     throw); game chỉ nạp bằng <img>, browser ngửi nội dung nên vẫn chạy. ---
+  //     Trên ảnh đã có trời sao + mặt mây + cổng IT HEAVEN + 2 tháp server nên
+  //     heaven.js vẽ thẳng nó thay cho gradient/mây bezier/khối hộp Canvas.
+  //     File là JPEG đổi tên nên tools/bake-*.cjs dùng pngjs sẽ throw;
+  //     clean-heaven-bg.cjs ngửi magic bytes nên xử lý được cả hai loại. ---
   './assets/img/heaven_bg.png?v=1',
+  // --- Khu 4: bản heaven_bg.png đã XOÁ 3 trạm vẽ tay (pill chữ nổi + laptop xám
+  //     + cánh vàng + vòng cáp) để 3 ô sprite heaven_stations.png thế chỗ.
+  //     Bake: node tools/clean-heaven-bg.cjs ---
+  './assets/img/baked/heaven_bg_clean.png?v=1',
   // --- nhân vật ---
   './assets/img/baked/char_player.png',
   './assets/img/char_player_female.png',
