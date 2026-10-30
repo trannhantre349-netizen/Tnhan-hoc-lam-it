@@ -67,19 +67,24 @@ const HV_POLY = [
   [244, 522], [176, 494], [130, 456], [108, 414]
 ];
 
-/* Bãi đáp mây: đến và đi cùng một chỗ (giống thảm LU_MAT của Khu 3). */
-const HV_LAND = { x: 214, y: 436, r: 62 };
+/* Bãi đáp mây: đến và đi cùng một chỗ (giống thảm LU_MAT của Khu 3).
+   Toạ độ = tâm vòng xoáy cyan "IT HEAVEN" đo từ ảnh heaven_bg.png. */
+const HV_LAND = { x: 205, y: 458, r: 62 };
 
-/* 3 Trạm Máy Tính Đám Mây — kind = module trong mg-coding.js. */
+/* 3 Trạm Máy Tính Đám Mây — kind = module trong mg-coding.js.
+   x,y = ĐIỂM KÍCH HOẠT [E] (tâm va chạm của nhân vật), đặt ngay trước chân bệ
+   đá vẽ trong ảnh; ly = mép trên của biển chữ đã vẽ sẵn trên ảnh, dùng để treo
+   huy hiệu ✅ cho khỏi đè lên màn hình máy tính. */
 const HV_PCS = [
-  { id: 'hv_pc1', kind: 'sort', hard: 0, x: 352, y: 366, r: 62, icon: '💻', name: 'SẮP XẾP THUẬT TOÁN', xp: 45, coin: 700, skill: 'troubleshooting' },
-  { id: 'hv_pc2', kind: 'bug', hard: 0, x: 556, y: 468, r: 62, icon: '🐞', name: 'BẮT BUG', xp: 55, coin: 850, skill: 'networking' },
-  { id: 'hv_pc3', kind: 'sort', hard: 1, x: 752, y: 368, r: 62, icon: '🖥️', name: 'SẮP XẾP CODE NÂNG CAO', xp: 70, coin: 1000, skill: 'datacenter' }
+  { id: 'hv_pc1', kind: 'sort', hard: 0, x: 375, y: 418, r: 62, ly: 268, icon: '💻', name: 'SẮP XẾP THUẬT TOÁN', xp: 45, coin: 700, skill: 'troubleshooting' },
+  { id: 'hv_pc2', kind: 'bug', hard: 0, x: 608, y: 536, r: 62, ly: 383, icon: '🐞', name: 'BẮT BUG', xp: 55, coin: 850, skill: 'networking' },
+  { id: 'hv_pc3', kind: 'sort', hard: 1, x: 830, y: 420, r: 62, ly: 272, icon: '🖥️', name: 'SẮP XẾP CODE NÂNG CAO', xp: 70, coin: 1000, skill: 'datacenter' }
 ];
 
 /* Dải đi bộ thô theo trục Y — engine clampWalkY() dùng cái này, còn đa
-   giác thật thì do propCollides() bọc ở mục 6 quy định. */
-SCENE_WALK.HEAVEN = { minY: 276, maxY: 546, spawnY: 436 };
+   giác thật thì do propCollides() bọc ở mục 6 quy định.
+   Ảnh tĩnh: mặt mây trải từ gờ trên cao nhất (x≈500, y≈254) xuống đáy khung. */
+SCENE_WALK.HEAVEN = { minY: 268, maxY: 572, spawnY: 440 };
 
 /* Cờ hoàn thành minigame = ải boolean (nối gót LUNAR_STAGES ở game.js:4994). */
 HV_PCS.forEach(p => { STAGE_IDS[p.id] = 1; });
@@ -120,8 +125,48 @@ const HV_WIRE = [['252,196,64', '255,232,150'], ['56,189,248', '178,240,255']];
 const HV_HALO = 'rgba(253,224,71,.95)';
 
 /* ---------- 2. ĐA GIÁC MÂY ---------- */
+/* ---------- 2b. MÂY TĨNH: đa giác + vật cản đo từ ảnh heaven_bg.png ----------
+   Khi ảnh nền đã nạp, mặt mây là ảnh vẽ sẵn nên miền đi được theo HV_POLY_BG
+   (37 đỉnh, lần theo gờ mây trong ảnh ở khung 960x600). HV_BLOCK là các ELLIPSE
+   CẤM đặt lên vật thể cứng trong ảnh: nhân vật không lách qua được bệ đá của
+   3 trạm, khối đá cổng IT HEAVEN, bụi bóng đèn và rương pha lê.
+   Cả hai bảng này chỉ có tác dụng với ảnh; bản vector dự phòng vẫn dùng
+   HV_POLY cũ (xem hvCloudPoly). */
+/* HV_POLY_BG đo trực tiếp từ heaven_bg.png (khung 960x600):
+   * 24 đỉnh đầu = gờ mây trên, lần theo ranh giới trời/mây từ trái sang phải,
+     có võng xuống y~348 ở x 740..840 để loại bỏ khe trời đen dưới chân tháp
+     server lớn (đo: (780,338) và (820,324) là trời tối, (780,360) đã là mây).
+   * đoạn cuối = mép TRÁI-DƯỚI: góc dưới-trái của ảnh là trời đen cắt chéo
+     (đo bằng Node, 10px/o: mây bắt đầu từ x=60@y500, 100@y550, 140@y570,
+     200@y600) nên biên chạy chéo lên chứ không đóng khung chữ nhật. */
+const HV_POLY_BG = [
+  [0, 372], [50, 352], [100, 330], [150, 312], [200, 298], [250, 288],
+  [300, 280], [350, 274], [400, 270], [450, 262], [500, 254], [550, 256],
+  [600, 264], [628, 274], [660, 292], [700, 316], [740, 328], [772, 348],
+  [806, 346], [840, 324], [872, 306], [906, 298], [940, 292], [960, 290],
+  [960, 600], [200, 600], [178, 588], [156, 576], [134, 564], [112, 550],
+  [92, 536], [72, 520], [60, 500], [58, 470], [66, 448], [42, 424], [0, 410]
+];
+const HV_BLOCK = [
+  { x: 215, y: 345, a: 105, b: 32 },   // khối đá + trụ cổng neon IT HEAVEN
+  { x: 375, y: 375, a: 62, b: 28 },    // bệ đá trạm 1
+  { x: 608, y: 492, a: 64, b: 28 },    // bệ đá trạm 2
+  { x: 830, y: 380, a: 64, b: 28 },    // bệ đá trạm 3
+  { x: 420, y: 505, a: 55, b: 28 },    // bụi bóng đèn giữa mây
+  { x: 930, y: 495, a: 42, b: 24 }     // rương pha lê góc dưới phải
+];
+function hvCloudPoly() { return IMG.hvBg ? HV_POLY_BG : HV_POLY; }
+/* Đã nới sẵn lề 9px của hvOnCloud vào bán kính → khỏi lo hai lớp lề cộng trùng. */
+function hvArtBlock(x, y) {
+  if (!IMG.hvBg) return false;
+  for (let i = 0; i < HV_BLOCK.length; i++) {
+    const e = HV_BLOCK[i], dx = (x - e.x) / (e.a + 9), dy = (y - e.y) / (e.b + 9);
+    if (dx * dx + dy * dy <= 1) return true;
+  }
+  return false;
+}
 function hvInPoly(x, y) {
-  const P = HV_POLY; let inside = false;
+  const P = hvCloudPoly(); let inside = false;
   for (let i = 0, j = P.length - 1; i < P.length; j = i++) {
     const xi = P[i][0], yi = P[i][1], xj = P[j][0], yj = P[j][1];
     if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
@@ -135,12 +180,12 @@ function hvSegDist(px, py, ax, ay, bx, by) {
   return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
 }
 function hvEdgeDist(x, y) {
-  const P = HV_POLY; let m = 1e9;
+  const P = hvCloudPoly(); let m = 1e9;
   for (let i = 0, j = P.length - 1; i < P.length; j = i++) m = Math.min(m, hvSegDist(x, y, P[j][0], P[j][1], P[i][0], P[i][1]));
   return m;
 }
 /* 9px: đủ để thân nhân vật (cao 50px tính từ chân) không "treo" qua mép mây. */
-function hvOnCloud(x, y) { return hvInPoly(x, y) && hvEdgeDist(x, y) >= 9; }
+function hvOnCloud(x, y) { return hvInPoly(x, y) && hvEdgeDist(x, y) >= 9 && !hvArtBlock(x, y); }
 
 /* ---------- 3. ĐƯỜNG CONG MÂY (nét vẽ = miền va chạm) ---------- */
 /* Nối các đỉnh bằng quadratic đi qua ĐIỂM GIỮA mỗi cạnh: đường cong ôm sát
@@ -597,8 +642,63 @@ function hvGate(t) {
   if (!(targetAct && targetAct.t === 'hv_world'))
     hvCap(ctx, HV_LAND.x, HV_LAND.y - 176, '☁️ CỔNG VỀ THÀNH PHỐ', { pad: 14 });
 }
+/* ---------- 4d. 3 TRẠM MÂY VẼ BẰNG SPRITE SHEET ----------
+   Sheet assets/img/baked/heaven_stations.png = 1023x706, BA Ô BẰNG NHAU
+   (341px) nằm ngang đúng theo thứ tự trạm 1-2-3, nên cắt nguồn chỉ là
+   sx = i * (sheet.width / 3).  Bảng dưới lưu phần còn lại của mỗi ô:
+     sy  = hàng bắt đầu vẽ  — cắt bỏ BẢNG TÊN khắc trong ảnh (game đã có
+           hvCap phía trên, để cả hai là chữ Việt nhân đôi trên mây)
+     ay  = hàng ĐẾ của trạm (đáy đám mây / chóp tinh thể) -> neo xuống mây
+     ax  = trục ngang của "chân" trong ô -> để thân trạm nằm đúng trên pc.x
+     h   = cao khi hiển thị;  rx/ry = bán kính bóng mờ + vòng [E]
+   k = h / (ay - sy + 1) là tỉ lệ thu phóng, suy ra rộng = 341 * k. */
+const HV_STATION_ART = [
+  { sy: 220, ay: 659, ax: 194, h: 172, rx: 46, ry: 12 },
+  { sy: 226, ay: 651, ax: 168, h: 166, rx: 48, ry: 12 },
+  { sy: 165, ay: 705, ax: 167, h: 180, rx: 40, ry: 11 }
+];
+const HV_STATION_FOOT = 16;   /* đáy ảnh nằm dưới tâm va chạm bao nhiêu px */
+
+/* Trả false khi sheet chưa nạp -> hvPc tự vẽ lại bằng vector (bản cũ). */
+function hvPcSprite(pc, t, active) {
+  const im = IMG.hvStations, i = HV_PCS.indexOf(pc);
+  if (!im || i < 0) return false;
+  const A = HV_STATION_ART[i], sh = A.ay - A.sy + 1, k = A.h / sh, sw = im.width / 3;
+  const done = !!S.missionsDone[pc.id], bob = Math.sin(t * 1.6 + pc.x * .01) * 2.4;
+  const x = pc.x, y = pc.y + bob;
+  const dw = sw * k, dh = sh * k;
+  const dx = x - A.ax * k, dy = y + HV_STATION_FOOT - (A.ay - A.sy) * k;
+  /* bóng mờ dưới chân bệ -> trạm "bám" vào mây thay vì trôi trên nền */
+  ctx.fillStyle = 'rgba(0,6,18,.45)';
+  ctx.beginPath(); ctx.ellipse(x, y + HV_STATION_FOOT - 2, A.rx, A.ry, 0, 0, 6.2832); ctx.fill();
+  /* quầng sau trạm: đêm Khu 4 tối, không có hắt sáng thì sprite bị chìm */
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  hvGlow(ctx, x, y - dh * .34, dh * .58, done ? '74,222,128' : '104,176,240', .13);
+  ctx.restore();
+  ctx.drawImage(im, i * sw, A.sy, sw, sh, dx, dy, dw, dh);
+  if (done) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    hvGlow(ctx, x, y - dh * .3, dh * .42, '74,222,128', .16);
+    ctx.restore();
+  }
+  /* vòng [E] dưới chân — giữ nguyên 3 trạng thái vàng/xanh/lục như bản vector */
+  const pulse = .5 + Math.sin(t * 3.2) * .5;
+  ctx.strokeStyle = active ? 'rgba(253,224,71,.95)' : (done ? 'rgba(74,222,128,.55)' : 'rgba(103,232,249,.5)');
+  ctx.lineWidth = active ? 3 : 2; ctx.setLineDash([8, 7]); ctx.lineDashOffset = -t * 22;
+  ellipsePath(ctx, x, y + HV_STATION_FOOT - 4, A.rx - 2, A.ry + 2); ctx.stroke();
+  ctx.setLineDash([]); ctx.lineDashOffset = 0;
+  if (!active) { ctx.globalAlpha = .3 + pulse * .3; ellipsePath(ctx, x, y + HV_STATION_FOOT - 4, A.rx - 2 + pulse * 6, A.ry + 2 + pulse * 3); ctx.stroke(); ctx.globalAlpha = 1; }
+  hvCap(ctx, x, dy - 20, (done ? '✅ ' : '') + pc.icon + ' ' + pc.name, {
+    font: 'bold 10.5px ', h: 17, r: 8,
+    fg: done ? '#c8f7d9' : '#f2f8ff',
+    bg: done ? 'rgba(6,26,20,.95)' : 'rgba(4,9,22,.95)'
+  });
+  return true;
+}
+
 /* Trạm Máy Tính Đám Mây: bệ đá mây + đôi cánh vàng + màn hình code + cáp */
 function hvPc(pc, t, active) {
+  if (hvPcSprite(pc, t, active)) return;
   const done = !!S.missionsDone[pc.id], bob = Math.sin(t * 1.6 + pc.x * .01) * 2.4;
   const x = pc.x, y = pc.y + bob;
   ctx.fillStyle = 'rgba(0,6,18,.45)';
@@ -686,26 +786,57 @@ function hvLabel(txt) {
   ctx.fillStyle = '#0b1220'; ctx.fillText(txt, bx, y0 + 14);
   ctx.textAlign = 'left';
 }
+/* V22: trên ảnh tĩnh thì trạm đã có hình sẵn — chỉ treo quầng sáng nhận diện
+   trạng thái (xanh = xong, vàng = đang đứng cạnh, cyan = chờ) chứ KHÔNG vẽ lại
+   khối hộp/màn phím nào. Vẽ TRƯỚC depth sort nên nhân vật đứng trước che được. */
+function hvStationGlow(pc, t, active) {
+  const p = .5 + Math.sin(t * 2.6 + pc.x * .01) * .5;
+  const rgb = active ? '253,224,71' : (S.missionsDone[pc.id] ? '74,222,128' : '103,232,249');
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  hvGlow(ctx, pc.x, pc.y - 40, 62, rgb, active ? .15 + p * .09 : (S.missionsDone[pc.id] ? .10 : .06));
+  ctx.restore();
+}
+/* Huy hiệu ✅ đặt phía trên biển chữ đã vẽ trong ảnh (pc.ly) → không che màn hình. */
+function hvStationBadge(pc) {
+  if (!S.missionsDone[pc.id]) return;
+  hvCap(ctx, pc.x, pc.ly - 22, '✅ ' + pc.icon + ' ' + pc.name, {
+    font: 'bold 10.5px ', h: 17, r: 8, fg: '#c8f7d9', bg: 'rgba(6,26,20,.95)'
+  });
+}
 function hvScene() {
-  const t = Date.now() / 1000;
-  hvSky(t);
-  hvTowers(t);
-  hvDeck(t);
-  hvCables(t);
-  hvGate(t);
-  hvArch(t);
+  const t = Date.now() / 1000, bg = IMG.hvBg;
+  const act = i => !!(targetAct && targetAct.t === 'hv_pc' && HV_PCS[targetAct.i] === HV_PCS[i]);
+  if (bg) {
+    /* ẢNH NỀN TĨNH 960x600: trời sao, mặt mây, cổng IT HEAVEN, 3 trạm và 2 tháp
+       server đều đã vẽ sẵn trong heaven_bg.png. Bản này BỎ hẳn gradient bầu trời,
+       mây bezier, cáp neon, cổng vẽ tay và khối hộp máy tính bằng Canvas. */
+    ctx.drawImage(bg, 0, 0, 960, 600);
+    HV_PCS.forEach((pc, i) => hvStationGlow(pc, t, act(i)));
+  } else {
+    /* ảnh 404 / chưa kịp nạp → quay về bộ vẽ vector cũ, tuyệt đối không crash */
+    hvSky(t);
+    hvTowers(t);
+    hvDeck(t);
+    hvCables(t);
+    hvGate(t);
+    hvArch(t);
+  }
   /* depth sort: trạm/thảm/đồ trang trí nào thấp hơn (gần người xem hơn) vẽ sau */
-  const list = HV_PCS.map(pc => ({ k: pc.y, f: () => hvPc(pc, t, !!(targetAct && targetAct.t === 'hv_pc' && HV_PCS[targetAct.i] === pc)) }));
-  HV_DEC.forEach(d => list.push({ k: d.y - 6, f: () => hvDec(d, t) }));
+  const list = [];
+  if (!bg) {
+    HV_PCS.forEach((pc, i) => list.push({ k: pc.y, f: () => hvPc(pc, t, act(i)) }));
+    HV_DEC.forEach(d => list.push({ k: d.y - 6, f: () => hvDec(d, t) }));
+  }
   list.push({ k: S.p.y + 30, f: () => drawSprite(S.p.x, S.p.y, 'p') });
   list.sort((a, b) => a.k - b.k).forEach(o => o.f());
+  if (bg) HV_PCS.forEach(hvStationBadge);
   /* biển khu */
   hvCap(ctx, 480, 22, '☁️ KHU 4 · THIÊN ĐÀNG IT — ĐÁM MÂY LẬP TRÌNH', { font: 'bold 13px ', h: 24, r: 12, blur: 16, olw: 4 });
   if (targetAct) hvLabel(targetAct.txt || '');
   try { if (typeof bunOverlay === 'function') bunOverlay(); } catch (e) {}
-  /* bước CUỐI của cảnh: lớp "kính râm" phủ toàn bộ canvas HEAVEN (HUD là DOM
-     nằm trên canvas nên không bị ảnh hưởng). */
-  hvShade();
+  /* hvShade() chỉ dành cho nền vector tự vẽ (nó gắt và loá). Ảnh đã được artist
+     lên tông đêm sẵn nên bản này không phủ kính tối lên nữa. */
+  if (!bg) hvShade();
 }
 
 /* ---------- 5. CỘT SÁNG Ở WORLD (đi qua depth sort thật) ---------- */
@@ -876,12 +1007,14 @@ drawDecor = function (d) {
 };
 
 /* ---------- 10. THỎ + VFX TRÊN MÂY ---------- */
-/* Dải đi của thỏ bó trong hình chữ nhật nội tiếp lớn nhất của mặt mây
-   (đo bằng Node: x 270..772, y 340..512) → không con nào nhảy ra hư không. */
+/* V22: mặt mây giờ là ảnh tĩnh trải gần hết nửa dưới khung nên mở dải đi của
+   thỏ ra toàn cảnh. Toạ độ thật vẫn do propCollides → hvOnCloud quyết định
+   (đa giác mép mây + ellipse cấm bệ đá), vì vậy thỏ chỉ đứng được trên mây:
+   không trôi ra vùng trời đen, không xuyên qua bệ trạm hay khối đá cổng. */
 const _hvOldBand = bunBand;
 bunBand = function (sc) {
   const b = _hvOldBand(sc);
-  if (sc === 'HEAVEN') { b.x0 = 270; b.x1 = 772; b.y0 = 340; b.y1 = 512; }
+  if (sc === 'HEAVEN') { b.x0 = 64; b.x1 = 916; b.y0 = 300; b.y1 = 578; }
   return b;
 };
 
@@ -948,10 +1081,16 @@ BunnyNPC.prototype.paint = function (g, x, y, hh) {
   /* con "bay" chỉ nhấc HÌNH VẼ lên vài px (không đụng toạ độ logic/va chạm) */
   const fly = gear === 1 ? 5 + Math.sin(this.ph * 3.4) * 2.4 : 0;
   const dy = y - fly;
+  /* V22: ảnh nền nhiều chi tiết và sáng hơn nền vector cũ, nên lót một quầng
+     mờ ảo sau lưng thỏ (hvGlow = sprite dựng một lần, không gradient/frame)
+     để thân trắng không bị mây xanh xám "nuốt". */
+  g.save(); g.globalCompositeOperation = 'lighter';
+  hvGlow(g, x, dy - h * .5, h * 1.05, '206,228,255', .17);
+  g.restore();
   hvWings(g, x, dy, h * (gear === 1 ? 1.32 : 1), this.ph * (gear === 1 ? 1.7 : 1), HV_WING_A);
   const canFilter = ('filter' in g);
   /* ban đêm nên chỉ tăng sáng nhẹ — trắng toát quá sẽ loá trên nền mây đêm */
-  if (canFilter) g.save(), g.filter = 'brightness(1.2) saturate(.62) contrast(1.04)';
+  if (canFilter) g.save(), g.filter = 'brightness(1.26) saturate(.6) contrast(1.06)';
   _hvOldPaint.call(this, g, x, dy, hh);
   if (canFilter) g.restore();
   if (gear === 0) hvHeadphones(g, x, dy, h);

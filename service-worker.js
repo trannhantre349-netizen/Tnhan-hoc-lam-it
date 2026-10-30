@@ -12,7 +12,7 @@
 
    Thêm tài nguyên mới? Cập nhật cả ASSETS.js và PRECACHE bên dưới.
    ============================================================ */
-const CACHE_NAME = 'it-game-v1.39';
+const CACHE_NAME = 'it-game-v1.47';
 
 const PRECACHE = [
   // --- vỏ ứng dụng ---
@@ -58,6 +58,15 @@ const PRECACHE = [
   './assets/img/baked/creatures_sheet.png?v=1',
   // --- V16: sheet 29 chú thỏ đã tẩy nền (bake bằng tools/bake-bunnies.cjs) ---
   './assets/img/baked/bunny_sheet.png?v=1',
+  // --- Khu 4: sheet 3 trạm mây đã tẩy nền trời (bake bằng tools/bake-heaven-stations.cjs
+  //     từ assets/img/heaven_stations.png — ảnh nguồn JPEG không alpha, game không nạp) ---
+  './assets/img/baked/heaven_stations.png?v=1',
+  // --- Khu 4: ẢNH NỀN TĨNH cả cảnh Thiên Đàng (1024x614, vẽ ra 960x600).
+  //     Trên ảnh đã có trời sao + mặt mây + cổng IT HEAVEN + 3 trạm + 2 tháp
+  //     server nên heaven.js vẽ thẳng nó thay cho gradient/mây bezier/khối hộp.
+  //     File là JPEG đổi tên nên không qua tools/bake-*.cjs được (pngjs sẽ
+  //     throw); game chỉ nạp bằng <img>, browser ngửi nội dung nên vẫn chạy. ---
+  './assets/img/heaven_bg.png?v=1',
   // --- nhân vật ---
   './assets/img/baked/char_player.png',
   './assets/img/char_player_female.png',
