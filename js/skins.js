@@ -1,11 +1,9 @@
 /* ============================================================
-   skins.js — 👕 TỦ ĐỒ IT: đổi skin nhân vật vẽ hoàn toàn bằng Canvas
+   skins.js — 👕 TỦ ĐỒ IT: 4 trang phục của nhân vật
    ------------------------------------------------------------
-   Nạp SAU reskin.js. Nhân vật gốc là ảnh chibi PNG, nên lớp áo không
-   vẽ đè tự do (sẽ lệch bóng người) mà sơn bằng globalCompositeOperation
-   = 'source-atop' lên một canvas tạm: màu chỉ rơi vào đúng phần pixel
-   ĐÃ CÓ của nhân vật, không bao giờ lem ra nền. Canvas tạm chỉ vẽ rồi
-   blit, không đọc pixel -> chạy tốt cả khi mở bằng file://.
+   Nạp SAU reskin.js. Đồ mặc giờ lấy nguyên ô trong sheet ảnh đã vẽ sẵn
+   (mục 7), không còn sơn vector đè lên sprite như trước V21 — xem khối
+   chú thích đầu mục 7 để biết vì sao.
    ============================================================ */
 
 /* ---------- 1. DANH MỤC TRANG PHỤC ---------- */
@@ -29,341 +27,33 @@ const skCoinMul = () => skEquipped() === 'cto' ? 1.15 : 1;
 const skXpMul = () => skEquipped() === 'office' ? 1.1 : 1;
 
 /* ============================================================
-   2. HỘI HOẠ — mọi toạ độ là (u, v) chuẩn hoá trong khung ảnh
-   (0,0) = góc trên trái ảnh sprite, (1,1) = góc dưới phải.
-   Đường bao dưới đây đo trực tiếp trên assets/img/baked/char_player.png:
-   tóc 0.03→0.30 · mặt 0.20→0.38 · vai 0.40 · thân 0.42→0.70 ·
-   chân 0.70→0.93 · giày 0.92→0.99 · khoảng trống giữa 2 chân tự trong suốt.
+   TRANG PHỤC = SHEET ĐÃ VẼ SẴN (xem mục 7) — KHÔNG SƠN BẰNG CANVAS
+   ------------------------------------------------------------
+   Trước V21, 4 bộ đồ này là polygon đo trên ảnh nam (đường bao
+   char_player.png) sơn source-atop đè lên sprite, rồi reskin.js blit lại
+   ảnh nam gốc, nên nhân vật Nữ thành "đàn ông mặc đồ đàn ông" còn nhân
+   vật Nam thì áo lem lệch bóng. Cả hai giới giờ mặc nguyên bộ vẽ sẵn
+   trong assets/img/baked/female_sprites.png / male_sprites.png (4 hàng
+   skin x 5 cột hướng), vì vậy toàn bộ bộ sơn cũ (bảng toạ độ SK_P, các
+   hàm skPaint*, outfitCanvas, skPortraitLayer, lớp sơn đè avatar hội
+   thoại) đã xoá khỏi mã nguồn — không còn đường nào để vẽ nhầm đồ của
+   giới khác. IMG.chars.p vẫn là khung người trần và chỉ hiện 1-2 frame
+   đầu khi sheet chưa nạp kịp; không bao giờ có lớp áo vẽ đè nữa.
    ============================================================ */
-const SK_P = {
-  /* áo: khối vai → gấu, hai bên hơi loe theo cánh tay */
-  torso: [[.265, .381], [.41, .366], [.59, .366], [.735, .381],
-          [.880, .432], [.915, .520], [.905, .625], [.845, .714],
-          [.155, .714], [.095, .625], [.085, .520], [.120, .432]],
-  /* 2 ống quần: hình thang rộng dần xuống, khe giữa do alpha của ảnh cắt hộ */
-  legs: [[.18, .660], [.84, .660], [.93, .934], [.09, .934]],
-  shoes: [.06, .912, .90, .100],              // x, y, w, h — KHÔNG phải polygon
-  /* mũ hoodie: khối ngoài trùm đầu + lỗ mặt (evenodd) */
-  hoodOut: [[.26, -.06], [.50, -.10], [.74, -.06], [.97, .11], [1.03, .28],
-            [.97, .415], [.74, .460], [.26, .460], [.03, .415], [-.03, .28], [.03, .11]],
-  /* ve áo vest */
-  lapelL: [[.330, .382], [.500, .398], [.440, .562], [.345, .468]],
-  lapelR: [[.670, .382], [.500, .398], [.560, .562], [.655, .468]],
-  /* cổ sơ mi: 2 tam giác gập */
-  collL: [[.345, .380], [.505, .396], [.432, .478], [.398, .420]],
-  collR: [[.655, .380], [.495, .396], [.568, .478], [.602, .420]],
-  tie: [[.468, .430], [.532, .430], [.556, .572], [.500, .628], [.444, .572]],
-  shirtV: [[.500, .394], [.436, .566], [.564, .566]],
-  badge: [.545, .540, .155, .100],           // x, y, w, h
-  lensL: [.205, .232, .235, .070],
-  lensR: [.475, .232, .235, .070],
-  bridge: [.430, .246, .050, .020],
-  /* 2 dây rút hoodie */
-  cordL: [[.437, .412], [.415, .548]],
-  cordR: [[.556, .412], [.580, .548]],
-  pocket: [.295, .578, .355, .100],
-  watch: [.760, .588, .075, .042]
-};
-
-function skPoly(g, P, pts) {
-  g.beginPath();
-  pts.forEach((p, i) => { const x = p[0] * P.w, y = p[1] * P.h; i ? g.lineTo(x, y) : g.moveTo(x, y); });
-  g.closePath();
-}
-function skBox(g, P, b) { g.beginPath(); g.rect(b[0] * P.w, b[1] * P.h, b[2] * P.w, b[3] * P.h); }
-function skRound(g, P, b, r) {
-  const x = b[0] * P.w, y = b[1] * P.h, w = b[2] * P.w, h = b[3] * P.h, rr2 = Math.min(r * P.w, w / 2, h / 2);
-  g.beginPath();
-  if (g.roundRect) g.roundRect(x, y, w, h, rr2);
-  else {
-    g.moveTo(x + rr2, y); g.lineTo(x + w - rr2, y); g.quadraticCurveTo(x + w, y, x + w, y + rr2);
-    g.lineTo(x + w, y + h - rr2); g.quadraticCurveTo(x + w, y + h, x + w - rr2, y + h);
-    g.lineTo(x + rr2, y + h); g.quadraticCurveTo(x, y + h, x, y + h - rr2);
-    g.lineTo(x, y + rr2); g.quadraticCurveTo(x, y, x + rr2, y);
-  }
-}
-/* khối gradient đứng: tối dần về đáy cho giống ảnh gốc có bóng */
-function skGrad(g, P, v0, v1, c0, c1) {
-  const lg = g.createLinearGradient(0, v0 * P.h, 0, v1 * P.h);
-  lg.addColorStop(0, c0); lg.addColorStop(1, c1);
-  return lg;
-}
-/* Vẽ thêm một subpath tròn đè lên path đang có (không beginPath) để fill('evenodd') khoét lỗ mặt */
-function skFaceHole(g, P) {
-  g.moveTo(P.w * .750, P.h * .288);
-  g.ellipse(P.w * .495, P.h * .288, P.w * .255, P.h * .108, 0, 0, Math.PI * 2);
-  g.closePath();
-}
-
-/* ---------- các nước sơn ---------- */
-function skPaintOffice(g, P) {
-  skPoly(g, P, SK_P.torso);
-  g.fillStyle = skGrad(g, P, .36, .72, 'rgba(252,253,255,.95)', 'rgba(206,216,230,.95)'); g.fill();
-  skPoly(g, P, SK_P.legs);
-  g.fillStyle = skGrad(g, P, .66, .94, 'rgba(122,132,150,.94)', 'rgba(74,82,97,.96)'); g.fill();
-  /* ly quần */
-  g.strokeStyle = 'rgba(255,255,255,.30)'; g.lineWidth = Math.max(.7, P.w * .012);
-  g.beginPath(); g.moveTo(.335 * P.w, .70 * P.h); g.lineTo(.315 * P.w, .925 * P.h);
-  g.moveTo(.655 * P.w, .70 * P.h); g.lineTo(.695 * P.w, .925 * P.h); g.stroke();
-  skBox(g, P, SK_P.shoes); g.fillStyle = 'rgba(28,31,38,.96)'; g.fill();
-  /* thắt lưng + sơ mi + cổ + cà vạt */
-  g.fillStyle = 'rgba(30,34,44,.95)'; g.fillRect(.19 * P.w, .660 * P.h, .62 * P.w, .030 * P.h);
-  g.fillStyle = 'rgba(202,164,60,.95)'; g.fillRect(.465 * P.w, .658 * P.h, .07 * P.w, .034 * P.h);
-  skPoly(g, P, SK_P.collL); g.fillStyle = '#ffffff'; g.fill();
-  skPoly(g, P, SK_P.collR); g.fillStyle = '#e9eef7'; g.fill();
-  skPoly(g, P, SK_P.tie); g.fillStyle = '#1e3a8a'; g.fill();
-  g.fillStyle = '#16295f'; skPoly(g, P, [[.462, .400], [.538, .400], [.552, .438], [.448, .438]]); g.fill();
-  /* dây đeo thẻ + thẻ nhân viên cấp cao */
-  g.strokeStyle = '#b91c1c'; g.lineWidth = Math.max(.8, P.w * .020);
-  g.beginPath(); g.moveTo(.395 * P.w, .404 * P.h); g.lineTo(.560 * P.w, .545 * P.h);
-  g.moveTo(.600 * P.w, .404 * P.h); g.lineTo(.685 * P.w, .545 * P.h); g.stroke();
-  skRound(g, P, SK_P.badge, .014); g.fillStyle = '#f8fafc'; g.fill();
-  g.strokeStyle = 'rgba(30,41,59,.55)'; g.lineWidth = Math.max(.6, P.w * .008); g.stroke();
-  g.fillStyle = '#1d4ed8'; g.fillRect(.545 * P.w, .540 * P.h, .155 * P.w, .022 * P.h);
-  g.fillStyle = '#94a3b8'; g.fillRect(.556 * P.w, .568 * P.h, .038 * P.w, .050 * P.h);
-  g.fillStyle = '#334155'; g.fillRect(.602 * P.w, .570 * P.h, .086 * P.w, .012 * P.h);
-  g.fillRect(.602 * P.w, .586 * P.h, .062 * P.w, .012 * P.h);
-  g.fillStyle = '#b45309'; g.fillRect(.556 * P.w, .622 * P.h, .132 * P.w, .010 * P.h);
-  /* đường may ống tay + gấu áo cho ra dáng sơ mi đóng thùng */
-  g.strokeStyle = 'rgba(120,140,170,.45)'; g.lineWidth = Math.max(.6, P.w * .010);
-  g.beginPath();
-  g.moveTo(.285 * P.w, .400 * P.h); g.lineTo(.255 * P.w, .690 * P.h);
-  g.moveTo(.715 * P.w, .400 * P.h); g.lineTo(.745 * P.w, .690 * P.h);
-  g.stroke();
-}
-
-function skPaintHoodie(g, P) {
-  skPoly(g, P, SK_P.torso);
-  g.fillStyle = skGrad(g, P, .36, .72, 'rgba(32,36,46,.94)', 'rgba(11,13,18,.97)'); g.fill();
-  /* túi kangaroo */
-  skRound(g, P, SK_P.pocket, .02);
-  g.fillStyle = 'rgba(255,255,255,.055)'; g.fill();
-  g.strokeStyle = 'rgba(0,0,0,.5)'; g.lineWidth = Math.max(.6, P.w * .010); g.stroke();
-  /* bo gấu áo + cuff */
-  g.strokeStyle = 'rgba(150,165,190,.22)'; g.lineWidth = Math.max(.7, P.w * .014);
-  skPoly(g, P, [[.17, .706], [.83, .706]]); g.stroke();
-  skPoly(g, P, SK_P.legs);
-  g.fillStyle = skGrad(g, P, .66, .94, 'rgba(26,29,37,.93)', 'rgba(14,16,21,.96)'); g.fill();
-  g.fillStyle = 'rgba(148,163,184,.18)';
-  g.fillRect(.20 * P.w, .900 * P.h, .30 * P.w, .026 * P.h);
-  g.fillRect(.55 * P.w, .900 * P.h, .32 * P.w, .026 * P.h);
-  skBox(g, P, SK_P.shoes); g.fillStyle = 'rgba(9,11,15,.96)'; g.fill();
-  /* MŨ TRÙM ĐẦU: khối ngoài trừ lỗ mặt */
-  skPoly(g, P, SK_P.hoodOut); skFaceHole(g, P);
-  g.fillStyle = skGrad(g, P, 0, .46, 'rgba(54,60,75,.97)', 'rgba(17,19,26,.97)');
-  g.fill('evenodd');
-  /* đường may giữa mũ */
-  g.strokeStyle = 'rgba(12,14,20,.55)'; g.lineWidth = Math.max(.7, P.w * .016);
-  g.beginPath(); g.moveTo(.50 * P.w, .005 * P.h); g.quadraticCurveTo(.34 * P.w, .10 * P.h, .285 * P.w, .205 * P.h); g.stroke();
-  /* viền mũ quanh mặt */
-  g.beginPath(); skFaceHole(g, P);
-  g.strokeStyle = 'rgba(6,8,12,.85)'; g.lineWidth = Math.max(.8, P.w * .026); g.stroke();
-  /* dây rút */
-  g.strokeStyle = '#aab6c8'; g.lineWidth = Math.max(.7, P.w * .014);
-  g.beginPath(); g.moveTo(SK_P.cordL[0][0] * P.w, SK_P.cordL[0][1] * P.h); g.lineTo(SK_P.cordL[1][0] * P.w, SK_P.cordL[1][1] * P.h);
-  g.moveTo(SK_P.cordR[0][0] * P.w, SK_P.cordR[0][1] * P.h); g.lineTo(SK_P.cordR[1][0] * P.w, SK_P.cordR[1][1] * P.h);
-  g.stroke();
-  /* kính Matrix */
-  skRound(g, P, SK_P.lensL, .012); g.fillStyle = 'rgba(6,32,22,.95)'; g.fill();
-  skRound(g, P, SK_P.lensR, .012); g.fill();
-  skBox(g, P, SK_P.bridge); g.fill();
-  g.strokeStyle = 'rgba(52,211,153,.85)'; g.lineWidth = Math.max(.6, P.w * .010);
-  skRound(g, P, SK_P.lensL, .012); g.stroke();
-  skRound(g, P, SK_P.lensR, .012); g.stroke();
-  g.fillStyle = 'rgba(134,239,172,.75)';
-  g.fillRect(.235 * P.w, .240 * P.h, .045 * P.w, .012 * P.h);
-  g.fillRect(.505 * P.w, .240 * P.h, .045 * P.w, .012 * P.h);
-}
-
-function skPaintCto(g, P) {
-  /* tóc chải gọn: chỉ phủ bóng mờ + ngôi lệch, không tô khối để giữ đường tóc gốc */
-  g.fillStyle = skGrad(g, P, .020, .200, 'rgba(40,50,68,.55)', 'rgba(10,14,22,0)');
-  g.beginPath(); g.ellipse(P.w * .50, P.h * .098, P.w * .35, P.h * .088, 0, 0, 7); g.fill();
-  g.strokeStyle = 'rgba(186,204,228,.22)'; g.lineWidth = Math.max(.8, P.w * .011);
-  g.beginPath();
-  g.moveTo(.40 * P.w, .048 * P.h); g.quadraticCurveTo(.56 * P.w, .070 * P.h, .70 * P.w, .104 * P.h);
-  g.moveTo(.28 * P.w, .082 * P.h); g.quadraticCurveTo(.40 * P.w, .100 * P.h, .50 * P.w, .118 * P.h);
-  g.moveTo(.52 * P.w, .036 * P.h); g.quadraticCurveTo(.64 * P.w, .052 * P.h, .74 * P.w, .080 * P.h);
-  g.stroke();
-  g.strokeStyle = 'rgba(8,11,17,.7)'; g.lineWidth = Math.max(.9, P.w * .013);
-  g.beginPath(); g.moveTo(.372 * P.w, .034 * P.h); g.quadraticCurveTo(.348 * P.w, .084 * P.h, .318 * P.w, .128 * P.h); g.stroke();
-  skPoly(g, P, SK_P.torso);
-  g.fillStyle = skGrad(g, P, .36, .72, 'rgba(37,48,70,.95)', 'rgba(16,22,35,.97)'); g.fill();
-  /* sơ mi tối màu + cà vạt đen than + ve áo navy */
-  skPoly(g, P, SK_P.collL); g.fillStyle = '#2b3648'; g.fill();
-  skPoly(g, P, SK_P.collR); g.fillStyle = '#222c3c'; g.fill();
-  skPoly(g, P, SK_P.shirtV); g.fillStyle = '#26303f'; g.fill();
-  skPoly(g, P, SK_P.tie);
-  g.fillStyle = skGrad(g, P, .40, .63, 'rgba(24,30,42,1)', 'rgba(10,13,19,1)'); g.fill();
-  g.strokeStyle = 'rgba(148,163,184,.28)'; g.lineWidth = Math.max(.6, P.w * .007);
-  skPoly(g, P, SK_P.tie); g.stroke();
-  skPoly(g, P, SK_P.lapelL); g.fillStyle = skGrad(g, P, .38, .55, 'rgba(58,72,100,.98)', 'rgba(28,36,54,.98)'); g.fill();
-  skPoly(g, P, SK_P.lapelR); g.fillStyle = skGrad(g, P, .38, .55, 'rgba(48,60,86,.98)', 'rgba(22,29,44,.98)'); g.fill();
-  /* viền ve áo bóng lụa */
-  g.strokeStyle = 'rgba(148,178,220,.42)'; g.lineWidth = Math.max(.6, P.w * .011);
-  skPoly(g, P, SK_P.lapelL); g.stroke();
-  skPoly(g, P, SK_P.lapelR); g.stroke();
-  /* cúc áo vest mạ vàng */
-  g.fillStyle = '#fcd34d';
-  [[.470, .648], [.470, .690]].forEach(b => {
-    g.beginPath(); g.arc(b[0] * P.w, b[1] * P.h, Math.max(.8, P.w * .017), 0, 7); g.fill();
-  });
-  /* khăn túi áo */
-  g.fillStyle = '#fbbf24'; skPoly(g, P, [[.612, .492], [.672, .480], [.664, .516], [.606, .522]]); g.fill();
-  /* quần vest + giày da */
-  skPoly(g, P, SK_P.legs);
-  g.fillStyle = skGrad(g, P, .66, .94, 'rgba(31,40,58,.95)', 'rgba(14,19,30,.97)'); g.fill();
-  g.strokeStyle = 'rgba(148,163,184,.22)'; g.lineWidth = Math.max(.7, P.w * .012);
-  g.beginPath(); g.moveTo(.345 * P.w, .70 * P.h); g.lineTo(.33 * P.w, .925 * P.h);
-  g.moveTo(.65 * P.w, .70 * P.h); g.lineTo(.68 * P.w, .925 * P.h); g.stroke();
-  skBox(g, P, SK_P.shoes); g.fillStyle = 'rgba(14,15,20,.97)'; g.fill();
-  g.fillStyle = 'rgba(255,255,255,.30)';
-  g.fillRect(.20 * P.w, .940 * P.h, .20 * P.w, .014 * P.h);
-  g.fillRect(.72 * P.w, .940 * P.h, .20 * P.w, .014 * P.h);
-  /* đồng hồ mạ vàng ở cổ tay phải */
-  skRound(g, P, SK_P.watch, .010);
-  g.fillStyle = skGrad(g, P, .58, .64, 'rgba(253,224,71,1)', 'rgba(202,138,4,1)'); g.fill();
-  g.fillStyle = '#fffbeb';
-  g.beginPath(); g.arc(.797 * P.w, .609 * P.h, Math.max(1, P.w * .017), 0, 7); g.fill();
-  g.strokeStyle = 'rgba(120,53,15,.9)'; g.lineWidth = Math.max(.5, P.w * .007); g.stroke();
-}
-
-const SK_PAINT = { office: skPaintOffice, hoodie: skPaintHoodie, cto: skPaintCto };
-
-/* ---------- canvas tạm theo (skin, cỡ) — vẽ 1 lần, dùng lại mọi frame ---------- */
-const skCache = {};
-function outfitCanvas(id, w, h) {
-  const img = IMG.chars.p;
-  if (!img || !assetsReady) return null;
-  w = Math.max(8, Math.round(w)); h = Math.max(8, Math.round(h));
-  const key = id + '|' + w + 'x' + h;
-  if (skCache[key]) return skCache[key];
-  const cv = document.createElement('canvas');
-  cv.width = w; cv.height = h;
-  const g = cv.getContext('2d');
-  try { g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; } catch (e) {}
-  g.drawImage(img, 0, 0, w, h);
-  const fn = SK_PAINT[id];
-  if (fn) {
-    g.save();
-    g.globalCompositeOperation = 'source-atop';   // màu chỉ rơi vào pixel của nhân vật
-    fn(g, { w: w, h: h });
-    g.restore();
-  }
-  skCache[key] = cv;
-  return cv;
-}
-
-/* ---------- 3b. CHÂN DUNG HUD (headshot) ----------
-   Cùng bộ toạ độ chuẩn hoá (u,v) với lớp áo toàn thân, nên mọi chi tiết
-   source-atop tự bám đúng và phóng to theo góc cắt cận mặt của HUD. */
-const SK_PORTRAIT = {
-  /* Thực tập sinh: tóc đen rối + cổ hoodie đen đơn giản */
-  default: function (g, P) {
-    g.lineCap = 'round';
-    g.strokeStyle = 'rgba(15,18,26,.85)'; g.lineWidth = Math.max(1, P.w * .016);
-    g.beginPath();
-    g.moveTo(.30 * P.w, .078 * P.h); g.quadraticCurveTo(.245 * P.w, .040 * P.h, .205 * P.w, .058 * P.h);
-    g.moveTo(.62 * P.w, .072 * P.h); g.quadraticCurveTo(.70 * P.w, .036 * P.h, .755 * P.w, .056 * P.h);
-    g.moveTo(.45 * P.w, .050 * P.h); g.quadraticCurveTo(.50 * P.w, .016 * P.h, .562 * P.w, .038 * P.h);
-    g.stroke();
-    g.fillStyle = 'rgba(17,20,28,.92)';
-    skPoly(g, P, [[.350, .366], [.500, .404], [.650, .366], [.676, .398], [.500, .448], [.324, .398]]); g.fill();
-    g.strokeStyle = 'rgba(126,142,168,.30)'; g.lineWidth = Math.max(.7, P.w * .010);
-    skPoly(g, P, [[.352, .370], [.500, .408], [.648, .370]]); g.stroke();
-  },
-  /* Dân công sở: viền cổ sơ mi trắng sắc + khoá dây đỏ đeo thẻ */
-  office: function (g, P) {
-    g.strokeStyle = 'rgba(120,140,170,.72)'; g.lineWidth = Math.max(.7, P.w * .011);
-    skPoly(g, P, SK_P.collL); g.stroke();
-    skPoly(g, P, SK_P.collR); g.stroke();
-    g.fillStyle = 'rgba(255,255,255,.55)';
-    skPoly(g, P, [[.352, .384], [.498, .398], [.470, .414], [.372, .402]]); g.fill();
-    g.fillStyle = '#cbd5e1'; skRound(g, P, [.468, .414, .064, .026], .008); g.fill();
-    g.strokeStyle = '#7f1d1d'; g.lineWidth = Math.max(.6, P.w * .008);
-    g.beginPath(); g.moveTo(.395 * P.w, .404 * P.h); g.lineTo(.560 * P.w, .500 * P.h);
-    g.moveTo(.600 * P.w, .404 * P.h); g.lineTo(.685 * P.w, .500 * P.h); g.stroke();
-  },
-  /* Hacker Red Team: tối nhẹ nửa dưới mặt + phản quang xanh Matrix trên mắt kính */
-  hoodie: function (g, P) {
-    g.fillStyle = skGrad(g, P, .345, .45, 'rgba(3,5,9,0)', 'rgba(3,5,9,.40)');
-    g.fillRect(0, .345 * P.h, P.w, .105 * P.h);
-    g.fillStyle = 'rgba(110,231,183,.34)';
-    g.fillRect(.252 * P.w, .240 * P.h, .011 * P.w, .046 * P.h);
-    g.fillRect(.522 * P.w, .240 * P.h, .011 * P.w, .046 * P.h);
-    g.strokeStyle = 'rgba(148,163,184,.16)'; g.lineWidth = Math.max(.7, P.w * .012);
-    g.beginPath(); g.arc(P.w * .495, P.h * .288, P.w * .276, Math.PI * 1.15, Math.PI * 1.85); g.stroke();
-  },
-  /* CTO: nút cà vạt + viền cổ sơ mi tối cho ra chất vest ở khung cận */
-  cto: function (g, P) {
-    g.fillStyle = 'rgba(9,12,18,.96)'; skRound(g, P, [.460, .396, .080, .040], .010); g.fill();
-    g.strokeStyle = 'rgba(186,204,228,.45)'; g.lineWidth = Math.max(.7, P.w * .010);
-    skPoly(g, P, SK_P.collL); g.stroke();
-    skPoly(g, P, SK_P.collR); g.stroke();
-    g.fillStyle = 'rgba(253,224,71,.85)';
-    g.beginPath(); g.arc(.500 * P.w, .478 * P.h, Math.max(.9, P.w * .013), 0, 7); g.fill();
-  }
-};
-function skPortraitLayer(dw, dh) {
-  const img = IMG.chars.p;
-  if (!img || !assetsReady) return null;
-  const id = skEquipped();
-  dw = Math.max(8, Math.round(dw)); dh = Math.max(8, Math.round(dh));
-  const key = 'av|' + id + '|' + dw + 'x' + dh;
-  if (skCache[key]) return skCache[key];
-  const cv = document.createElement('canvas');
-  cv.width = dw; cv.height = dh;
-  const g = cv.getContext('2d');
-  try { g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; } catch (e) {}
-  g.drawImage(img, 0, 0, dw, dh);
-  g.save();
-  g.globalCompositeOperation = 'source-atop';   // chỉ sơn lên pixel của nhân vật
-  const fn = SK_PAINT[id]; if (fn) fn(g, { w: dw, h: dh });
-  const pv = SK_PORTRAIT[id]; if (pv) pv(g, { w: dw, h: dh });
-  g.restore();
-  skCache[key] = cv;
-  return cv;
-}
-
-/* ---------- 3. MÓC VÀO DRAW CHIBI (reskin.js gọi) ---------- */
-function skOnChibi(g, box, r) {
-  if (r !== 'p') return;
-  const id = skEquipped();
-  if (id === 'default') return;
-  const c = outfitCanvas(id, box.w * 2, box.h * 2);
-  if (c) g.drawImage(c, box.x, box.y, box.w, box.h);
-}
-
-/* ---------- 4. AVATAR HỘI THOẠI cũng mặc đồ ---------- */
-const _skAvatar = drawAvatar;
-drawAvatar = function (spk) {
-  _skAvatar(spk);
-  const s = String(spk || '');
-  if (!(s.includes('Nhân') || s.includes(playerName) || s === 'Bạn')) return;
-  /* V15: avatar NỮ là ảnh chân dung riêng (icon-113) — hình cắt theo khung nam
-     mà sơn lên thì lệch, nên bỏ qua lớp trang phục ở khung này. */
-  if (playerGender === 'female') return;
-  const id = skEquipped(); if (id === 'default') return;
-  const acv = document.getElementById('av-cv'); if (!acv) return;
-  const img = IMG.chars.p; if (!img) return;
-  /* reskin.js cắt ô vuông size = min(w, h*0.55) ở đỉnh ảnh rồi phóng ra 64x64 */
-  const size = Math.min(img.width, img.height * 0.55);
-  const k = 64 / size;
-  const c = outfitCanvas(id, 64 * 2, (img.height * k) * 2);
-  if (!c) return;
-  const a = acv.getContext('2d');
-  a.save();
-  a.drawImage(c, -4, -4, 64, img.height * k);
-  a.restore();
-};
 
 /* ---------- 5. TAB "TỦ ĐỒ" TRONG CỬA HÀNG ---------- */
 let skTab = 'gear';
 function shopTab(t) { skTab = t; renderShop(); beep(540, 'triangle', .05, .02); }
 
 function drawSkinChar(g, box, id) {
-  const c = outfitCanvas(id, box.w * 2, box.h * 2);
-  if (c) g.drawImage(c, box.x, box.y, box.w, box.h);
+  /* Thẻ xem trước lấy thẳng ô hàng tương ứng trong sheet của giới đang chơi
+     (cột 0 = đứng trực diện). Sheet chưa nạp thì để trống: skinPreviewTo đã
+     in "…" thay thẻ, vẽ khung người trần theo cỡ ảnh cũ chỉ thêm lệch. */
+  const SH = skSheetImg();
+  if (!SH || !assetsReady) return;
+  const sc = box.h / SK_GEO.CH, dw = SK_GEO.CW * sc;
+  g.drawImage(SH, 0, (SK_ROW[id] || 0) * SK_GEO.CH, SK_GEO.CW, SK_GEO.CH,
+              box.x + (box.w - dw) / 2, box.y, dw, box.h);
 }
 function skinPreviewTo(cv, id) {
   const g = cv.getContext('2d');
@@ -374,13 +64,12 @@ function skinPreviewTo(cv, id) {
   g.fillStyle = 'rgba(56,189,248,.10)'; g.fillRect(0, cv.height - 26, cv.width, 26);
   g.strokeStyle = 'rgba(125,211,252,.25)'; g.lineWidth = 1;
   g.beginPath(); g.moveTo(0, cv.height - 26.5); g.lineTo(cv.width, cv.height - 26.5); g.stroke();
-  const img = IMG.chars.p;
-  if (!img || !assetsReady) {
+  if (!skSheetReady()) {
     g.fillStyle = '#64748b'; g.font = '10px "Segoe UI", sans-serif'; g.textAlign = 'center';
     g.fillText('…', cv.width / 2, cv.height / 2); g.textAlign = 'left';
     return;
   }
-  const H = cv.height - 30, W = H * (img.width / img.height);
+  const H = cv.height - 30, W = H * SK_GEO.CW / SK_GEO.CH;
   drawSkinChar(g, { x: (cv.width - W) / 2, y: 6, w: W, h: H }, id);
 }
 function skCard(s) {
@@ -511,3 +200,158 @@ updateBuffBar = function () {
 /* mua xong là HUD/buff phải vẽ lại — syncHUD đã gọi updateBuffBar, chỉ cần bảo đảm
    signature buff đổi khi mặc đồ khác */
 try { updateBuffBar(); } catch (e) {}
+
+/* ============================================================
+   7. SHEET TRANG PHỤC THEO GIỚI TÍNH (V21 nữ · V22 nam)
+   ------------------------------------------------------------
+   Mục này là NGUỒN ĐỒ HỌA DUY NHẤT của nhân vật. Bug trước V21: 4 skin
+   sơn bằng Canvas theo đường bao đo trên ảnh nam rồi reskin.js blit lại
+   ảnh nam gốc -> nhân vật Nữ bị thay bằng người Nam mặc đồ Nam, còn
+   nhân vật Nam mặc đồ "vẽ đè" lệch bóng người.
+
+   Lưới: 4 HÀNG = 4 skin theo đúng thứ tự mảng SKINS ở mục 1
+         (0 Thực Tập Sinh · 1 Dân Công Sở · 2 Hacker Red Team · 3 CTO),
+         5 CỘT = 5 hướng (0 đứng quay trái · 1 đứng quay phải ·
+         2 lưng quay phải · 3 lưng quay trái · 4 đang bước đi, art gốc
+         luôn quay sang PHẢI nên cột này tự lật khi đi trái).
+         Mọi ô 150x178 px, thân nhân vật cao 158 px, bàn chân nằm tại
+         dòng 172 của ô — do tools/bake-female-sprites.cjs và
+         tools/bake-male-sprites.cjs xếp lại đều nên chỉ cần MỘT cặp
+         (dw, dh) cho cả 40 ô của hai giới: đổi hướng, đổi skin, đổi giới
+         tính đều không làm nhân vật nhảy kích thước.
+
+   Neo vẽ: giống hệt nhánh cũ trong reskin.js — cx = x+10, feet = y+30,
+           bob theo S.p.step, bóng tiếp xúc cùng toạ độ. Vfx.js bọc
+           drawChibi() để vẽ bóng mềm + bụi chân TRƯỚC khi hàm này chạy,
+           nên hai lớp hiệu ứng vẫn nguyên ở mọi cảnh (WORLD, STREET,
+           phòng trong, HEAVEN) vì tất cả đều đi qua drawSprite('p').
+           Hitbox không đổi: engine va chạm theo S.p + ô sàn, sprite chỉ
+           là lớp vẽ.
+   ============================================================ */
+const SK_GEO = { CW: 150, CH: 178, FOOT: 172, BODY: 158, H: 50 };
+const SK_ROW = {};
+SKINS.forEach((s, i) => { SK_ROW[s.id] = i; });
+/* Sheet của giới đang chơi; null vài frame đầu chưa nạp -> reskin.js vẽ tạm
+   khung người trần (IMG.chars.p), tuyệt đối không có lớp áo sơn đè. */
+function skSheetImg() { return playerGender === 'female' ? IMG.femSprites : IMG.maleSprites; }
+function skSheetReady() { return !!(skSheetImg() && assetsReady); }
+
+/* Game chỉ lưu S.p.dir trái/phải (engine.js:1395), không có hướng mặt/lưng,
+   nên chiều dọc đọc trực tiếp phím đang giữ: đi lên = thấy lưng. Biến module
+   chứ không nhét vào S — file save phải giữ nguyên từng byte. */
+let skBack = false;
+const _skFaceUpd = update;
+update = function () {
+  _skFaceUpd();
+  try {
+    const up = (typeof held === 'function' && held('up')) || (typeof touchDir !== 'undefined' && touchDir.up);
+    const dn = (typeof held === 'function' && held('down')) || (typeof touchDir !== 'undefined' && touchDir.down);
+    if (up && !dn) skBack = true;
+    else if (dn && !up) skBack = false;
+  } catch (e) {}
+};
+
+function skSheetCol() {
+  const right = (S.p.dir || 1) > 0;
+  if (S.p.moving) return 4;
+  return skBack ? (right ? 2 : 3) : (right ? 1 : 0);
+}
+
+function skSheetChibi(x, y) {
+  const right = (S.p.dir || 1) > 0;
+  const col = skSheetCol(), row = SK_ROW[skEquipped()] || 0;
+  const sc = SK_GEO.H / SK_GEO.BODY, dw = SK_GEO.CW * sc, dh = SK_GEO.CH * sc;
+  const cx = x + 10, feet = y + 30;
+  const bob = S.p.moving ? Math.abs(Math.sin(S.p.step * 0.32)) * 2.2
+    : Math.sin(Date.now() / 600 + x) * 0.8;
+  ctx.fillStyle = 'rgba(23,63,102,.22)';
+  ctx.beginPath(); ctx.ellipse(cx, feet + 2, dw * 0.26, 4.6, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.save();
+  ctx.translate(cx, feet - bob);
+  /* cột 4 vẽ sẵn quay sang phải -> lật khi đi trái; 4 cột kia đã có bản đối xứng */
+  if (col === 4 && !right) ctx.scale(-1, 1);
+  try { ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; } catch (e) {}
+  ctx.drawImage(skSheetImg(), col * SK_GEO.CW, row * SK_GEO.CH, SK_GEO.CW, SK_GEO.CH,
+    -dw / 2, -dh * (SK_GEO.FOOT / SK_GEO.CH), dw, dh);
+  ctx.restore();
+}
+
+/* Bọc drawChibi(): sheet của giới đang chơi đã nạp -> vẽ từ sheet; mọi trường
+   hợp khác (NPC, ambient, sheet 404) đi đúng đường cũ, không đổi gì gameplay. */
+const _skDrawChibi = drawChibi;
+drawChibi = function (x, y, r) {
+  if (r === 'p' && skSheetReady()) {
+    try { skSheetChibi(x, y); return; } catch (e) {}
+  }
+  return _skDrawChibi(x, y, r);
+};
+
+/* ============================================================
+   8. CHÂN DUNG AVATAR CŨNG LẤY TỪ SHEET (V22)
+   ------------------------------------------------------------
+   Ba khung ảnh đại diện của NAM trước đây cắt từ char_player.png rồi sơn
+   lớp áo đo theo đường bao cũ -> đầu ngoài phố một kiểu, đầu trong thẻ HUD
+   một kiểu. Giờ cắt đúng ô trực diện (cột 0) của hàng skin đang mặc trong
+   sheet nên khớp 100% với nhân vật đi ngoài đường. NỮ giữ nguyên ảnh chân
+   dung riêng icon-113.png như V15 — không đụng vào khung đã duyệt.
+   Hình cắt: ô 150x178, thân căn giữa theo trục x, đầu bắt đầu từ dòng ~15,
+   vai kết thúc ~dòng 92 -> vuông 84px cạnh, tâm x = 75.
+   ============================================================ */
+const SK_HEAD = { s: 84, top: 8, cx: 75 };
+function skHeadInto(g, T, over) {
+  const SH = skSheetImg(); if (!SH) return;
+  const row = SK_ROW[skEquipped()] || 0, k = over || 0;
+  try { g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; } catch (e) {}
+  g.drawImage(SH, SK_HEAD.cx - SK_HEAD.s / 2, row * SK_GEO.CH + SK_HEAD.top,
+              SK_HEAD.s, SK_HEAD.s, -k, -k, T + 2 * k, T + 2 * k);
+}
+
+/* thẻ HUD 132x132 — giữ đúng nền gradient của bản gốc, vẫn chặn vẽ lại mỗi frame */
+let skAvSig = '';
+const _skHudAv = renderHudAvatar;
+renderHudAvatar = function () {
+  const cv = document.getElementById('pc-av-cv');
+  if (!(cv && playerGender === 'male' && skSheetReady())) { skAvSig = ''; _skHudAv(); return; }
+  const sig = skEquipped() + '|sheet|' + cv.width;
+  if (sig === skAvSig) return;
+  skAvSig = sig;
+  const g = cv.getContext('2d'), T = cv.width;
+  g.clearRect(0, 0, T, T);
+  const bg = g.createLinearGradient(0, 0, 0, T);
+  bg.addColorStop(0, '#dff2ff'); bg.addColorStop(1, '#7ec8ff');
+  g.fillStyle = bg; g.fillRect(0, 0, T, T);
+  skHeadInto(g, T, 0);
+};
+
+/* khung chat 56x56: reskin.js cắt ô vuông ở đỉnh ảnh rồi phóng ra 64 (lệch 4px
+   ra ngoài khung bo tròn) -> vẽ lại y hệt bằng ô sheet. */
+const _skChatAv = drawAvatar;
+drawAvatar = function (spk) {
+  const s = String(spk || '');
+  const me = s.includes('Nhân') || s.includes(playerName) || s === 'Bạn';
+  if (!(me && playerGender === 'male' && skSheetReady())) return _skChatAv(spk);
+  const acv = document.getElementById('av-cv'); if (!acv) return;
+  const a = acv.getContext('2d');
+  a.clearRect(0, 0, 56, 56);
+  const g = a.createLinearGradient(0, 0, 0, 56);
+  g.addColorStop(0, '#54b6ff'); g.addColorStop(1, '#2f9df0');
+  a.fillStyle = g; a.fillRect(0, 0, 56, 56);
+  skHeadInto(a, 56, 4);
+};
+
+/* bảng Tạo Nhân Vật 76x104: xem trước TOÀN THÂN theo giới đang chọn, dùng đúng
+   ảnh sheet (CC là const của game.js, chỉ đọc chứ không sửa). */
+const _skCcPrev = typeof ccPreview === 'function' ? ccPreview : null;
+if (_skCcPrev) {
+  ccPreview = function () {
+    const cv = document.getElementById('cc-av');
+    const im = (typeof CC !== 'undefined' && CC.g === 'female') ? IMG.femSprites : IMG.maleSprites;
+    if (!(cv && im && assetsReady)) return _skCcPrev();
+    const g = cv.getContext('2d');
+    g.clearRect(0, 0, cv.width, cv.height);
+    try { g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; } catch (e) {}
+    const dh = cv.height, dw = dh * SK_GEO.CW / SK_GEO.CH;
+    const row = SK_ROW[skEquipped()] || 0;
+    g.drawImage(im, 0, row * SK_GEO.CH, SK_GEO.CW, SK_GEO.CH, (cv.width - dw) / 2, 0, dw, dh);
+  };
+}

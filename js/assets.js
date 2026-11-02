@@ -65,10 +65,25 @@ const ASSETS = {
     ship: 'assets/img/baked/ship_gen.png'
   },
   /* V15: ảnh icon đại diện (avatar) khi chọn NỮ — khung chat, thẻ HUD, xem trước */
-  avf: 'assets/img/icon-113.png'
+  avf: 'assets/img/icon-113.png',
+  /* V21: SHEET TRANG PHỤC NỮ — 4 hàng skin (Thực Tập Sinh / Dân Công Sở / Hacker
+     Red Team / CTO) x 5 cột hướng (đứng quay phải, đứng quay trái, lưng phải,
+     lưng trái, đang bước). Nguồn assets/img/female_sprites.png là JPEG đổi tên,
+     nền xám trung tính 48-50 có lưới kẻ -> tẩy nền + xếp lại thành lưới ô ĐỀU
+     ngoại tuyến:
+         node tools/bake-female-sprites.cjs -> baked/female_sprites.png 750x712
+     Lưới đều để mọi frame dùng chung một (dw, dh): đổi hướng/đổi skin không làm
+     nhân vật nhảy kích thước. Bàn chân mọi ô nằm tại dòng SK_GEO.FOOT của ô. */
+  femSprites: 'assets/img/baked/female_sprites.png?v=1',
+  /* V22: sheet NAM — cùng bộ ảnh, cùng lưới 150x178 với sheet nữ từng pixel một
+     (chân ở dòng 172, thân cao ~158), nên hai giới vẽ bằng đúng một công thức và
+     đổi giới tính không làm nhân vật to/nhỏ đi. Nguồn assets/img/male_sprites.png
+     cũng là JPEG đổi tên (magic FFD8) nên phải bake:
+         node tools/bake-male-sprites.cjs -> baked/male_sprites.png 750x712 */
+  maleSprites: 'assets/img/baked/male_sprites.png?v=1'
 };
 
-const IMG = { bg: null, chars: {}, avf: null, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null, creatures: null, bunny: null, hvStations: null, hvBg: null, hvBgClean: null };
+const IMG = { bg: null, chars: {}, avf: null, femSprites: null, maleSprites: null, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null, creatures: null, bunny: null, hvStations: null, hvBg: null, hvBgClean: null };
 let assetsReady = false;
 
 /* ============================================================
@@ -240,6 +255,8 @@ function loadOne(src) {
   jobs.push(loadOne(ASSETS.hvBg).then(im => { IMG.hvBg = im; }));
   jobs.push(loadOne(ASSETS.hvBgClean).then(im => { IMG.hvBgClean = im; }));
   jobs.push(loadOne(ASSETS.avf).then(im => { IMG.avf = im; }));
+  jobs.push(loadOne(ASSETS.femSprites).then(im => { IMG.femSprites = im; }));
+  jobs.push(loadOne(ASSETS.maleSprites).then(im => { IMG.maleSprites = im; }));
 
   Object.entries(ASSETS.chars).forEach(([k, src]) => {
     jobs.push(loadOne(src).then(im => { IMG.chars[k] = im; }));

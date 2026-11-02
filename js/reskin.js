@@ -52,8 +52,6 @@ function drawChibi(x, y, r) {
   ctx.translate(cx, feet - bob);
   if (dir > 0) ctx.scale(-1, 1);
   ctx.drawImage(img, -W / 2, -H, W, H);
-  /* móc cho skins.js sơn bộ trang phục lên ĐÚNG khung nhân vật (đã lật theo hướng đi) */
-  try { if (typeof skOnChibi === 'function') skOnChibi(ctx, { x: -W / 2, y: -H, w: W, h: H }, r); } catch (e) {}
   ctx.restore();
 }
 
@@ -238,9 +236,7 @@ function renderHudAvatar() {
   const dw = img.width * s, dh = img.height * s;
   const dx = (T - dw) / 2;                                // căn giữa theo trục người
   const dy = (T - cropH * s) / 2;                         // vùng đầu+vai nằm giữa ô
-  const layer = (typeof skPortraitLayer === 'function')
-    ? skPortraitLayer(Math.round(dw), Math.round(dh)) : null;
-  g.drawImage(layer || img, dx, dy, dw, dh);
+  g.drawImage(img, dx, dy, dw, dh);
 }
 renderHudAvatar();   // khung nền ngay khi nạp, assets.js sẽ gọi lại khi ảnh nhân vật sẵn sàng
 

@@ -12,7 +12,7 @@
 
    Thêm tài nguyên mới? Cập nhật cả ASSETS.js và PRECACHE bên dưới.
    ============================================================ */
-const CACHE_NAME = 'it-game-v1.48';
+const CACHE_NAME = 'it-game-v1.51';
 
 const PRECACHE = [
   // --- vỏ ứng dụng ---
@@ -74,6 +74,14 @@ const PRECACHE = [
   // --- nhân vật ---
   './assets/img/baked/char_player.png',
   './assets/img/char_player_female.png',
+  // --- V21: sheet 4 skin x 5 hướng của nhân vật NỮ (750x712, nền trong suốt).
+  //     Nguồn assets/img/female_sprites.png là JPEG nền xám, game KHÔNG nạp nó;
+  //     bake: node tools/bake-female-sprites.cjs ---
+  './assets/img/baked/female_sprites.png?v=1',
+  // --- V22: sheet 4 skin x 5 hướng của nhân vật NAM — cùng lưới 150x178 với sheet
+  //     nữ nên hai giới vẽ bằng một công thức. Nguồn assets/img/male_sprites.png
+  //     là JPEG nền xám, game KHÔNG nạp nó; bake: node tools/bake-male-sprites.cjs ---
+  './assets/img/baked/male_sprites.png?v=1',
   './assets/img/icon-113.png',
   './assets/img/baked/npc_lan.png',
   './assets/img/baked/npc_tuan.png',
