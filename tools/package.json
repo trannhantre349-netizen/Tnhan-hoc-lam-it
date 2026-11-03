@@ -7,6 +7,7 @@
     "bake": "node bake-sprites.cjs"
   },
   "dependencies": {
+    "@breezystack/lamejs": "^1.2.7",
     "jpeg-js": "^0.4.4",
     "pngjs": "^7.0.0"
   }

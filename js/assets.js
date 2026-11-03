@@ -45,6 +45,20 @@ const ASSETS = {
          node tools/clean-heaven-bg.cjs  ->  baked/heaven_bg_clean.png 1024x614
      heaven.js ưu tiên file này, chỉ quay về hvBg khi file chưa nạp được. */
   hvBgClean: 'assets/img/baked/heaven_bg_clean.png?v=1',
+  /* V23: Khu 5 "Thánh Đường Tĩnh Tâm" — ảnh nền bên trong. inpeace.js cắt
+     theo kiểu COVER-CROP nên ảnh thật gửi về chỉ việc ghi đè file này, không
+     phải sửa code và không cần đổi kích thước chuẩn.
+     V26: ảnh THẬT đã về — góc nhìn ngang 90° 1248x832 (file JPEG đổi tên .png),
+     inpeace.js ghép LẬT GƯƠNG theo trục X thành hành lang 2400px. ?v=2 vì nội
+     dung file đổi mà đường dẫn không đổi, phải buộc trình duyệt lấy bản mới.
+     Thiếu ảnh -> inpeace.js tự vẽ fallback nâu-vàng, UI vẫn chạy. */
+  ipBg: 'assets/img/inpeace_bg.png?v=2',
+  /* V26: ghế dài nhà thờ để "Ngồi Tịnh Tâm" dọc hành lang. Nguồn
+     assets/img/church_bench.png (JPEG đổi tên .png, nền TRẮNG) đã tẩy nền và
+     cắt sát khung ngoại tuyến bằng:
+         node tools/bake-bench.cjs  ->  baked/church_bench.png 873x433 RGBA
+     873x433 là NGUỒN, khi vẽ inpeace.js co lại theo tỉ lệ người. */
+  ipBench: 'assets/img/baked/church_bench.png?v=1',
   chars: {
     p: 'assets/img/baked/char_player.png',
     /* V15: sprite NỮ đi trên bản đồ. Hai ảnh này artist xuất sẵn có kênh alpha
@@ -83,7 +97,7 @@ const ASSETS = {
   maleSprites: 'assets/img/baked/male_sprites.png?v=1'
 };
 
-const IMG = { bg: null, chars: {}, avf: null, femSprites: null, maleSprites: null, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null, creatures: null, bunny: null, hvStations: null, hvBg: null, hvBgClean: null };
+const IMG = { bg: null, chars: {}, avf: null, femSprites: null, maleSprites: null, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null, creatures: null, bunny: null, hvStations: null, hvBg: null, hvBgClean: null, ipBg: null, ipBench: null };
 let assetsReady = false;
 
 /* ============================================================
@@ -254,6 +268,10 @@ function loadOne(src) {
   jobs.push(loadOne(ASSETS.hvStations).then(im => { IMG.hvStations = im; }));
   jobs.push(loadOne(ASSETS.hvBg).then(im => { IMG.hvBg = im; }));
   jobs.push(loadOne(ASSETS.hvBgClean).then(im => { IMG.hvBgClean = im; }));
+  jobs.push(loadOne(ASSETS.ipBg).then(im => { IMG.ipBg = im; }));
+  /* V26: ghế dài "Ngồi Tịnh Tâm" (Khu 5). Thiếu file thì inpeace.js tự bỏ
+     qua sprite, chỉ giữ nhãn [E] — không lỗi, không chờ. */
+  jobs.push(loadOne(ASSETS.ipBench).then(im => { IMG.ipBench = im; }));
   jobs.push(loadOne(ASSETS.avf).then(im => { IMG.avf = im; }));
   jobs.push(loadOne(ASSETS.femSprites).then(im => { IMG.femSprites = im; }));
   jobs.push(loadOne(ASSETS.maleSprites).then(im => { IMG.maleSprites = im; }));

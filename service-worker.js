@@ -12,7 +12,7 @@
 
    Thêm tài nguyên mới? Cập nhật cả ASSETS.js và PRECACHE bên dưới.
    ============================================================ */
-const CACHE_NAME = 'it-game-v1.51';
+const CACHE_NAME = 'it-game-v1.63';
 
 const PRECACHE = [
   // --- vỏ ứng dụng ---
@@ -33,6 +33,7 @@ const PRECACHE = [
   './js/sfx.js',
   './js/heaven.js',
   './js/mg-coding.js',
+  './js/inpeace.js',
   // --- icon PWA ---
   './assets/img/icon-192.png',
   './assets/img/icon-512.png',
@@ -71,6 +72,13 @@ const PRECACHE = [
   //     + cánh vàng + vòng cáp) để 3 ô sprite heaven_stations.png thế chỗ.
   //     Bake: node tools/clean-heaven-bg.cjs ---
   './assets/img/baked/heaven_bg_clean.png?v=1',
+  // --- V24 Khu 5: ảnh nền Thánh Đường Tĩnh Tâm (1248x832). V26: ảnh THẬT đã
+  //     về (JPEG đổi tên .png), inpeace.js ghép LẬT GƯƠNG thành hành lang
+  //     2400px nên nội dung file đổi mà đường dẫn không đổi -> ?v=2. ---
+  './assets/img/inpeace_bg.png?v=2',
+  // --- V26 Khu 5: ghế dài "Ngồi Tịnh Tâm" (873x433 RGBA, nền trắng đã tẩy).
+  //     Bake: node tools/bake-bench.cjs ---
+  './assets/img/baked/church_bench.png?v=1',
   // --- nhân vật ---
   './assets/img/baked/char_player.png',
   './assets/img/char_player_female.png',
@@ -107,7 +115,10 @@ const PRECACHE = [
   './assets/audio/step.mp3',
   './assets/audio/coin.mp3',
   './assets/audio/pop.mp3',
-  './assets/audio/bgm.mp3'
+  './assets/audio/bgm.mp3',
+  // --- V23 Khu 5: nhạc tĩnh tâm (120s loop khít, tự tổng hợp bằng
+  //     node tools/make-inpeace-bgm.cjs) ---
+  './assets/sfx/inpeace_bgm.mp3'
 ];
 
 /* ---------- install: nạp trước toàn bộ, không để 1 file lỗi chặn cả app ---------- */
