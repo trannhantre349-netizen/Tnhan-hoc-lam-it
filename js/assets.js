@@ -59,6 +59,15 @@ const ASSETS = {
          node tools/bake-bench.cjs  ->  baked/church_bench.png 873x433 RGBA
      873x433 là NGUỒN, khi vẽ inpeace.js co lại theo tỉ lệ người. */
   ipBench: 'assets/img/baked/church_bench.png?v=1',
+  /* V29: DÀN SƯ THẦY Khu 5. Nguồn assets/img/monk_sheet.png (JPEG đổi tên,
+     1024x765, lưới 7 cột x 3 hàng: hàng 1 đứng niệm, hàng 2 kinh hành, hàng 3
+     ngồi thiền) và assets/img/abbot_monk.png (1024x1024, Sư Trụ Trì chắp tay)
+     đều nền trắng -> tẩy nền ngoại tuyến bằng
+         node tools/bake-monks.cjs  ->  baked/monk_sheet.png 1024x765 (GIỮ NGUYÊN
+     khổ để lưới ô tính thẳng theo pixel) và baked/abbot_monk.png 404x891 (chân
+     sát đáy ảnh). Thiếu ảnh -> inpeace.js tự vẽ bằng sheet tín đồ như V28. */
+  ipMonkSheet: 'assets/img/baked/monk_sheet.png?v=1',
+  ipAbbot: 'assets/img/baked/abbot_monk.png?v=1',
   chars: {
     p: 'assets/img/baked/char_player.png',
     /* V15: sprite NỮ đi trên bản đồ. Hai ảnh này artist xuất sẵn có kênh alpha
@@ -97,7 +106,7 @@ const ASSETS = {
   maleSprites: 'assets/img/baked/male_sprites.png?v=1'
 };
 
-const IMG = { bg: null, chars: {}, avf: null, femSprites: null, maleSprites: null, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null, creatures: null, bunny: null, hvStations: null, hvBg: null, hvBgClean: null, ipBg: null, ipBench: null };
+const IMG = { bg: null, chars: {}, avf: null, femSprites: null, maleSprites: null, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null, creatures: null, bunny: null, hvStations: null, hvBg: null, hvBgClean: null, ipBg: null, ipBench: null, ipMonkSheet: null, ipAbbot: null };
 let assetsReady = false;
 
 /* ============================================================
@@ -272,6 +281,10 @@ function loadOne(src) {
   /* V26: ghế dài "Ngồi Tịnh Tâm" (Khu 5). Thiếu file thì inpeace.js tự bỏ
      qua sprite, chỉ giữ nhãn [E] — không lỗi, không chờ. */
   jobs.push(loadOne(ASSETS.ipBench).then(im => { IMG.ipBench = im; }));
+  /* V29: dàn Sư Thầy (Khu 5). Không có ảnh thì inpeace.js vẽ bằng sheet tín
+     đồ — chỉ thiếu hình, không thiếu tính năng. */
+  jobs.push(loadOne(ASSETS.ipMonkSheet).then(im => { IMG.ipMonkSheet = im; }));
+  jobs.push(loadOne(ASSETS.ipAbbot).then(im => { IMG.ipAbbot = im; }));
   jobs.push(loadOne(ASSETS.avf).then(im => { IMG.avf = im; }));
   jobs.push(loadOne(ASSETS.femSprites).then(im => { IMG.femSprites = im; }));
   jobs.push(loadOne(ASSETS.maleSprites).then(im => { IMG.maleSprites = im; }));

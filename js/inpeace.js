@@ -1,10 +1,12 @@
 /* ============================================================
-   V26 — KHU 5 "ĐẠI LỘ TĨNH TÂM" — SCENE CUỘN CAMERA   js/inpeace.js
+   V27 — KHU 5 "ĐẠI LỘ TĨNH TÂM" — SCENE CUỘN CAMERA   js/inpeace.js
 
-   KIẾN TRÚC (V25: hành lang 2400px · V26: ảnh thật + ghế ngồi tịnh tâm):
+   KIẾN TRÚC (V25: hành lang 2400px · V26: ảnh thật + ghế ngồi tịnh tâm ·
+   V27: ba TÍN ĐỒ ngồi/quỳ cùng tu tập + cơ chế [E] Quỳ Lạy Cùng Bạn):
    Khu 5 vẫn là MỘT CẢNH ĐỘC LẬP `S.scene = 'INPEACE'`, người chơi đi từ CỔNG ĐÁ
-   đầu đường, qua ba DÂY GHẾ dài để Ngồi Tịnh Tâm, hai CỤM NẾN vàng, tới BÀN THỜ
-   LỚN ở cuối đại lộ rồi quỳ ghi lời nguyện.
+   đầu đường, qua ba DÂY GHẾ dài để Ngồi Tịnh Tâm (hai ghế đầu có bạn tín đồ
+   ngồi trước), hai CỤM NẾN vàng, tới BÀN THỜ LỚN ở cuối đại lộ rồi quỳ ghi
+   lời nguyện bên một người đang quỳ sẵn.
 
    Cảnh lạ không có trong engine → engine.render() vẽ xong mới tới hàm này
    phủ toàn bộ khung (đúng cách heaven.js làm với HEAVEN), còn engine.update()
@@ -36,6 +38,25 @@
    _camX ∈ [0, IP_CAM_MAX=1440]  ⇒  thế giới đi được = S.p.x + _camX ∈ [25, 2365]
    → phủ trọn yêu cầu "x từ 100 đến 2300" mà không đụng engine.js.
 
+   ---------- DÀN SƯ THẦY (V29 — assets/img/baked/monk_sheet.png + abbot_monk.png) ----------
+   Ba vị mới vẽ THẲNG từ ảnh Sư Thầy thật (không còn sơn phủ lên sheet tín đồ):
+     · Sư Trụ Trì          đứng chắp tay tại x 2050 (abbot_monk.png, chân sát
+                           đáy ảnh) — [E] THỈNH GIÁO TRỤ TRÌ: mõ + chuông lớn,
+                           lời dạy về BUÔNG BỎ, buff tĩnh tâm, KHÔNG cộng EXP.
+     · Tiểu Sư Thiền Hành  kinh hành 700↔950 tốc .35, hàng 2 của sheet (4 frame
+                           quay TRÁI → lật gương khi đi phải).
+     · Sư Thầy Ngồi Tịnh Khẩu ngồi thiền bán già trên ghế thứ ba (x 1700,
+                           mặt ghế 480). Ảnh đã ngồi sẵn nên KHÔNG cần mẹo "lưng
+                           ghế che nửa thân" của tín đồ: đáy sprite đặt LÊN MẶT
+                           GHẾ và pk 472 (trƯỚC lưng ghế 468). Người chơi vẫn
+                           [E] NGỒI TỊNH TÂM ở cạnh (ipSit tự lệch IP_PEW_SIDE).
+     · Sư Thầy Thích Trí Tuệ (V28) từ bản SƠN PHỦ chuyển sang đúng sheet này:
+                           đi = hàng 2, dừng niệm = hàng 1. Toạ độ, nhịp, chân
+                           ngôn, +30 EXP giữ nguyên — chỉ đổi HÌNH.
+   Lưới baked: 7 cột x 3 hàng, ô 128x252, Đáy ô = đường chân (dòng 250), figure
+   căn giữa — đo bằng node tools/bake-monks.cjs. Thiếu ảnh baked (404) thì vị đó
+   tự vẽ lại bằng sheet tín đồ như V28, không lỗi, không chờ.
+
    ---------- TOẠ ĐỘ (đo từ assets/img/inpeace_bg.png, 1248x832 JPEG) ----------
    V26: ảnh THẬT đã về — nội thất gothic nhìn NGANG 90° (không còn phối cảnh
    một điểm tụ), nên bỏ hẳn kiểu "cắt nhịp vòm + cung thánh" của V25 và bỏ luôn
@@ -57,6 +78,49 @@
      x 600 / 1200 / 1700  GHẾ DÀI (baked/church_bench.png)  [E] Ngồi Tịnh Tâm
      x 850 / 1550  CỤM NẾN  [E] Thắp Nến
      x 2250  BÀN THỜ LỚN    [E] Thắp Nến Lớn → quỳ → Sổ nguyện ước
+   V27 — ba TÍN ĐỒ (mục 16):
+     x 600  mặt ghế  "Bạn Đồng Tu" (NỮ, hàng 0)    [E] 🙏 QUỲ LẠY CÙNG BẠN
+     x 1200 mặt ghế  "Tín Đồ Tịnh Tâm" (NAM, hàng 1) [E] 🙏 CHẮP TAY CHÀO
+     x 2210 sàn 510  "Người Cầu Nguyện" (NỮ, hàng 3) [E] 🙏 QUỲ LẠY CÙNG BẠN
+   Ngồi ghế ở hai chiếc đầu vẫn dùng được — người chơi ngồi SÁNH BÊN bạn chứ
+   không đè lên ghế (IP_PEW_SIDE).
+   V28 — DÀN NGƯỜI ĐI LẠI TRONG ĐẠI LỘ (mục 17):
+     A. THIỀN HÀNH (pose 'walk', ô bước cột 4 + lật gương như nhân vật chính):
+        x 200..550  "Khách Tịnh Tâm" (NỮ, hàng 1) spd .6 — đi dạo, không [E]
+        x 1350..1750 "Cư Sĩ" (NAM, hàng 2)      spd .6 — đi dạo, không [E]
+     B. QUỲ LẠY TỰ NHỊP (pose 'kneel', solo = 4000ms, [E] CÙNG QUỲ LẠY):
+        x 880  sàn 520 "Người Quỳ Bên Nến" (NỮ, hàng 2)
+        x 2170 sàn 522 "Cư Sĩ Quỳ Lạy"      (NAM, hàng 0)
+        Mỗi 4 giây bạn tự gập người lạy một nhịp + vài đốm vàng bay lên.
+        Yêu cầu ghi x = 2220 cho bạn nam; Bàn Thờ Lớn ở 2250 và "Người Cầu
+        Nguyện" đã chiếm 2210, hai bạn quỳ cách nhau 10px sẽ đè thành MỘT bóng
+        → dời bạn nam về 2170 (vẫn hàng trước bàn thờ, lệch 50px).
+     C. SƯ THẦY (monk:1, pose 'walk', [E] BÁI KIẾN THẦY, +30 EXP):
+        x 990..1150 "Sư Thầy Thích Trí Tuệ" — kinh hành .28px/frame, thi thoảng
+        dừng chắp tay niệm (n.pause), áo cà sa sơn phủ một lần vào canvas nhớ.
+   V29 — SƯ THẦY BẰNG ẢNH VẼ THẬT (mục 16a, baked/monk_sheet.png + abbot_monk.png):
+        x 800  sàn 536  "Tiểu Sư Thiền Hành" (art 'monk') — kinh hành .35 trong
+                       700↔950, KHÔNG có greet → không cướp [E] của nến/ghế.
+        x 1700 ghế 2    "Sư Thầy Ngồi Tịnh Khẩu" (art 'monk', ô ngồi thiền) —
+                       ngồi an nhiên trên chiếc ghế thứ ba; người chơi vẫn tới
+                       NGỒI SÁNH BÊN được (ipSit tự lệch IP_PEW_SIDE).
+        x 2050 sàn 520  "Sư Trụ Trì" (art 'abbot', ảnh chắp tay) — đứng trang
+                       nghiêm trước bàn thờ, [E] THỈNH GIÁO TRỤ TRÌ → mõ + chuông,
+                       lời dạy về sự BUÔNG BỎ (IP_LETGO), buff 🕊 +6 phút, KHÔNG
+                       cộng EXP (xp: 0).
+        Cùng vòng 16a, sư thầy Thích Trí Tuệ giữ NGUYÊN toạ độ, nhịp kinh hành,
+        chân ngôn và +30 EXP — chỉ đổi từ áo sơn phủ (V28) sang ảnh thật.
+        Sheet baked/monk_sheet.png = lưới 7x3 ô 128x252, đường chân dòng 250:
+        hàng 0 đứng niệm, hàng 1 kinh hành (quay TRÁI) + ô 4 đứng, hàng 1-2 ngồi
+        thiền. Lưới đã bake XẾP ĐỀU nên đổi tư thế không nhảy kích thước.
+   tín đồ CHỈ nhận [E] khi người chơi đứng gần bạn HƠN gần trạm (nến/ghế/bàn
+   thờ/cổng) — bạn quỳ bên cụm nến 880 không được cướp nút THẮP NẾN ở 850.
+
+   Sheet 150x178 KHÔNG có ô ngồi/quỳ, nên hai tư thế này làm bằng hình học:
+   NGỒI = pk 466 (sau lưng ghế 468) + nâng chân 20px — chính LƯNG GHẾ che nửa
+   dưới thân, chỉ còn đầu và vai nhô trên gờ gỗ (đo từ ảnh bake: dải gỗ đặc
+   bắt đầu từ 8.1% chiều cao ghế); QUỲ = co thân 66% quanh điểm chân + nghiêng
+   sẵn 7° về phía bàn thờ.
 
    Hai chỗ lệch yêu cầu ban đầu vì phải khớp ảnh/engine thật:
      * Vùng chân là 500..552 chứ không phải đúng 510..530 — dải 20px quá hẹp
@@ -133,6 +197,119 @@ const IP_PEWS = [{ x: 600, y: 512, r: 78, pk: 468, next: 0 },
                  { x: 1700, y: 512, r: 78, pk: 468, next: 0 }];
 const IP_PEW_W = 152;                    // bề rộng ghế trên màn hình
 const IP_PEW_SEAT = .495;                // mặt ghế: 49.5% cao sprite, tính từ ĐỈNH
+/* V27: ba TÍN ĐỒ ngồi/quỳ dọc đại lộ, vẽ thẳng từ sheet nhân vật có sẵn.
+   IP_PEW_SIDE = khoảng lệch sang hai bên mặt ghế để người chơi NGỒI SÁNH BÊN
+   chứ không đè lên bạn (ghế rộng 152px, nửa ghế 76px). */
+const IP_PEW_SIDE = 46;
+/* ---------- 1b. DÀN NGƯỜI TU (V27 ba TÍN ĐỒ · V28 thiền hành + quỳ lạy + Sư Thầy) ---------- */
+/* Vẽ THẲNG từ sheet nhân vật đã có (IMG.femSprites / IMG.maleSprites, lưới
+   150x178: HÀNG = skin, CỘT = hướng 0 trái · 1 phải · 2-3 lưng · 4 bước) nên
+   các bạn khớp 100% phong cách với người chơi và không cần asset mới.
+   KHÔNG đi qua drawSprite(): nhánh đó (game.js:2712) vẽ thêm tem tên và vai
+   lạ không có trong IZ_NAMES sẽ hiện chữ '???'.
+   · pew   = chỉ số ghế trong IP_PEWS (điểm chân lấy từ MẶT GHẾ thật)
+   · feet  = điểm chân khi quỳ hoặc đi trên sàn (NPC không ngồi ghế)
+   · pose  = 'sit' (sau lưng ghế) | 'kneel' (co 66%) | 'walk' (thiền hành)
+   · lo/hi = hai mốc quay đầu của pose 'walk' · spd = px/frame quy 60fps
+   · solo  = chu kỳ TỰ lạy tính bằng ms · monk = 1 → áo cà sa + chân ngôn
+   · greet = nhãn [E]; KHÔNG có greet thì bạn không nhận [E]
+   · calm  = toả quầng thiền định dịu
+   · fb    = vai trò ảnh chibi dự phòng khi sheet chưa nạp (reskin.js)
+   Hai người đi dạo CỐT không có [E]: họ tuần tra ngang ghế 600/1700 và cụm nến
+   1550, mà ipPrompt xét tín đồ trước trạm — cho họ nhận [E] là cướp luôn nút
+   NGỒI TỊNH TÂM / THẮP NẾN ngay tại chỗ họ đi qua. */
+/* Lưới baked/monk_sheet.png (đo bằng tools/bake-monks.cjs, 2026-11-04):
+   7 cột x 3 hàng, ô 128x252, ĐƯỜNG CHÂN tại dòng 250 của ô, figure căn giữa.
+   BODY 248 = chiều cao thân ĐỨNG trong ô, vẽ ra H 50px trên màn hình — đúng
+   bằng thân người chơi (SK_GEO.H) nên sư thầy đi cạnh không "lệch tuổi".
+   Hàng 0 đứng niệm · hàng 1 kinh hành (4 frame quay TRÁI) · hàng 2 ngồi thiền.
+   ABBOT_H 891 = chiều cao ảnh Trụ Trì đã cắt sát, chân sát ĐÁY ảnh. */
+const IP_MK = { CW: 128, CH: 252, FOOT: 250, BODY: 248, H: 50, ABBOT_H: 891 };
+const IP_MK_STAND = 0, IP_MK_WALK = 1, IP_MK_SIT = 2;
+/* Lời dạy về SỰ BUÔNG BỎ của Sư Trụ Trì (V29). */
+const IP_LETGO = [
+  'Buông bỏ không phải là mất đi, mà là mở bàn tay để lòng còn chỗ chứa điều lành.',
+  'Cái bạn đang nắm chặt cũng đang nắm lại bạn. Thả ra là tự do ngay giây phút ấy.',
+  'Muôn vật vốn vô thường — nhớ điều đó thì chẳng còn gì để sợ mất.'
+];
+const IP_NPC = [
+  { name: 'Bạn Đồng Tu', g: 'female', row: 0, x: 600, pew: 0, pose: 'sit',
+    greet: 'QUỲ LẠY CÙNG BẠN', fb: 'lan' },
+  { name: 'Tín Đồ Tịnh Tâm', g: 'male', row: 1, x: 1200, pew: 1, pose: 'sit', calm: 1,
+    greet: 'CHẮP TAY CHÀO', fb: 'tuan' },
+  { name: 'Người Cầu Nguyện', g: 'female', row: 3, x: 2210, feet: 510, pose: 'kneel',
+    greet: 'QUỲ LẠY CÙNG BẠN', fb: 'huong' },
+  { name: 'Khách Tịnh Tâm', g: 'female', row: 1, x: 300, feet: 542, pose: 'walk',
+    lo: 200, hi: 550, spd: .6, fb: 'linh' },
+  { name: 'Cư Sĩ', g: 'male', row: 2, x: 1500, feet: 547, pose: 'walk',
+    lo: 1350, hi: 1750, spd: .6, fb: 'khoa' },
+  { name: 'Người Quỳ Bên Nến', g: 'female', row: 2, x: 880, feet: 520, pose: 'kneel',
+    solo: 4000, greet: 'CÙNG QUỲ LẠY', sayPool: ['Cầu chúc muôn loài bình an'], fb: 'mai' },
+  { name: 'Cư Sĩ Quỳ Lạy', g: 'male', row: 0, x: 2170, feet: 523, pose: 'kneel',
+    solo: 4000, greet: 'CÙNG QUỲ LẠY', sayPool: ['Cầu chúc muôn loài bình an'], fb: 'duc' },
+  { name: 'Sư Thầy Thích Trí Tuệ', g: 'male', row: 0, x: 1050, feet: 515, pose: 'walk',
+    monk: 1, calm: 1, art: 'monk', lo: 990, hi: 1150, spd: .28,
+    greet: 'BÁI KIẾN THẦY', xp: 30, buff: '🧘 Tâm Như Nước Lặng', fb: 'son' },
+  /* ===== V29: ba vị Sư Thầy mới =====
+     pose 'stand' = đứng yên tại chỗ (chỉ cúi khi đáp lễ). Trụ Trì cao ngang mọi
+     figure khác nhưng ảnh ông là figure ĐỘC NHẤT (không có ô lưới). */
+  { name: 'Sư Trụ Trì', art: 'abbot', x: 2050, feet: 520, pose: 'stand', calm: 1,
+    greet: 'THỈNH GIÁO TRỤ TRÌ', xp: 0, buff: '🕊 Lời Thầy Ban',
+    sayPool: IP_LETGO, fb: 'son' },
+  { name: 'Tiểu Sư Thiền Hành', art: 'monk', x: 800, feet: 536, pose: 'walk',
+    lo: 700, hi: 950, spd: .35, fb: 'son' },
+  { name: 'Sư Thầy Ngồi Tịnh Khẩu', art: 'monk', x: 1700, pew: 2, pose: 'sit',
+    calm: 1, cell: 0, fb: 'son' }
+];
+const IP_WALK_DUST = 7;                   // px đường đi = 1 hạt bụi chân (vfx.js:38 để 5 cho người chơi)
+const IP_CLASP = .55;                     // n.b lúc sư thầy dừng chắp tay → nghiêng ~11°
+const IP_SOLO_MS = 1300;                  // một nhịp tự lạy: cúi · giữ · dậy, nằm trong chu kỳ n.solo
+const IP_MONK_PEACE_MS = 6 * 60 * 1000;   // 🧘 Tâm Như Nước Lặng cộng thêm 6 phút cho buff 🕊
+const IP_MANTRAS = [
+  'Tâm tĩnh lặng thì sóng gió cuộc đời tự khắc lắng xuống.',
+  'Mỗi hơi thở vào là bình an, mỗi hơi thở ra là buông bỏ.',
+  'Hãy tha thứ cho chính mình và người khác, lòng bạn sẽ nhẹ tênh.'
+];
+for (let i = 0; i < IP_NPC.length; i++) {
+  const n = IP_NPC[i];
+  n.b = 0; n.bowing = 0; n.say = null; n.next = 0; n.last = -1;
+  n.act = !!n.greet;
+  n.x0 = n.x; n.dir = 1; n.face = 1; n.step = 0; n.acc = 0; n.wk = 0;
+  n.pause = 0; n.walk = 5000 + Math.random() * 6000;
+  /* lệch pha tự lạy giữa hai bạn: nếu không họ gập xuống CÙNG GIÂY, trông như
+     hai bức tượng in nhau */
+  n.ph = Math.random() * (n.solo || 0); n.fired = 0;
+  n.cell = n.cell || 0;
+  /* hàng sheet tín đồ (chỉ dùng khi ảnh sư CHƯA nạp → rơi vào đường vẽ dự phòng
+     bên dưới nên cần một số, để NaN không làm drawImage nuốt mất bóng người) */
+  n.row = n.row || 0;
+  /* KHOÁ VẼ. NGỒI GHẾ = pk NHỎ HƠN ghế (468) để thân bị LƯNG GHẾ che, chỉ còn
+     đầu + vai nhô trên gờ gỗ — đúng thế người ngồi trong băng ghế nhà thờ mà
+     không cần ô sprite "ngồi" (sheet 150x178 chỉ có đứng). QUỲ TRÊN SÀN = 478:
+     sau bàn thờ (474) và sau cả cụm nến (476) vì bạn quỳ NGAY BÊN cụm nến 850,
+     vẫn nhỏ hơn mép trên dải đi bộ (500) để không bao giờ che người chơi.
+     NGƯỜI ĐI = pk bằng CHÍNH ĐIỂM CHÂN của họ → đứng trước hay sau người chơi
+     theo đúng chiều sâu thật, đi ngang qua ghế thì che ghế (hợp lý).
+     V29: sư thầy NGỒI TRÊN GHẾ bằng sprite đã ngồi sẵn, không bị lưng ghế che →
+     pk 472 (NGOÀI lưng ghế 468, vẫn dưới dải đi bộ 500); người ĐỨNG (Trụ Trì)
+     cũng pk = điểm chân như người đi, nên bạn chơi lách phía sau là bị che đúng
+     quy luật gần-xa. */
+  n.pk = (n.pose === 'walk' || n.pose === 'stand') ? n.feet
+    : (n.pew == null ? 478 : (n.art ? 472 : 466));
+}
+const IP_NPC_R = 45;                       // cự ly tương tác (yêu cầu: r ≤ 45)
+const IP_BOW_GAP = 62;                     // khoảng CÁCH ĐỨNG khi cúi lạy nhau (2 thân 50px không đè nhau)
+const IP_BOW_MS = 340;                     // cúi xuống / đứng lên bao lâu
+const IP_SAY_MS = 3000;                    // bong bóng thoại mờ dần sau 3 giây
+const IP_BOW_XP = 15;                      // 🕊 Đồng Tu An Lạc
+const IP_BOW_PEACE_MS = 3 * 60 * 1000;     // cộng thêm 3 phút cho buff 🕊
+const IP_BOW_COOL_MS = 60 * 1000;          // mỗi bạn cách nhau 1 phút mới thưởng tiếp
+const IP_BLESSINGS = [
+  'Nguyện chúc tâm bạn luôn an yên giữa dòng đời hối hả.',
+  'Vạn sự tùy duyên, chúc bạn một ngày nhẹ nhõm.',
+  'Bình an trong tâm là món quà quý giá nhất.'
+];
+
 const IP_KNEEL_MS = 420, IP_RISE_HOLD = 790, IP_RISE_MS = 530;
 const IP_SIT_MS = 260;                   // ngồi xuống / đứng dậy bao lâu
 const IP_SEAT_MIN_MS = 1500;             // ngồi đủ 1,5 giây mới tính một lần tĩnh tâm
@@ -156,10 +333,11 @@ const IP_HUD_IDS = ['player-card', 'buff-bar', 'dock-tr', 'minimap-box',
 
 /* ---------- 2. TRẠNG THÁI ---------- */
 const IP_ST = {
-  st: '',        // '' | 'down' | 'kneel' | 'rise' | 'up' | 'sit' | 'seated' | 'stand'
+  st: '',        // '' | 'down' | 'kneel' | 'rise' | 'up' | 'sit' | 'seated' | 'stand' | 'bow' | 'bowup'
   kn: 0,         // 0 đứng → 1 quỳ hoàn toàn (dùng cho phối cảnh tư thế)
   si: 0,         // 0 đứng → 1 NGỒI yên trên ghế (co thân 74% quanh điểm chân)
   pew: null,     // ghế đang ngồi { x, y, pk, next }
+  npc: null,     // tín đồ đang quỳ lạy cùng (V27)
   tSit: 0,       // thời điểm bắt đầu ngồi yên (để tính "ngồi đủ lâu")
   kx: 0, ky: 0,  // vị trí bị khoá khi quỳ/ngồi
   t0: 0, last: 0,
@@ -269,6 +447,29 @@ function ipBell(big) {
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + par[i][2]);
       o.connect(g); g.connect(a.destination);
       o.start(t0); o.stop(t0 + par[i][2] + .05);
+    }
+  } catch (e) {}
+}
+
+/* Tiếng MÕ "cóc — kính" khi bái kiến sư thầy:bell() là chuông ngân phương Tây,
+   còn mõ là một cú gõ Gỗ ngắn. Làm bằng hai osc tam giác (220Hz + 660Hz) bóp
+   đuôi trong 90ms + nhiễu băng thông hẹp 40ms → có "tách" của dùi gõ lên mặt mõ
+   rồi âm "kính" còn vọng lại. Web Audio hỏng → nuốt im lặng, không crash. */
+function ipWood() {
+  if (typeof sfxMuted === 'function' && sfxMuted()) return;
+  const a = ipCtx();
+  if (!a) return;
+  try {
+    const t0 = a.currentTime;
+    const hit = [[220, 'triangle', .09, .05], [660, 'triangle', .055, .028],
+                 [1180, 'sine', .03, .012]];
+    for (let i = 0; i < hit.length; i++) {
+      const o = a.createOscillator(), g = a.createGain();
+      o.type = hit[i][1]; o.frequency.value = hit[i][0];
+      g.gain.setValueAtTime(hit[i][2], t0);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + hit[i][3] + .09);
+      o.connect(g); g.connect(a.destination);
+      o.start(t0); o.stop(t0 + .2);
     }
   } catch (e) {}
 }
@@ -476,6 +677,39 @@ function ipMotesDraw(g) {
   g.restore();
 }
 
+/* ---------- 6a. BỤI CHÂN NGƯỜI ĐI Dạo (toạ độ THẾ GIỚI) ---------- */
+/* vfx.js chỉ theo một anchor duy nhất là nhân vật chính (VFX.anchor) nên NPC đi
+   bộ không có bụi. Mảng RIÊNG ở đây, cũng sinh mỗi 5-7px đường đi như
+   VFX_DUST_STEP của vfx.js, nhưng vẽ bằng ellipse PHẲNG: bụi mà dùng hvGlow
+   ('lighter' + gradient mỗi hạt) thì 40 hạt/frame là ăn hết ngân sách vẽ.
+   Toạ độ THẾ GIỚI → vẽ trong khung translate(-cam,0), cuộn camera không lệch. */
+const IP_PUFF = [];
+function ipPuff(x, y, dir) {
+  if (IP_PUFF.length > 44) return;
+  IP_PUFF.push({
+    x: x - dir * 8, y: y - 3 - Math.random() * 3,
+    vx: -dir * (7 + Math.random() * 11), vy: -(5 + Math.random() * 9),
+    r: 2.4 + Math.random() * 2.4, l: 1, d: 1.7 + Math.random() * 1.1
+  });
+}
+function ipPuffStep(dt) {
+  for (let i = IP_PUFF.length - 1; i >= 0; i--) {
+    const p = IP_PUFF[i];
+    p.l -= dt * p.d;
+    if (p.l <= 0) { IP_PUFF.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vy *= 1 - .6 * dt; p.vx *= 1 - .9 * dt;
+    p.r += 9 * dt;
+  }
+}
+function ipPuffDraw(g) {
+  for (let i = 0; i < IP_PUFF.length; i++) {
+    const p = IP_PUFF[i], a = Math.max(0, p.l);
+    g.fillStyle = 'rgba(206,182,138,' + (.3 * a * a).toFixed(3) + ')';
+    g.beginPath(); g.ellipse(p.x, p.y, p.r, p.r * .55, 0, 0, 6.2832); g.fill();
+  }
+}
+
 /* ---------- 6b. BỤI SÁNG & ĐỐM TÀN NẾN LƠ LỬNG (toạ độ THẾ GIỚI) ---------- */
 /* Mảng RIÊNG, không trộn vào IP_MOTES: IP_MOTES là burst của lời nguyện
    (sống ~1 giây rồi tắt), còn lớp bụi này phải trôi liên tục nên không có
@@ -591,6 +825,7 @@ function ipScene() {
   ctx.save(); ctx.translate(-cam, 0);
   ipDust(ctx, t);
   ipAmbDraw(ctx);
+  ipPuffDraw(ctx);
 
   /* Trạm ngoài khung nhìn thì bỏ hẳn — đỡ tạo gradient vô ích. */
   const vis = x => x > cam - 260 && x < cam + IP_VIEW_W + 260;
@@ -630,6 +865,13 @@ function ipScene() {
     const p = IP_PEWS[i];
     if (vis(p.x)) list.push({ k: p.pk, f: () => ipPewDraw(ctx, p, t) });
   }
+  /* Tín đồ: pk của bạn nằm GIỮA ghế (468) và nhân vật (≥500) — bạn hiện lên
+     đúng mặt ghế, còn người chơi thì không bao giờ bị bạn che. */
+  for (let i = 0; i < IP_NPC.length; i++) {
+    const n = IP_NPC[i];
+    if (!vis(n.x)) continue;
+    list.push({ k: n.pk, f: () => { ipNpcAura(ctx, n, t); ipNpcDraw(ctx, n, t); } });
+  }
   for (let i = 0; i < IP_CANDLES.length; i++) {
     const c = IP_CANDLES[i];
     if (vis(c.x)) list.push({ k: c.pk, f: () => ipCluster(ctx, c, t) });
@@ -653,6 +895,13 @@ function ipScene() {
 
   ipMotesDraw(ctx);
   ipFlyDraw(ctx, now);
+  /* biển tên + bong bóng lời chúc vẽ SAU cùng: đi qua ghế, cột nến hay người
+     chơi thì chữ của bạn vẫn đọc được trọn vẹn. */
+  for (let i = 0; i < IP_NPC.length; i++) {
+    const n = IP_NPC[i];
+    if (!vis(n.x)) continue;
+    try { ipNpcName(ctx, n); ipNpcSayDraw(ctx, n, now); } catch (e) {}
+  }
   ctx.restore();
   /* ===== hết toạ độ thế giới: từ đây là MÀN HÌNH ===== */
 
@@ -1026,6 +1275,7 @@ function ipEnter() {
   window._camX = 0;                                  // đầu đại lộ, chưa cuộn
   S.p.x = IP_SPAWN.x - 10; S.p.y = IP_SPAWN.y - 30;
   S.p.moving = false;
+  ipNpcReset();
   ipZenOn();
   setZone('5. THÁNH ĐƯỜNG', 'Tĩnh Tâm — In Peace');
   if (typeof sfxPlay === 'function') { sfxPlay('pop'); sfxPlay('coin', 1.6); }
@@ -1042,9 +1292,9 @@ function ipWorld() {
   window._camX = 0;
   S.p.x = IP_GATE.x - 10; S.p.y = IP_GATE.y - 18;
   S.p.moving = false;
-  IP_ST.st = ''; IP_ST.kn = 0; IP_ST.fly = null; IP_MOTES.length = 0;
+  IP_ST.st = ''; IP_ST.kn = 0; IP_ST.si = 0; IP_ST.pew = null;
+  IP_ST.fly = null; IP_MOTES.length = 0; ipPrayClose(); ipNpcReset();
   IP_AMB.length = 0;
-  ipPrayClose();
   ipZenOff();
   setZone('1. THÀNH PHỐ', 'Network City (World Map)');
   ipBgmStop();
@@ -1134,6 +1384,33 @@ function ipPrompt() {
   const wx = ipWx(), wy = S.p.y + 18;
   const near = (o, dy0, dy1) =>
     Math.abs(wx - o.x) < o.r && wy > o.y - dy0 && wy < o.y + dy1;
+  /* Tín đồ chỉ được nhận [E] khi người chơi đứng gần bạn ấy HƠN gần bất kỳ trạm
+     nào (bàn thờ / cụm nến / ghế / cổng). V27 chỉ so với bàn thờ, nhưng V28 có
+     bạn QUỲ NGAY BÊN cụm nến 850 (x = 880): nếu cứ ưu tiên tín đồ thì nút
+     🕯 THẮP NẾN biến mất trọn nửa phải của cụm nến — một hệ thống cũ bị hỏng.
+     Ai gần hơn thì người đó trả lời; hai ghế đầu vẫn xử như V27 vì ghế và bạn
+     ngồi CÙNG toạ độ, nên d(bạn) ≤ d(ghế) thắng trọn khoảng ≤45px, còn 45..78
+     là [E] NGỒI TỊNH TÂM (ngồi SÁNH BÊN bạn). */
+  const st = [IP_ALTAR, IP_PORTAL];
+  for (let i = 0; i < IP_CANDLES.length; i++) st.push(IP_CANDLES[i]);
+  for (let i = 0; i < IP_PEWS.length; i++) st.push(IP_PEWS[i]);
+  let ds = 1e9;
+  for (let i = 0; i < st.length; i++) ds = Math.min(ds, Math.abs(wx - st[i].x));
+  /* Trong bốn bạn biết cúi, BẠN GẦN NHẤT thắng — không lấy theo thứ tự bảng.
+     Đầu cuối đại lộ có hai người quỳ cách nhau 40px (2170 và 2210): quét theo
+     thứ tự thì đứng ngay sau lưng bạn cư sĩ 2170 lại gọi templ người 2210 ra
+     chào. */
+  let bi = -1, bd = 1e9;
+  for (let i = 0; i < IP_NPC.length; i++) {
+    const n = IP_NPC[i];
+    if (!n.act) continue;
+    const d = Math.abs(wx - n.x), fy = ipNpcFeet(n);
+    if (d <= IP_NPC_R && d <= ds && d < bd && wy > fy - 64 && wy < fy + 70) { bi = i; bd = d; }
+  }
+  if (bi >= 0) {
+    const n = IP_NPC[bi];
+    targetAct = { t: 'ip_bow', i: bi, txt: '[E] 🙏 ' + n.greet }; return;
+  }
   if (near(IP_ALTAR, 96, 90)) { targetAct = { t: 'ip_pray', txt: '[E] 🕯 THẮP NẾN LỚN' }; return; }
   for (let i = 0; i < IP_CANDLES.length; i++) {
     const c = IP_CANDLES[i];
@@ -1155,7 +1432,14 @@ function ipSit(p) {
   if (IP_ST.st) return;
   const cam = window._camX || 0;
   IP_ST.st = 'sit'; IP_ST.si = 0; IP_ST.pew = p;
-  IP_ST.kx = p.x - 10 - cam;
+  /* Ghế đã có tín đồ ngồi → người chơi ngồi SÁNH BÊN, lệch về phía mình đang
+     đứng, chứ không đè lên bạn. Ghế trống vẫn ngồi chính giữa như cũ. */
+  let sx = p.x;
+  for (let i = 0; i < IP_NPC.length; i++) {
+    const n = IP_NPC[i];
+    if (n.pew != null && IP_PEWS[n.pew] === p) { sx = p.x + (ipWx() >= n.x ? 1 : -1) * IP_PEW_SIDE; break; }
+  }
+  IP_ST.kx = sx - 10 - cam;
   IP_ST.ky = ipSeatY(p) - 30;
   IP_ST.t0 = performance.now(); IP_ST.tSit = 0;
   if (typeof sfxPlay === 'function') sfxPlay('pop', .6);
@@ -1222,9 +1506,15 @@ function ipUpdate(dt, now) {
   if (S.scene !== 'INPEACE' && (IP_ST.st || IP_ST.kn || IP_ST.si)) {
     IP_ST.st = ''; IP_ST.kn = 0; IP_ST.si = 0; IP_ST.pew = null;
     IP_ST.fly = null; IP_MOTES.length = 0; ipPrayClose();
+    /* rời cảnh giữa lúc cúi lạy (fast-travel, ESC): ipNpcTick KHÔNG chạy nữa
+       nên ba bạn sẽ đứng nguyên thế cúi mãi tới lần vào sau → dựng lại hết. */
+    ipNpcReset();
   }
   ipMotesStep(dt);
-  if (S.scene === 'INPEACE') { ipAmbStep(dt); ipKneelTick(now); ipSitTick(now); ipCandleTick(dt); }
+  if (S.scene === 'INPEACE') {
+    ipAmbStep(dt); ipKneelTick(now); ipSitTick(now); ipCandleTick(dt);
+    ipBowTick(now); ipNpcTick(dt, now); ipPuffStep(dt);
+  }
   ipBgmSync();
 
   if (IP_CUT) return;
@@ -1289,6 +1579,7 @@ doAction = function () {
   if (S.scene === 'INPEACE') {
     if (IP_ST.st || !targetAct) return;              // đang quỳ: [E] không làm gì khác
     if (targetAct.t === 'ip_pray') { ipKneel(); return; }
+    if (targetAct.t === 'ip_bow') { ipBow(IP_NPC[targetAct.i]); return; }
     if (targetAct.t === 'ip_light') { ipLight(IP_CANDLES[targetAct.i] || IP_CANDLES[0]); return; }
     if (targetAct.t === 'ip_sit') { ipSit(IP_PEWS[targetAct.i] || IP_PEWS[0]); return; }
     if (targetAct.t === 'ip_world') { ipFade('🕊 ĐANG RỜI THÁNH ĐƯỜNG', ipWorld); return; }
@@ -1335,9 +1626,12 @@ const IP_STAND_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD',
 window.addEventListener('keydown', function (e) {
   try {
     if (S.scene !== 'INPEACE') return;
-    if (IP_ST.st !== 'sit' && IP_ST.st !== 'seated') return;
+    if (IP_ST.st !== 'sit' && IP_ST.st !== 'seated' && IP_ST.st !== 'bow') return;
     if (openModalEl()) return;
-    if (IP_STAND_KEYS.indexOf(e.code) >= 0) ipStand();
+    if (IP_STAND_KEYS.indexOf(e.code) < 0) return;
+    /* Ngồi ghế → ipStand() (có thưởng Tâm Hồn); quỳ lạy cùng bạn → ipBowEnd()
+       (thưởng đã trao LÚC CÚI, đứng dậy chỉ là mở khoá di chuyển). */
+    if (IP_ST.st === 'bow') ipBowEnd(); else ipStand();
   } catch (err) {}
 }, true);
 
@@ -1676,4 +1970,439 @@ function ipAltarDraw(g, x, y, t) {
     g.restore();
   }
   g.restore();
+}
+
+/* ============================================================
+   16. DÀN NGƯỜI TU + CƠ CHẾ "QUỲ LẠY CÙNG BẠN" (V27 · V28)
+   ------------------------------------------------------------
+   tám bạn được dựng từ CHÍNH SHEET NHÂN VẬT của người chơi
+   (assets/img/baked/female_sprites.png / male_sprites.png — lưới 150x178,
+   4 hàng skin x 5 cột hướng), nên phong cách khớp 100% và không phải đợi
+   artist gửi ảnh mới. sheet chưa nạp kịp → vẽ ảnh chibi NPC của reskin.js
+   (n.fb), tuyệt đối không để trống chỗ.
+
+   Tư thế ngồi / quỳ / cúi KHÔNG có ô riêng trong sheet — cùng cách mà
+   V26 dùng cho người chơi: CO THÂN theo trục đứng QUANH ĐIỂM CHÂN (ngồi 74%,
+   quỳ 70%) và nghiêng cả người quanh KHOP HÔNG khi đáp lễ. Vì neo là điểm
+   chân nên nhân vật không "bay" khi co, và bóng chân vẽ riêng ở mặt sàn.
+   Người đi bộ thì KHÔNG co: dùng ô bước cột 4 + lật gương + nhún bob đúng
+   như skSheetChibi (skins.js:260) nên nhịp bước của NPC khớp nhân vật chính.
+
+   Mọi toạ độ của mục này là THẾ GIỚI — hàm vẽ được gọi trong khối
+   ctx.translate(-cam, 0) của ipScene, nhờ đó bóng và thân bạn luôn bám đúng
+   ghế/bàn thờ khi đại lộ cuộn, không lệch pha như vẽ theo màn hình.
+   ============================================================ */
+
+/* Điểm chân của tín đồ: đang ngồi ghế → nâng lên trên MẶT GHẾ đúng một nửa
+   thân bị lưng ghế che (IP_NPC_SIT_LIFT); đi hoặc quỳ trên sàn → feet khai
+   trong IP_NPC. Lưng ghế đo từ ảnh bake: dải gỗ đặc bắt đầu từ 8.1% chiều cao
+   sprite (Node, 2026-11-03) → tại ghế 152px thì gờ lưng nằm ~37px trên mặt ghế. */
+const IP_NPC_SIT_LIFT = 20;
+function ipNpcFeet(n) {
+  /* V29: sprite sư thầy ĐÃ NGỒI rồi (hàng 2 của sheet, hai chân xếp bằng) nên
+     không cần mẹo "nâng 20px cho lưng ghế che nửa thân" của tín đồ — đáy sprite
+     đặt NGAY TRÊN mặt ghế (+2px cho chìm vào gỗ một chút). */
+  if (n.pew != null)
+    return ipSeatY(IP_PEWS[n.pew]) + (n.art ? 2 : -IP_NPC_SIT_LIFT);
+  return n.feet;
+}
+
+/* Sheet của bạn (đúng giới) + ô đang chọn. null = sheet chưa nạp → dùng ảnh dự
+   phòng. V29: sư thầy KHÔNG đi qua đường này nữa — 16a vẽ bằng ảnh Sư Thầy thật;
+   đây chỉ còn là nhánh dự phòng khi baked/monk_sheet.png thiếu (404). */
+function ipNpcSheet(n) {
+  const im = (typeof IMG !== 'undefined')
+    ? (n.g === 'female' ? IMG.femSprites : IMG.maleSprites) : null;
+  if (!(im && typeof SK_GEO !== 'undefined' && typeof assetsReady !== 'undefined' && assetsReady)) return null;
+  if (!(im.naturalWidth || im.width) || !SK_GEO.CH) return null;
+  const S0 = { im: im, CW: SK_GEO.CW, CH: SK_GEO.CH,
+    FOOT: SK_GEO.FOOT, BODY: SK_GEO.BODY, H: SK_GEO.H };
+  return S0;
+}
+
+/* ---------- 16a. SƯ THẦY BẰNG ẢNH THẬT (V29) ---------- */
+/* Thay bản SƠN PHỦ của V28 (phủ màu cà sa lên sheet nam) bằng hai ảnh artist
+   vẽ thật: baked/monk_sheet.png (7x3 ô 128x252) và baked/abbot_monk.png
+   (404x891, Trụ Trì chắp tay). VẼ TRỰC TIẾP, không filter, không canvas nhớ —
+   drawImage một ô 128x252 rẻ hơn bất kỳ phép sơn phủ nào, và lưới đã được bake
+   XẾP ĐỀU nên đổi tư thế không làm sư thầy nhảy kích thước.
+   Mọi ô có ĐƯỜNG CHÂN tại dòng FOOT của ô → chỉ cần một công thức neo đáy cho
+   21 tư thế, đứng/ngồi cùng tỉ lệ (người ngồi thấp hơn đúng 204/248). */
+function ipMonkArt(n) {
+  if (!n.art || typeof IMG === 'undefined') return null;
+  const im = n.art === 'abbot' ? IMG.ipAbbot : IMG.ipMonkSheet;
+  if (!(im && (im.naturalWidth || im.width) > 1)) return null;
+  return im;
+}
+
+/* Ô đang hiển thị: đi = 4 frame kinh hành đổi theo n.step (cùng đơn vị đếm với
+   S.p.step nên nhịp bước khớp người chơi); dừng niệm / đang cúi đáp lễ = hàng
+   đứng; ngồi = hàng ngồi thiền. */
+function ipMonkCell(n) {
+  if (n.pose === 'sit') return { r: IP_MK_SIT, c: n.cell };
+  if (n.pose === 'walk' && n.wk) return { r: IP_MK_WALK, c: Math.floor(n.step / 9) % 4 };
+  return { r: IP_MK_STAND, c: n.pause > 0 ? 1 : 0 };
+}
+
+/* Hàng kinh hành và ảnh Trụ Trì vẽ sẵn quay TRÁI → lật gương khi thầy nhìn sang
+   phải (ngược sheet tín đồ, ô bước của họ vẽ quay phải). */
+function ipMonkFlip(n, cell) {
+  return (cell.r === IP_MK_WALK || n.art === 'abbot') && n.face > 0;
+}
+
+function ipMonkDraw(g, n, t) {
+  const cx = n.x, fy = ipNpcFeet(n);
+  const k = ipScale(Math.max(fy, IP_FEET_TOP));
+  const im = ipMonkArt(n), cell = ipMonkCell(n), abbot = n.art === 'abbot';
+  const sw = abbot ? (im.naturalWidth || im.width) : IP_MK.CW;
+  const sh = abbot ? (im.naturalHeight || im.height) : IP_MK.CH;
+  /* ref = chiều cao thân ĐỨNG chuẩn (248 trong ô, hoặc cả ảnh Trụ Trì) → mọi
+     figure cùng cao 50px trên màn hình ở k=1, đúng bằng thân người chơi. */
+  const ref = abbot ? sh : IP_MK.BODY;
+  const s0 = IP_MK.H / ref, dw = sw * s0, dh = sh * s0;
+  const footF = abbot ? 1 : IP_MK.FOOT / IP_MK.CH;
+  const walking = n.pose === 'walk' && n.wk;
+  const sq = 1 - .04 * n.b;
+  const breathe = walking ? Math.abs(Math.sin(n.step * .32)) * 2.2
+    : Math.sin(t * 1.35 + n.x * .01) * (n.b > .3 ? 0 : .9);
+  const lean = .20 * n.b * (n.face > 0 ? 1 : -1);
+
+  /* BÓNG CHÂN vẽ ngoài phép co (lý do như tín đồ). Bán kính theo TƯ THẾ: thầy
+     ngồi thiền toả vạt áo rộng hơn, Trụ Trì robe dày, người đi thì gọn. */
+  const sr = (cell.r === IP_MK_SIT ? 21 : abbot ? 18 : 16) * k;
+  g.save();
+  const shd = g.createRadialGradient(cx, fy + 2, 1, cx, fy + 2, sr);
+  shd.addColorStop(0, 'rgba(8,6,4,.42)'); shd.addColorStop(1, 'rgba(8,6,4,0)');
+  g.fillStyle = shd;
+  g.beginPath(); g.ellipse(cx, fy + 2, sr, 6.2 * k, 0, 0, 6.2832); g.fill();
+  g.restore();
+
+  g.save();
+  try { g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; } catch (e) {}
+  g.translate(cx, fy);                        // gốc = ĐIỂM CHÂN
+  g.scale(k, k * sq);
+  if (lean) { g.translate(0, -20); g.rotate(lean); g.translate(0, 20); }
+  const flip = ipMonkFlip(n, cell);
+  if (flip) g.scale(-1, 1);                   // chỉ lật ẢNH, nghiêng đã theo n.face
+  try {
+    g.drawImage(im, abbot ? 0 : cell.c * IP_MK.CW, abbot ? 0 : cell.r * IP_MK.CH,
+      sw, sh, -dw / 2, -dh * footF - breathe / (k * sq), dw, dh);
+  } catch (e) {}
+  g.restore();
+}
+
+/* Cột ô: đi bộ ĐANG bước = ô bước (4) như nhân vật chính (skins.js:256),
+   đứng yên = ô quay trái (0) / quay phải (1); 2-3 là lưng — không dùng. */
+function ipNpcCol(n) {
+  if (n.pose === 'walk' && n.wk) return 4;
+  return n.face > 0 ? 1 : 0;
+}
+/* Ô bước 4 vẽ sẵn quay sang PHẢI → lật gương khi đi về trái (đúng cách
+   skSheetChibi làm). Chỉ lật ẢNH, không lật phép nghiêng: nghiêng tính theo
+   n.face ở khung chưa lật nên người cúi luôn úp về phía bạn ấy đang nhìn. */
+function ipNpcFlip(n) { return n.pose === 'walk' && ipNpcCol(n) === 4 && n.face < 0; }
+
+/* Một tín đồ: bóng chân mềm trên nền đá → co thân quanh điểm chân → nghiêng
+   hông khi cúi đáp lễ → thở nhẹ theo thời gian để không thành tượng. */
+function ipNpcDraw(g, n, t) {
+  /* Sư thầy ảnh thật → vẽ bằng ipMonkDraw. Thiếu ảnh (PWA chưa cache xong) thì
+     rơi xuống đường sheet tín đồ bên dưới, không để trống bóng người. */
+  if (n.art && ipMonkArt(n)) { ipMonkDraw(g, n, t); return; }
+  const cx = n.x, fy = ipNpcFeet(n);
+  const k = ipScale(Math.max(fy, IP_FEET_TOP));
+  /* NGỒI = KHÔNG co thân: chính LƯNG GHẾ che nửa dưới làm ra tư thế ngồi, co
+     thêm là đầu tụt xuống dưới gờ gỗ, mất hẳn bạn. QUỲ trên sàn vẫn co 70% —
+     khớp hệt sq của người chơi (inpeace.js:1324) để hai tư thế cạnh nhau không
+     "lệch tuổi". Cúi: ngồi gập 8%, quỳ gập 5%. */
+  const base = n.pose === 'kneel' ? .66 : 1;
+  const sq = base - (n.pose === 'kneel' ? .05 : .08) * n.b;
+  const walking = n.pose === 'walk' && n.wk;
+  /* Nhún bước LẤY NGUYÊN công thức của nhân vật chính (skins.js:265:
+     |sin(step*0.32)|*2.2) và n.step cũng tăng theo FRAME như S.p.step → nhịp
+     up-xuống của người đi dạo khớp bạn chơi, không "lạc điệu" trên cùng một sàn.
+     Đứng yên thì thở nhẹ bằng sin chậm để không thành tượng. */
+  const breathe = walking ? Math.abs(Math.sin(n.step * .32)) * 2.2
+    : Math.sin(t * 1.35 + n.x * .01) * (n.b > .3 ? 0 : .9);
+  /* Người quỳ trước bàn thờ luôn nghiêng sẵn 7° về phía ảnh (thành ngữ "đang
+     cầu"), khi cúi đáp lễ thì gập thêm .20 rad quanh hông. Đi đứng thì chỉ có
+     cú chắp tay niệm của sư thầy (n.b = IP_CLASP lúc dừng). */
+  const lean = ((n.pose === 'kneel' ? .12 : 0) + .20 * n.b) * (n.face > 0 ? 1 : -1);
+
+  /* ===== BÓNG CHÂN ===== vẽ RIÊNG ngoài phép co: co thân mà co cả bóng thì
+     bóng bé xíu giữa nền đá nhìn như nhân vật bay. */
+  g.save();
+  const sh = g.createRadialGradient(cx, fy + 2, 1, cx, fy + 2, 19 * k);
+  sh.addColorStop(0, 'rgba(8,6,4,.42)'); sh.addColorStop(1, 'rgba(8,6,4,0)');
+  g.fillStyle = sh;
+  g.beginPath(); g.ellipse(cx, fy + 2, 19 * k, 6.2 * k, 0, 0, 6.2832); g.fill();
+  g.restore();
+
+  const SH = ipNpcSheet(n);
+  if (!SH) {
+    g.save(); g.translate(cx, fy); g.scale(k, k * sq); g.translate(-cx, -fy);
+    try { if (typeof drawChibi === 'function') drawChibi(cx - 10, fy - 30 - breathe, n.fb); } catch (e) {}
+    g.restore();
+    return;
+  }
+  const sc = SH.H / SH.BODY, dw = SH.CW * sc, dh = SH.CH * sc;
+  g.save();
+  try { g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; } catch (e) {}
+  g.translate(cx, fy);                       // gốc toạ độ = ĐIỂM CHÂN
+  g.scale(k, k * sq);
+  /* Cúi lạy xoay quanh KHOP HÔNG (20px trên chân trong hệ đã co): xoay ở bàn
+     chân thì cả người đổ gập như ngã ngửa, không ra chữ "chắp tay". */
+  if (lean) { g.translate(0, -20); g.rotate(lean); g.translate(0, 20); }
+  const flip = ipNpcFlip(n);
+  if (flip) g.scale(-1, 1);                  // chỉ lật ẢNH bước, nghiêng đã tính theo n.face
+  try {
+    g.drawImage(SH.im, ipNpcCol(n) * SH.CW, n.row * SH.CH, SH.CW, SH.CH,
+      -dw / 2, -dh * (SH.FOOT / SH.CH) - breathe / (k * sq), dw, dh);
+  } catch (e) {}
+  g.restore();
+}
+
+/* Quầng thiền định dịu quanh người đang ngồi yên + vòng sáng khi hai bạn cúi
+   vào nhau. Vẽ RIÊNG trước thân (globalCompositeOperation='lighter'). */
+function ipNpcAura(g, n, t) {
+  if (!(typeof hvGlow === 'function')) return;
+  const fy = ipNpcFeet(n), cx = n.x;
+  const a = (n.calm ? .055 + .022 * Math.sin(t * 1.1 + n.x * .01) : 0) + .16 * n.b;
+  if (a <= .01) return;
+  g.save(); g.globalCompositeOperation = 'lighter';
+  hvGlow(g, cx, fy - 32, 46, '255,226,166', a);
+  g.restore();
+}
+
+/* ---------- 16b. BONG BÓNG LỜI CHÚC ---------- */
+/* Nền kem mờ + viền vàng nhạt + đuôi nhọn trỏ xuống đầu bạn, CHỮ KHÔNG có dấu
+   nháy trong font (IP_SERIF an toàn cho tiếng Việt có dấu — cấm Georgia).
+   Sống IP_SAY_MS = 3 giây rồi mờ dần, đúng yêu cầu. */
+function ipNpcSayDraw(g, n, now) {
+  const s = n.say;
+  if (!s) return;
+  const p = (now - s.t0) / IP_SAY_MS;
+  if (p >= 1) { n.say = null; return; }
+  /* 32 chữ/ dòng: hai câu dài nhất vừa khít thành 2 dòng cân, không còn một
+     dòng cụt một chữ cuối như khi để 26. */
+  const lines = s.lines || (s.lines = ipWrap(s.txt, 32));
+  const a = p < .07 ? p / .07 : (p > .68 ? Math.max(0, 1 - (p - .68) / .32) : 1);
+  const cx = n.x, top = ipNpcHeadY(n) - 14 - (lines.length * 15 + 15) - 8;
+
+  g.save();
+  g.globalAlpha = a;
+  g.font = 'italic 400 12.5px ' + IP_SERIF;
+  g.textAlign = 'center';
+  let tw = 0;
+  for (let i = 0; i < lines.length; i++) tw = Math.max(tw, g.measureText(lines[i]).width);
+  const w = tw + 26, h = lines.length * 15 + 15;
+  g.shadowColor = 'rgba(0,0,0,.62)'; g.shadowBlur = 14; g.shadowOffsetY = 3;
+  g.fillStyle = 'rgba(248,238,214,.93)';
+  rr(g, cx - w / 2, top, w, h, 11); g.fill();
+  g.shadowBlur = 0; g.shadowOffsetY = 0;
+  g.beginPath(); g.moveTo(cx - 6, top + h - 1); g.lineTo(cx + 6, top + h - 1);
+  g.lineTo(cx, top + h + 8); g.closePath(); g.fill();
+  g.strokeStyle = 'rgba(214,178,110,.85)'; g.lineWidth = 1.4;
+  rr(g, cx - w / 2, top, w, h, 11); g.stroke();
+  g.fillStyle = '#4a3a1e';
+  for (let i = 0; i < lines.length; i++) g.fillText(lines[i], cx, top + 19 + i * 15);
+  g.textAlign = 'left';
+  g.restore();
+}
+
+/* Đỉnh ĐẦU của tín đồ (điểm chân trừ đúng chiều cao thân đã co) — mọi nhãn
+   phải neo vào đây, neo vào feet thì người quỳ (co 70%) bị tem tên bay tít
+   trên trời, người ngồi thì sát gáy. */
+function ipNpcHeadY(n) {
+  /* Sư thầy ảnh thật: thân ĐỨNG cao đúng IP_MK.H (50px màn hình), thân NGỒI
+     THIỀN chỉ 204/248 của nó → đỉnh đầu thấp hơn, tem tên và bong bóng mới không
+     bay tít trên trời hay đè lên mái đầu. */
+  const h = n.art ? (n.pose === 'sit' ? IP_MK.H * (204 / IP_MK.BODY) : IP_MK.H)
+    : 50 * (n.pose === 'kneel' ? .66 : 1);
+  return ipNpcFeet(n) - h - 2;
+}
+
+/* Biển tên nhỏ, mờ — chỉ hiện khi bạn KHÔNG đang nói để hai chữ không chồng nhau.
+   Sư Thầy tem viền vàng-cà-sa và chữ sáng hơn một bậc để phân biệt với tín đồ. */
+function ipNpcName(g, n) {
+  if (n.say) return;
+  if (!(typeof hvCap === 'function')) return;
+  hvCap(g, n.x, ipNpcHeadY(n) - 18, n.name,
+    { font: 'italic 400 11px ', h: 15, pad: 12, r: 7, blur: 8, olw: 2.4,
+      bg: (n.monk || n.art) ? 'rgba(26,15,4,.68)' : 'rgba(12,9,5,.62)',
+      rim: (n.monk || n.art) ? 'rgba(226,166,74,.72)' : 'rgba(214,178,110,.45)',
+      fg: (n.monk || n.art) ? '#ffe4ad' : '#efe0bd' });
+}
+
+/* ---------- 16c. MÁY TRẠNG THÁI QUỲ LẠY CÙNG BẠN ---------- */
+/* Một [E] duy nhất cho MỌI bạn biết cúi: người chơi + bạn NPC gập cùng nhịp,
+   bong bóng lời chúc / chân ngôn, đốm vàng giữa hai người, rồi thưởng EXP.
+   Khác biệt nằm trong dữ liệu: sayPool (lời chúc hay chân ngôn), xp, buff,
+   monk → thêm tiếng mõ + chuông lớn. */
+function ipBow(n) {
+  if (!n || IP_ST.st) return;
+  const now = performance.now(), wx = ipWx();
+  IP_ST.st = 'bow'; IP_ST.kn = 0; IP_ST.npc = n;
+  IP_ST.kx = S.p.x; IP_ST.ky = S.p.y; IP_ST.t0 = now;
+  /* hai bạn QUAY VÀO NHAU rồi mới cúi — người chơi quay theo NPC, NPC quay
+     theo người chơi (tư thế đồng bộ đúng nghĩa). */
+  S.p.dir = (n.x >= wx) ? 1 : -1;
+  S.p.moving = false;
+  n.face = (wx >= n.x) ? 1 : -1;
+  /* NGỒI/XEP CHỖ: cúi nhau mà đứng sát dưới 62px thì hai thân TRÙNG nhau, một
+     người biến mất (sư thầy và người đi dạo có pk = chính điểm chân nên người
+     chơi đứng trước là che kín bạn). Nudge người chơi ra đúng IP_BOW_GAP về phía
+     họ đang đứng — cùng cách V27 ngồi SÁNH BÊN ghế (IP_PEW_SIDE) — rồi mới khoá
+     vị trí, nên không ai bị "kéo" ngược lại. Rơi ngoài biên đại lộ thì thôi. */
+  const side = wx <= n.x ? -1 : 1, want = n.x + side * IP_BOW_GAP;
+  if (Math.abs(wx - want) > 8 && want > IP_X0 + 10 && want < IP_X1 - 10) {
+    S.p.x = Math.max(20, Math.min(920, want - 10 - (window._camX || 0)));
+    IP_ST.kx = S.p.x;
+  }
+  if (n.pose === 'walk') { n.wk = 0; n.pause = Math.max(n.pause, IP_BOW_MS * 4); }
+  /* lời chúc ngẫu nhiên, không lặp lại đúng câu vừa nói với người này.
+     Hai bạn quỳ lạy có sayPool RIÊNG ('Cầu chúc muôn loài bình an') và sư thầy
+     đọc IP_MANTRAS — tín đồ ngồi ghế vẫn dùng IP_BLESSINGS như V27. */
+  const pool = (n.sayPool && n.sayPool.length) ? n.sayPool
+    : (n.monk ? IP_MANTRAS : IP_BLESSINGS);
+  let bi = Math.floor(Math.random() * pool.length);
+  if (bi === n.last) bi = (bi + 1) % pool.length;
+  n.last = bi;
+  n.say = { txt: pool[bi], lines: null, t0: now };
+
+  if (typeof sfxPlay === 'function') sfxPlay('pop', .55);
+  beep(296, 'sine', .13, .02);
+  /* Bái kiến thầy: "cóc" của mõ trước, chuông lớn ngân sau — đúng nghi thức
+     hai tiếng khi vào chính điện. Các bạn khác chỉ một tiếng chuông nhỏ. */
+  if (n.monk || n.art === 'abbot') { ipWood(); ipBell(true); } else ipBell(false);
+  /* đốm vàng TOẢ RA GIỮA HAI người rồi bay lên trần */
+  const mx = (wx + n.x) / 2, my = (S.p.y + 30 + ipNpcFeet(n)) / 2 - 20;
+  for (let i = 0; i < 26; i++)
+    ipMote(mx + (Math.random() - .5) * 56, my + (Math.random() - .5) * 34, true);
+
+  /* 🕊 Đồng Tu An Lạc (+15) / 🧘 Tâm Như Nước Lặng (+30): EXP và cộng thêm phút
+     cho buff 🕊. Mỗi BẠN có cooldown riêng (60 giây) để không biến Thánh Đường
+     thành máy cày EXP — cúi chào vẫn làm được bình thường, chỉ chưa thưởng lại. */
+  /* xp = 0 là CHỈ ĐỊNH (Trụ Trì ban lời dạy, không bán EXP) → phải phân biệt
+     với "không khai báo" mới lấy IP_BOW_XP, dùng || là bị nuốt thành 15. */
+  const xp = (n.xp === undefined ? IP_BOW_XP : n.xp);
+  const add = (n.monk || n.art === 'abbot') ? IP_MONK_PEACE_MS : IP_BOW_PEACE_MS;
+  if (Date.now() >= n.next) {
+    n.next = Date.now() + IP_BOW_COOL_MS;
+    try { if (typeof addXP === 'function') addXP(xp); } catch (e) {}
+    const left = Math.max(0, IP_PEACE.until - Date.now());
+    IP_PEACE.until = Date.now() + Math.min(IP_PEACE_MS, left + add);
+    try { if (typeof syncHUD === 'function') syncHUD(); } catch (e) {}
+    if (typeof showBanner === 'function')
+      showBanner('KHU 5 · ĐẠI LỘ TĨNH TÂM', n.buff || '🕊 Đồng Tu An Lạc',
+        (xp > 0 ? '+' + xp + ' EXP · ' : '') + 'buff 🕊 thêm ' +
+        Math.round(add / 60000) + ' phút', 'violet');
+    try { if (typeof saveGame === 'function') saveGame(); } catch (e) {}
+  }
+}
+
+function ipBowEnd() {
+  if (IP_ST.st !== 'bow') return;
+  IP_ST.st = 'bowup'; IP_ST.t0 = performance.now();
+  beep(300, 'sine', .09, .016);
+}
+
+function ipBowTick(now) {
+  if (IP_ST.st === 'bow') {
+    IP_ST.kn = ipSmooth(Math.min(1, (now - IP_ST.t0) / IP_BOW_MS));
+  } else if (IP_ST.st === 'bowup') {
+    const p = Math.min(1, (now - IP_ST.t0) / IP_BOW_MS);
+    IP_ST.kn = 1 - ipSmooth(p);
+    if (p >= 1) { IP_ST.st = ''; IP_ST.kn = 0; IP_ST.npc = null; }
+  }
+}
+
+/* ---------- 16d. NHỊP SỐNG CỦA TỪNG BẠN (V28) ---------- */
+/* Nhịp TỰ lạy của hai bạn quỳ: mỗi n.solo ms (4 giây) thì gập người một lần —
+   cúi 38% · giữ 24% · dậy 38% của IP_SOLO_MS, rồi nghỉ tới hết chu kỳ. Trả về
+   0..1 nếu frame này nằm TRONG nhịp, -1 = ngoài nhịp để ipNpcTick tự làm mượt
+   về 0. Đếm bằng dt TIÊM TÍCH chứ không đọc đồng hồ: tab bị ẩn thì rAF dừng mà
+   Date.now vẫn chạy, dùng giờ thật là NPC "lạy bù" ba nhịp chồng lên nhau ngay
+   frame đầu khi tab sáng lại. */
+function ipNpcSolo(n, dt) {
+  n.ph += dt * 1000;
+  if (n.ph >= n.solo) { n.ph -= n.solo; n.fired = 0; }
+  if (n.ph >= IP_SOLO_MS) return -1;
+  const p = n.ph / IP_SOLO_MS;
+  if (!n.fired && p >= .38) {
+    n.fired = 1;
+    const fy = ipNpcFeet(n);
+    for (let i = 0; i < 8; i++)
+      ipMote(n.x + (Math.random() - .5) * 46, fy - 22 - Math.random() * 34, true);
+  }
+  return p < .38 ? ipSmooth(p / .38) : (p < .62 ? 1 : 1 - ipSmooth((p - .62) / .38));
+}
+
+/* Thiền hành: bước đều trong [lo, hi], chạm biên thì QUAY MẶT (dir = -dir) rồi
+   đi tiếp. go = 0 (đang đáp lễ người chơi) thì đứng hẳn.
+   Sư thầy thêm luật kinh hành: đi ~6-12 giây rồi dừng ~2.5-4 giây chắp tay
+   niệm, nhẩn nha hơn hẳn hai người đi dạo. */
+function ipNpcWalk(n, dt, go) {
+  if (!go) { n.wk = 0; return; }
+  if (n.pause > 0) {
+    n.wk = 0;
+    n.pause -= dt * 1000;
+    if (n.pause <= 0) { n.pause = 0; n.walk = 6000 + Math.random() * 6000; }
+    return;
+  }
+  const px = n.spd * dt * 60;                    // px/frame quy 60fps, như S.p.spd
+  n.x += n.dir * px;
+  if (n.x <= n.lo) { n.x = n.lo; n.dir = 1; }
+  else if (n.x >= n.hi) { n.x = n.hi; n.dir = -1; }
+  n.face = n.dir;
+  n.wk = 1;
+  n.step += dt * 60;                             // cùng đơn vị đếm với S.p.step
+  n.acc += px;
+  if (n.acc >= IP_WALK_DUST) { n.acc -= IP_WALK_DUST; ipPuff(n.x, n.feet, n.dir); }
+  if (n.monk || n.art) {
+    n.walk -= dt * 1000;
+    if (n.walk <= 0) n.pause = 2500 + Math.random() * 1800;
+  }
+}
+
+/* NPC cúi xuống rồi NGHIÊNG THẲNG lại theo cùng nhịp với người chơi; chạy mỗi
+   frame nên hết quỳ lạy là bạn tự về tư thế cũ, không cần callback. */
+function ipNpcTick(dt, now) {
+  const k = 1 - Math.exp(-9 * dt);            // về đích trong ~0.35s, không phụ thuộc FPS
+  for (let i = 0; i < IP_NPC.length; i++) {
+    const n = IP_NPC[i];
+    n.bowing = (IP_ST.st === 'bow' && IP_ST.npc === n) ? 1 : 0;
+    /* ĐANG cúi cùng người chơi → lấy thẳng tiến trình quỳ của người chơi
+       (IP_ST.kn): hai tư thế khớp nhau TỪNG FRAME, không lệch nhịp như cách
+       làm mượt độc lập. */
+    if (n.bowing) { n.b = IP_ST.kn; n.wk = 0; }
+    else {
+      const sb = (n.solo && !n.say) ? ipNpcSolo(n, dt) : -1;
+      if (sb >= 0) n.b = sb;
+      else {
+        /* Dừng chắp tay niệm = nghiêng nhẹ (IP_CLASP vào n.b → .20*0.55 rad ≈ 6°,
+           cộng với tư thế sẵn có nên thầy cúi đầu chứ không gập người). */
+        const tgt = ((n.monk || n.art) && n.pause > 0) ? IP_CLASP : 0;
+        n.b += (tgt - n.b) * k;
+        if (tgt === 0 ? n.b < .02 : Math.abs(n.b - tgt) < .02) n.b = tgt;
+      }
+      if (n.pose === 'walk') ipNpcWalk(n, dt, sb < 0 ? 1 : 0);
+      else if (n.b === 0) n.face = 1;          // người ngồi/quỳ hết cúi là nhìn thẳng
+    }
+    if (n.say && now - n.say.t0 >= IP_SAY_MS) n.say = null;
+  }
+}
+
+/* Dọn sạch trạng thái dàn người tu khi rời cảnh (bong bóng đang dở, người đang
+   cúi, người đang đi giữa đường). Về lại là DÀN LẠI từ đầu: ai về chỗ nấy
+   (n.x0) nên lần vào sau giống hệt bố cục yêu cầu, không có ai "rơi" ở biên. */
+function ipNpcReset() {
+  IP_ST.npc = null;
+  for (let i = 0; i < IP_NPC.length; i++) {
+    const n = IP_NPC[i];
+    n.b = 0; n.bowing = 0; n.say = null; n.wk = 0; n.acc = 0; n.step = 0;
+    n.x = n.x0; n.dir = 1; n.face = 1; n.pause = 0;
+    n.walk = 5000 + Math.random() * 6000;
+    n.ph = Math.random() * (n.solo || 0); n.fired = 0;
+  }
+  IP_PUFF.length = 0;
 }

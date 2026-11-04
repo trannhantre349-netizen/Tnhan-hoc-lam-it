@@ -12,7 +12,7 @@
 
    Thêm tài nguyên mới? Cập nhật cả ASSETS.js và PRECACHE bên dưới.
    ============================================================ */
-const CACHE_NAME = 'it-game-v1.63';
+const CACHE_NAME = 'it-game-v1.70';
 
 const PRECACHE = [
   // --- vỏ ứng dụng ---
@@ -79,6 +79,12 @@ const PRECACHE = [
   // --- V26 Khu 5: ghế dài "Ngồi Tịnh Tâm" (873x433 RGBA, nền trắng đã tẩy).
   //     Bake: node tools/bake-bench.cjs ---
   './assets/img/baked/church_bench.png?v=1',
+  // --- V29 Khu 5: dàn Sư Thầy. monk_sheet.png 896x756 (lưới 7 cột x 3 hàng ô
+  //     128x252: đứng niệm / kinh hành / ngồi thiền), abbot_monk.png 404x891
+  //     (Trụ Trì chắp tay, chân sát đáy). Nguồn JPEG đổi tên nền trắng ở
+  //     assets/img/; game chỉ nạp bản baked. Bake: node tools/bake-monks.cjs ---
+  './assets/img/baked/monk_sheet.png?v=1',
+  './assets/img/baked/abbot_monk.png?v=1',
   // --- nhân vật ---
   './assets/img/baked/char_player.png',
   './assets/img/char_player_female.png',
