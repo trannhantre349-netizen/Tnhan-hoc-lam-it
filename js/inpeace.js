@@ -169,8 +169,13 @@ const IP_SERIF = "'Times New Roman','Liberation Serif','Palatino Linotype',serif
    "ngoài" → propCollides chặn luôn cả trượt ngang → nhân vật dán chặt vào mép
    cho tới khi bấm ngược lại. */
 const IP_MAP_W = 2400;                                   // chiều dài đại lộ
-const IP_VIEW_W = 960, IP_VIEW_H = 600;
-const IP_CAM_MAX = IP_MAP_W - IP_VIEW_W;                 // 1440
+/* V31 widescreen: khung nhìn RỘNG THEO MÀN HÌNH (960 → 2000). Đại lộ đã bake
+   2700px nên crop thêm bên phải là thấy thật, không giãn béo: IP_VIEW_W = bề
+   ngang backing thật, camera kẹp ở 2400 − IP_VIEW_W ⇒ world x tối đa không đổi.
+   `let` vì ipSetView() đổi nó từ js/widescreen.js lúc resize. */
+let IP_VIEW_W = 960;
+const IP_VIEW_H = 600;
+let IP_CAM_MAX = IP_MAP_W - IP_VIEW_W;                   // 1440 ở khung 960
 /* Một bản ảnh = cao 600, rộng theo tỉ lệ nguồn (tính thật lúc bake). */
 const IP_TILE_H = IP_VIEW_H;
 const IP_PROM_MIN_W = 2700;                              // 3 bản × 900
@@ -489,9 +494,24 @@ function ipWx() { return S.p.x + 10 + (window._camX || 0); }
    vật đứng yên trên màn hình trong khi thế giới trôi đi. */
 function ipCamStep() {
   let cam = window._camX || 0;
-  if (S.p.x > 620) { const d = Math.min(S.p.x - 620, IP_CAM_MAX - cam); cam += d; S.p.x -= d; }
+  const push = IP_VIEW_W - 340;        // 620 ở khung 960, giãn theo khung nhìn
+  if (S.p.x > push) { const d = Math.min(S.p.x - push, IP_CAM_MAX - cam); cam += d; S.p.x -= d; }
   if (S.p.x < 300) { const d = Math.min(300 - S.p.x, cam); cam -= d; S.p.x += d; }
   window._camX = Math.max(0, Math.min(IP_CAM_MAX, cam));
+}
+
+/* V31 widescreen: js/widescreen.js gọi khi bề ngang khung nhìn đổi.
+   Vignette + caption vẽ theo MÀN HÌNH nên phải dựng lại layer cache; _camX và
+   S.p.x đang hợp lệ với khung cũ thì kẹp lại cho khung mới (khung hẹp hơn). */
+function ipSetView(w) {
+  const hi = (typeof VS !== 'undefined' && VS && VS.maxW) || 2000;
+  const vw = Math.max(960, Math.min(hi, Math.round(w || 960)));
+  if (vw === IP_VIEW_W) return;
+  IP_VIEW_W = vw;
+  IP_CAM_MAX = IP_MAP_W - IP_VIEW_W;
+  IP_LAY = null;
+  window._camX = Math.max(0, Math.min(IP_CAM_MAX, window._camX || 0));
+  if (S && S.scene === 'INPEACE') S.p.x = Math.max(15, Math.min(vw - 35, S.p.x));
 }
 
 /* ---------- 5. LỚP VẼ CACHE ---------- */
@@ -614,11 +634,15 @@ function ipLayers() {
   ipShaft(s, IP_ALTAR_X, 30, IP_ALTAR_X, 86, 60, IP_FEET_BOT + 8, .11);
   IP_LAY = { shaft: sh, key: IP_PROM_W + 'x' + IP_TW };
 
-  const vg = ipCv(960, 600);
+  /* Vignette thuộc KHÔNG GIAN MÀN HÌNH → theo bề ngang khung nhìn thật.
+     Bán kính giữ nguyên 640 (độ đậm vùng tối sát mép không đổi), chỉ tâm
+     trượt ra giữa VIRTUAL_W để vệt sáng không lệch trái. */
+  const vg = ipCv(IP_VIEW_W, IP_VIEW_H);
   const v = vg.getContext('2d');
-  const q = v.createRadialGradient(480, 300, 210, 480, 300, 640);
+  const cxv = IP_VIEW_W / 2;
+  const q = v.createRadialGradient(cxv, 300, 210, cxv, 300, 640);
   q.addColorStop(0, 'rgba(0,0,0,0)'); q.addColorStop(1, 'rgba(4,3,2,.62)');
-  v.fillStyle = q; v.fillRect(0, 0, 960, 600);
+  v.fillStyle = q; v.fillRect(0, 0, IP_VIEW_W, IP_VIEW_H);
   IP_LAY.vig = vg;
   return IP_LAY;
 }
@@ -908,7 +932,7 @@ function ipScene() {
   ctx.globalAlpha = .9; ctx.drawImage(lay.vig, 0, 0); ctx.globalAlpha = 1;
 
   if (typeof hvCap === 'function')
-    hvCap(ctx, 480, 22, '🕊 KHU 5 · ĐẠI LỘ TĨNH TÂM', { font: 'bold 13px ', h: 24, r: 12, blur: 16, olw: 4 });
+    hvCap(ctx, IP_VIEW_W / 2, 22, '🕊 KHU 5 · ĐẠI LỘ TĨNH TÂM', { font: 'bold 13px ', h: 24, r: 12, blur: 16, olw: 4 });
   /* Nhãn [E] và thanh tiến trình camera đều theo MÀN HÌNH: hvLabel đọc S.p.x thô. */
   if (targetAct && typeof hvLabel === 'function') hvLabel(targetAct.txt || '');
   ipCamBar(ctx, cam);
@@ -918,7 +942,7 @@ function ipScene() {
     ctx.textAlign = 'center';
     ctx.font = 'italic 400 13px ' + IP_SERIF;
     ctx.fillStyle = 'rgba(238,224,196,' + bl.toFixed(3) + ')';
-    ctx.fillText('🎧  Hãy bật âm thanh để nghe đàn organ nhé', 480, 592);
+    ctx.fillText('🎧  Hãy bật âm thanh để nghe đàn organ nhé', IP_VIEW_W / 2, 592);
     ctx.textAlign = 'left';
   }
 }
@@ -927,7 +951,7 @@ function ipScene() {
    xa trên đại lộ 2400px — cảnh không còn minimap (Zen mode) nên cần dấu này. */
 function ipCamBar(g, cam) {
   const wx = S.p.x + 10 + cam;
-  const w = 168, x0 = 480 - w / 2, y = 40;
+  const w = 168, x0 = IP_VIEW_W / 2 - w / 2, y = 40;
   g.save();
   g.strokeStyle = 'rgba(214,178,110,.22)'; g.lineWidth = 1;
   g.beginPath(); g.moveTo(x0, y + .5); g.lineTo(x0 + w, y + .5); g.stroke();
@@ -1310,6 +1334,10 @@ function ipCutOv() {
     ov = document.createElement('div');
     ov.id = 'ip-cut'; ov.className = 'modal';
     ov.innerHTML = '<canvas id="ip-cut-cv" width="960" height="600" style="width:100%;height:100%;display:block"></canvas>';
+    /* V31: cắt cảnh vẽ trong KHÔNG GIAN BACKING (khung 960 mà #app đã rộng
+       1067 thì chữ bị béo 11%). Gán width theo khung nhìn thật cho khớp cảnh. */
+    const cc = ov.querySelector('#ip-cut-cv');
+    if (cc && typeof VS !== 'undefined') cc.width = VS.backW();
     document.getElementById('app').appendChild(ov);
   }
   ov.style.cssText = 'display:flex;position:absolute;inset:0;padding:0;margin:0;background:transparent;' +
@@ -1319,20 +1347,22 @@ function ipCutOv() {
 function ipCutFrame(c, p, cap) {
   /* đường cong tam giác: 0 → 1 (nửa đầu) → 0 (nửa sau), làm mượt bằng cosine */
   const a = .5 - .5 * Math.cos(Math.PI * 2 * p);
-  c.clearRect(0, 0, 960, 600);
-  c.fillStyle = 'rgba(16,11,5,' + (a * .97).toFixed(3) + ')'; c.fillRect(0, 0, 960, 600);
-  const cg = c.createRadialGradient(480, 300, 40, 480, 300, 520);
+  /* V31: mọi phép đo theo canvas thật, không hard-code 960/480 nữa. */
+  const W = c.canvas.width, H = c.canvas.height, cx = W / 2;
+  c.clearRect(0, 0, W, H);
+  c.fillStyle = 'rgba(16,11,5,' + (a * .97).toFixed(3) + ')'; c.fillRect(0, 0, W, H);
+  const cg = c.createRadialGradient(cx, 300, 40, cx, 300, 520);
   cg.addColorStop(0, 'rgba(196,142,64,' + (a * .34).toFixed(3) + ')');
   cg.addColorStop(1, 'rgba(26,18,8,0)');
-  c.fillStyle = cg; c.fillRect(0, 0, 960, 600);
+  c.fillStyle = cg; c.fillRect(0, 0, W, H);
   if (cap && a > .55) {
     c.globalAlpha = Math.min(1, (a - .55) / .3);
     c.textAlign = 'center';
     c.font = 'italic 400 22px ' + IP_SERIF;
-    c.lineWidth = 6; c.strokeStyle = 'rgba(0,0,0,.9)'; c.strokeText(cap, 480, 296);
-    c.fillStyle = '#f4e7c8'; c.fillText(cap, 480, 296);
+    c.lineWidth = 6; c.strokeStyle = 'rgba(0,0,0,.9)'; c.strokeText(cap, cx, 296);
+    c.fillStyle = '#f4e7c8'; c.fillText(cap, cx, 296);
     c.font = '400 13px ' + IP_SERIF; c.fillStyle = '#c9aa66';
-    c.fillText('🕊      🕊', 480, 326);
+    c.fillText('🕊      🕊', cx, 326);
     c.globalAlpha = 1; c.textAlign = 'left';
   }
 }
@@ -1345,7 +1375,7 @@ function ipFade(cap, then) {
   const finish = () => {
     IP_CUT = null;
     ov.style.cssText = 'display:none';
-    c.clearRect(0, 0, 960, 600);
+    c.clearRect(0, 0, c.canvas.width, c.canvas.height);
     if (!fired) { fired = true; try { then(); } catch (e) {} }
   };
   const step = () => {

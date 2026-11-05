@@ -599,6 +599,21 @@
      update/render/doAction/drawSprite/drawDecor/propCollides/sfxBgmDuck/addXP/
      updateBuffBar ngoài cùng, và để hvCap/hvGlow/hvLabel của heaven.js có sẵn. -->
 <script src="js/inpeace.js"></script>
+<!-- V30: Hệ thống sinh vật lang thang (Cyber Dino / Mèo Server / Bồ câu Packet
+     Loss) — file ADD-ONLY. critters.js bọc update/render/mgFrame/drawSprite của
+     mọi lớp trước (nên nạp SAU cùng) và chiếm quyền 3 hàm tĩnh cũ trong game.js
+     (creRexSort/creBird/crePkts) để đàn sinh vật đi lại thật trên map WORLD,
+     STREET, HEAVEN + xuất hiện góc bảng làm bài của các Ải. Khu 5 INPEACE là nơi
+     tĩnh tâm nên KHÔNG có sinh vật. -->
+<script src="js/critters.js"></script>
+<!-- V31: ADAPTIVE WIDESCREEN — file ADD-ONLY, nạp CUỐI ĐỦA CUỐI để wrapper
+     render() của nó đứng ngoài cùng (sau critters/inpeace/heaven). Nó đặt
+     cv.width = VIRTUAL_W (600 × tỉ lệ cửa sổ, chặn [960,1120]), nong #app ra
+     đúng VIRTUAL_W px rồi mỗi frame ctx.setTransform(VIRTUAL_W/960, 0, 0, 1, 0, 0).
+     Toàn bộ lệnh vẽ vẫn viết trong không gian 960×600 CŨ → hitbox, NPC, dải đi
+     bộ, phép đổi tọa độ chuột không phải sửa một con số nào, chỉ hết vệt đen
+     hai bên (và ảnh nền 1024×572 trở về đúng tỉ lệ gốc thay vì bị ép 1.6:1). -->
+<script src="js/widescreen.js"></script>
 <script>
 /* ============================================================
    PWA — đăng ký Service Worker + nút "Cài đặt ứng dụng" + chặn reload

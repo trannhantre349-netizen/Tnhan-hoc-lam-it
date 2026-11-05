@@ -2896,7 +2896,7 @@ function ambBubbles() {
     ctx.save(); ctx.font = 'bold 11.5px ' + IZF; ctx.globalAlpha = Math.min(1, n.sayT * 2.5);
     const L = sayLines(n.say, 236), w = Math.min(256, Math.max.apply(null, L.map(s => ctx.measureText(s).width)) + 20), h = 9 + L.length * 14;
     const cam = S.scene === 'STREET' ? window._camX || 0 : 0;   // phố cuộn: kẹp trong khung nhìn, không ngoài màn hình
-    const bx = Math.max(cam + 4, Math.min(cam + 956 - w, n.fx - w / 2));
+    const bx = Math.max(cam + 4, Math.min(cam + vsLogicalW() - 4 - w, n.fx - w / 2));
     /* Dân phố đông: hai người nói cạnh nhau (cặp tán gẫu) thì bong bóng chồng lên
        nhau thành chữ đè chữ → nâng dần cái mới lên cho tới khi trống chỗ (tối đa 3 bậc). */
     let by = Math.max(2, n.fy - 41 - h);
@@ -3255,8 +3255,11 @@ function drawAccident() {
 /* ông mặt trời + mây trôi — toạ độ màn hình, vẽ sau nền để mây nổi lên trên.
    Có nền vẽ sẵn thì chỉ giữ mây mờ (nền đã có ông mặt trời + mây của nó). */
 function drawStreetSky(t, soft) {
-  if (!soft) { ctx.fillStyle = '#fff6c8'; ctx.beginPath(); ctx.arc(860, 64, 28, 0, 7); ctx.fill(); }
-  [[(t * 12) % 1100 - 100, 56, 1], [(t * 8 + 500) % 1100 - 100, 104, .8], [(t * 10 + 250) % 1100 - 100, 36, .6]].forEach(([x, y, k]) => {
+  /* V31 widescreen: trời/mây vẽ theo MÀN HÌNH nên neo theo khung nhìn thật
+     (VIRTUAL_W khi map cuộn), giữ mặt trời cách mép phải 107px như cũ. */
+  const _vw = vsLogicalW(), _wrap = _vw + 140;
+  if (!soft) { ctx.fillStyle = '#fff6c8'; ctx.beginPath(); ctx.arc(_vw - 107, 64, 28, 0, 7); ctx.fill(); }
+  [[(t * 12) % _wrap - 100, 56, 1], [(t * 8 + 500) % _wrap - 100, 104, .8], [(t * 10 + 250) % _wrap - 100, 36, .6]].forEach(([x, y, k]) => {
     ctx.fillStyle = soft ? 'rgba(255,255,255,.4)' : 'rgba(255,255,255,.92)'; [[0, 0, 24], [22, -6, 19], [44, 0, 22]].forEach(([dx, dy, r]) => { ctx.beginPath(); ctx.arc(x + dx * k, y + dy * k, r * k, 0, 7); ctx.fill(); });
   });
 }
@@ -3306,9 +3309,11 @@ function stPool(x, y, r, a) {   // vệt sáng loang dài trên mặt đất dư
 function stNightPass(t, camX) {
   const ph = stDayNight();
   if (ph.night <= 0.01 && ph.dusk <= 0.01) { _plF = 0; return; }
-  if (ph.dusk > 0.01) { ctx.fillStyle = 'rgba(255,140,50,' + (0.24 * ph.dusk) + ')'; ctx.fillRect(camX, 0, 960, 600); }
+  /* V31 widescreen: STREET vẽ theo toạ độ THẾ GIỚI nên khung nhìn rộng bằng
+     VIRTUAL_W (vsLogicalW()), không phải 960 — nếu không dải ám màu dừng giữa màn hình. */
+  if (ph.dusk > 0.01) { ctx.fillStyle = 'rgba(255,140,50,' + (0.24 * ph.dusk) + ')'; ctx.fillRect(camX, 0, vsLogicalW(), 600); }
   if (ph.night > 0.01) {
-    ctx.fillStyle = 'rgba(11,20,46,' + (0.58 * ph.night) + ')'; ctx.fillRect(camX, 0, 960, 600);
+    ctx.fillStyle = 'rgba(11,20,46,' + (0.58 * ph.night) + ')'; ctx.fillRect(camX, 0, vsLogicalW(), 600);
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     ST_LAMPS.forEach(([x, , h]) => {
       stGlow(x, 470 - h + 7, 16, '255,224,150', 0.85 * ph.night);   // bóng đèn
@@ -3346,7 +3351,7 @@ function drawStreet() {
   const t = Date.now() / 1000, camX = window._camX || 0;
   streetAnim(t, camX);
   _stSigns.length = 0;
-  let g = ctx.createLinearGradient(0, 0, 0, 260); g.addColorStop(0, '#6ec6ff'); g.addColorStop(1, '#dff3ff'); ctx.fillStyle = g; ctx.fillRect(0, 0, 960, 600);
+  let g = ctx.createLinearGradient(0, 0, 0, 260); g.addColorStop(0, '#6ec6ff'); g.addColorStop(1, '#dff3ff'); ctx.fillStyle = g; ctx.fillRect(0, 0, vsLogicalW(), 600);
   ctx.save(); ctx.translate(-camX, 0);
   const HAS_BG = drawStreetBg();   // có nền vẽ sẵn -> bỏ hết các dải màu phẳng
   ctx.restore();
@@ -3424,7 +3429,7 @@ function drawStreet() {
   drawSprite(S.p.x + camX, S.p.y, 'p');
   stNightPass(t, camX);
   ctx.restore();
-  if (camX < 1920) { ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.font = 'bold 26px ' + IZF; ctx.fillText('➡', 926 + Math.sin(t * 5) * 4, 300); }
+  if (camX < 2880 - vsLogicalW()) { ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.font = 'bold 26px ' + IZF; ctx.fillText('➡', vsLogicalW() - 34 + Math.sin(t * 5) * 4, 300); }
   if (targetAct && targetAct.t === 'job') {
     const hq = HD_BY_HOUSE[targetAct.i];
     if (targetAct.i === 8) drawPrompt(hdReady('sua')
@@ -3484,7 +3489,7 @@ function stMemeStep() {
   const spk = L.filter(n => n.sayT > 0);
   if (spk.length >= 2 || CROWD.some(c => c.sayT > 0)) { stMemeNext = now + 700; return; }
   const cam = window._camX || 0;
-  const pool = L.filter(n => n.moving && n.fx > cam - 60 && n.fx < cam + 1020 &&
+  const pool = L.filter(n => n.moving && n.fx > cam - 60 && n.fx < cam + vsLogicalW() + 60 &&
     (!spk.length || Math.abs(n.fx - spk[0].fx) > 200));
   if (!pool.length) { stMemeNext = now + 1200; return; }
   stSay(pool[(Math.random() * pool.length) | 0]);
@@ -3610,7 +3615,10 @@ update = function () {
     if (S.scene === 'STREET') {
       S.p.y = clampWalkY('STREET', S.p.y);   // kẹp hai chiều: vỉa hè ↔ lòng đường ↔ bãi cỏ
       let cam = window._camX || 0;
-      if (S.p.x > 620 && cam < 1920) { const d = Math.min(S.p.x - 620, 1920 - cam); cam += d; S.p.x -= d; }
+      /* V31 widescreen: phố dài 2880px, camera chạy tới (2880 − khung nhìn).
+         Ngưỡng đẩy 620 = 960 − 340 ngày trước, giờ tính theo khung nhìn thật. */
+      const _vw = vsLogicalW(), _camMax = 2880 - _vw, _push = _vw - 340;
+      if (S.p.x > _push && cam < _camMax) { const d = Math.min(S.p.x - _push, _camMax - cam); cam += d; S.p.x -= d; }
       if (S.p.x < 300 && cam > 0) { const d = Math.min(300 - S.p.x, cam); cam -= d; S.p.x += d; }
       window._camX = cam;
       const px = S.p.x + 10 + cam, py = S.p.y + 30;
@@ -7479,7 +7487,7 @@ function ambHook() {
        (dân số đông gấp đôi nên phải cắt, nếu không mỗi frame nạp 20+ sprite thừa). */
     if (S.scene === 'STREET') {
       const cam = window._camX || 0;
-      if (n.fx < cam - 90 || n.fx > cam + 1050) return;
+      if (n.fx < cam - 90 || n.fx > cam + vsLogicalW() + 90) return;
     }
     const a = n.fade === undefined ? 1 : n.fade;
     /* gz = kỹ sư Mặt Trăng: bước nhảy thấp trọng lực, thân nhấc lên tối đa 3.5px */

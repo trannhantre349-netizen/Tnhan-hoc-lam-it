@@ -1402,7 +1402,12 @@ function update() {
   const _v = S.p.spd * _k * SPEED_BOOST * shopSpd() * (typeof cafeSpd === 'function' ? cafeSpd() : 1) * ((mx && my) ? 0.7071 : 1);
   const _wb = SCENE_WALK[S.scene];
   const _yLo = _wb ? _wb.minY : 30, _yHi = _wb ? _wb.maxY : 552;
-  const nx = Math.max(15, Math.min(925, S.p.x + mx * _v));
+  /* V31 widescreen: mép PHẢI của khung nhìn. S.p.x là toạ độ MÀN HÌNH ở STREET
+     (map cuộn) nên khi khung nhìn rộng ra VIRTUAL_W thì nhân vật phải đi được tới
+     sát mép mới; mọi cảnh khác vẫn vẽ trong 960 → 925 y hệt cũ. Guard typeof vì
+     update() chạy ngay lúc engine.js parse, khi widescreen.js chưa tồn tại. */
+  const _xHi = (typeof vsLogicalW === 'function' ? vsLogicalW() : 960) - 35;
+  const nx = Math.max(15, Math.min(_xHi, S.p.x + mx * _v));
   const ny = Math.max(_yLo, Math.min(_yHi, S.p.y + my * _v));
   if (S.scene === 'WORLD') {
     if (!boxCollides(nx, S.p.y)) S.p.x = nx;
@@ -1424,7 +1429,7 @@ function update() {
     } else if (!okY && my !== 0 && mx === 0) {
       const push = cornerSlidePush(sc, S.p.x + 10, ny + 18, 'y');
       if (push !== null) {
-        const sx = Math.max(15, Math.min(925, S.p.x + push));
+        const sx = Math.max(15, Math.min(_xHi, S.p.x + push));
         if (!propCollides(sc, sx, ny)) { S.p.x = sx; S.p.y = ny; }
       }
     }

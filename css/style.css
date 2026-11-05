@@ -324,15 +324,16 @@ body::before {
    KHUNG GAME
    ============================================================ */
 html, body { width: 100%; height: 100%; height: 100dvh; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
+/* V31 widescreen: width do js/widescreen.js gán = VIRTUAL_W (600 × tỉ lệ cửa sổ,
+   chặn [960, 1120]) nên HUD trái/phải bám sát mép màn hình. Bỏ viền trắng 4px,
+   bo góc 22px và đổ bóng để khung game tràn 100% không còn vệt đen hai bên. */
 #app {
   position: absolute; width: 960px; height: 600px;
   transform-origin: center center; transition: transform .15s ease;
-  border-radius: 22px; overflow: hidden;
-  border: 4px solid rgba(255,255,255,.95);
-  box-shadow: 0 24px 70px rgba(18, 78, 138, .45), 0 0 0 6px rgba(58,165,255,.25);
+  overflow: hidden;
   background: #bfe3ff;
 }
-#cv { display: block; width: 960px; height: 600px; image-rendering: auto; }
+#cv { display: block; width: 100%; height: 600px; image-rendering: auto; }
 
 /* ============================================================
    GLASSMORPHISM — mọi panel HUD: kính mờ blur(12px) xuyên thấu

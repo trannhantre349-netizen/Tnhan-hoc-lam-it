@@ -158,6 +158,10 @@ function bunBlocked(sc, x, y) {
 }
 /* Phố Ngoài cuộn theo camX (chỉ cuộn NGANG, game không có _camY). */
 function bunCam() { return S.scene === 'STREET' ? (window._camX || 0) : 0; }
+/* V31 widescreen: bề ngang khung nhìn thật (Phố Ngoài vẽ theo VIRTUAL_W,
+   các cảnh khác vẫn 960 rồi giãn bằng transform). Guard typeof vì update()
+   chạy ngay lúc engine.js parse, khi widescreen.js chưa tồn tại. */
+function bunViewW() { return typeof vsLogicalW === 'function' ? vsLogicalW() : 960; }
 /* Người chơi quy về TOẠ ĐỘ THẾ GIỚI chung với thỏ: ở Phố Ngoài S.p.x là vị trí
    trong khung hình nên phải cộng camX. */
 function bunPlayer() { return { x: S.p.x + 10 + bunCam(), y: S.p.y + 30 }; }
@@ -165,7 +169,7 @@ function bunPlayer() { return { x: S.p.x + 10 + bunCam(), y: S.p.y + 30 }; }
 function bunOnScreen(b) {
   if (S.scene !== 'STREET') return true;
   const cam = window._camX || 0;
-  return b.fx > cam - 60 && b.fx < cam + 1020;
+  return b.fx > cam - 60 && b.fx < cam + bunViewW() + 60;
 }
 
 class BunnyNPC {
@@ -406,9 +410,13 @@ function bunTap(ev) {
     const r = cv.getBoundingClientRect();
     if (r.width < 60 || r.height < 40) return;
     const p = (ev.touches && ev.touches[0]) || ev;
-    const sx = (p.clientX - r.left) * 960 / r.width;     // #app có thể bị fitApp scale
+    /* V31: rect.width là CSS px của khung đã scale → nhân bề rộng LOGIC thật
+       của cảnh (960 cho cảnh vẽ bằng transform, VIRTUAL_W cho Phố Ngoài cuộn
+       thật) mới ra đúng từng pixel. */
+    const lw = bunViewW();
+    const sx = (p.clientX - r.left) * lw / r.width;      // #app có thể bị fitApp scale
     const sy = (p.clientY - r.top) * 600 / r.height;
-    if (sx < 0 || sy < 0 || sx > 960 || sy > 600) return;
+    if (sx < 0 || sy < 0 || sx > lw || sy > 600) return;
     BUN.tapT = now;
     const wx = sx + bunCam(), wy = sy;
     const herd = BUN.herd[S.scene]; if (!herd) return;
@@ -434,7 +442,7 @@ function bunBubble(b) {
   for (const s of L) tw = Math.max(tw, ctx.measureText(s).width);
   const w = Math.min(168, tw + 16), hh = 8 + L.length * 12;
   const cam = bunCam();
-  const bx = Math.max(cam + 6, Math.min(cam + 954 - w, b.fx - w / 2));
+  const bx = Math.max(cam + 6, Math.min(cam + bunViewW() - 6 - w, b.fx - w / 2));
   const by = Math.max(2, b.fy + b.bounce - b.h - 13 - hh);
   ctx.globalAlpha = Math.min(1, b.sayT * 3);
   if (typeof izb === 'function') izb(bx, by, w, hh, 8, '#fffdf4');
