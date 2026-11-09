@@ -221,7 +221,12 @@ function adaptPortrait() {
   const chat = document.getElementById('chat-box');
   const app = document.getElementById('app');
   if (!touch || !app) return;
-  const portrait = window.innerHeight > window.innerWidth;
+  /* V32: dùng chung số đo với fitApp() (visualViewport) — nếu một bên nghe
+     innerHeight, một bên nghe viewport thật thì lúc thanh URL thụt xuống,
+     #touch đang dock dưới mà khung game lại được căn giữa toàn màn hình →
+     hàng nút đè lên dải đi bộ. */
+  const portrait = (typeof fitVp === 'function') ? fitVp().portrait
+    : window.innerHeight > window.innerWidth;
   if (portrait) {
     if (touch.parentElement !== document.body) document.body.appendChild(touch);
     if (chat && chat.parentElement !== document.body) document.body.appendChild(chat);
@@ -237,6 +242,8 @@ function adaptPortrait() {
 }
 window.addEventListener('resize', adaptPortrait);
 window.addEventListener('orientationchange', () => setTimeout(adaptPortrait, 220));
+if (window.visualViewport && window.visualViewport.addEventListener)
+  window.visualViewport.addEventListener('resize', adaptPortrait);
 setTimeout(adaptPortrait, 60);
 
 /* ---------- ẨN JOYSTICK/CHAT KHI MODAL MỞ ---------- */

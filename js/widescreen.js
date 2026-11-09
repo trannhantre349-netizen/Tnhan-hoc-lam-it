@@ -52,8 +52,15 @@ function vsLogicalW() {
 }
 function vsKx() { return vsBackW / vsLogicalW(); }
 
-function vsLayout() {
+function vsVp() {
+  if (typeof fitVp === 'function') return fitVp();
   const w = Math.max(1, window.innerWidth), h = Math.max(1, window.innerHeight);
+  return { w: w, h: h, portrait: h > w };
+}
+
+function vsLayout() {
+  const v = vsVp();
+  const w = v.w, h = v.h;
   /* 600 × tỉ lệ thật, làm tròn LÊN để không sót dải 1px ở mép phải. */
   const target = Math.min(VS_MAX_W, Math.max(VS_MIN_W, Math.ceil(VS_H * w / h)));
   const app = document.getElementById('app');
@@ -63,36 +70,42 @@ function vsLayout() {
        → render() dựng lại từ đầu mỗi frame nên không sao, nhưng chỉ gán
        khi thực sự đổi để khỏi trắng màn hình giữa chừng. */
     cv.width = vsBackW; cv.height = VS_H;
-    if (app) app.style.width = vsBackW + 'px';
     /* Khu 5 vẽ thật theo bề ngang khung nhìn (cache 2400px + vignette),
        phải báo nó dựng lại và kẹp lại _camX. Guard typeof: lúc parse thì
        inpeace.js đã nạp xong, nhưng chèn script sai thứ tự không được sập. */
     if (typeof ipSetView === 'function') ipSetView(vsBackW);
   }
+  /* V33: rộng khung DOM ghi lại MỖI LẦN layout, không chỉ khi đổi.
+       Hệ số co giãn tính bằng v.w / vsBackW, nên chỉ cần #app còn mang
+       bề rộng 960px của CSS trong khi vsBackW đã là 1236px là ra ngay
+       triệu chứng người chơi báo: 960 × 0.484 = 465px, hai bên lề đen
+       ~360px. Gán vô điều kiện = bất biến "bề rộng khung == số chia"
+       luôn đúng, không phụ thuộc thứ tự sự kiện resize nữa. */
+  if (app) app.style.width = vsBackW + 'px';
   fitApp();
 }
 
 /* fitApp() cũ vẫn chạy (nó đặt --shop-h cho modal + class portrait-mode);
-   wrapper ghi lại transform ở màn ngang: co giãn ĐỘC LẬP hai trục.
-   sx = cửa sổ / VIRTUAL_W, sy = cửa sổ / 600 — không còn Math.min(sx, sy),
-   thủ phạm để sót hai vệt đen bên hông. Vì VIRTUAL_W = 600 × tỉ lệ cửa sổ,
-   sx và sy gần như luôn BẰNG NHAU (16:9: 1.799 vs 1.800) → khung nhìn đã tự
-   lo phần tràn, HUD/butan/modal không bị béo. Chỉ những tỉ lệ cực đoan vượt
-   trần 2000 hoặc dưới sàn 960 mới phải dựa vào CSS, và thà giãn hình còn
-   hơn để đen. */
+   wrapper ghi lại hai trục ĐỘC LẬP cho màn ngang — không dùng Math.min nữa
+   nên không bao giờ sót vệt đen bên hông.
+   V32: hệ số không còn viết vào chuỗi transform mà vào hai biến CSS
+   --scale-x / --scale-y; công thức căn tâm translate(-50%,-50%) nằm ở
+   css/mobile.css (và chính #app đã là position:fixed, nên left/top 50%
+   tính theo khung nhìn THẬT, không theo thân trang). */
 const _vsFit = fitApp;
 function vsScale() {
-  return { sx: window.innerWidth / vsBackW, sy: window.innerHeight / VS_H };
+  const v = vsVp();
+  return { sx: v.w / vsBackW, sy: v.h / VS_H };
 }
 fitApp = function () {
   _vsFit();
-  if (window.innerHeight > window.innerWidth) return;   // màn dọc: khung nhỏ + phím dưới, giữ nguyên
+  if (vsVp().portrait) return;   // màn dọc: khung nhỏ + phím dưới, giữ nguyên
   const app = document.getElementById('app'); if (!app) return;
   const k = vsScale();
   app.style.left = '50%';
   app.style.top = '50%';
-  app.style.transformOrigin = 'center center';
-  app.style.transform = `translate(-50%, -50%) scale(${k.sx}, ${k.sy})`;
+  app.style.setProperty('--scale-x', k.sx);
+  app.style.setProperty('--scale-y', k.sy);
 };
 
 /* Giãn toàn cảnh ngay trước khi mọi lớp khác vẽ. */
@@ -108,6 +121,11 @@ render = function () {
 window.addEventListener('resize', vsLayout);
 window.addEventListener('orientationchange', () => setTimeout(vsLayout, 220));
 document.addEventListener('fullscreenchange', () => setTimeout(vsLayout, 80));
+/* V32: thanh URL mobile đóng/mở chỉ đổi visualViewport → phải dựng lại
+   khung nhìn theo số đo thật, nếu không VIRTUAL_W tính theo chiều cao
+   "ẩn" và để lại hai dải đen đúng bằng phần thanh URL. */
+if (window.visualViewport && window.visualViewport.addEventListener)
+  window.visualViewport.addEventListener('resize', vsLayout);
 vsLayout();
 
 /* Mỏ neo cho các lớp sau + cho test: bề rộng backing, logic và hệ số giãn. */
@@ -116,6 +134,7 @@ window.VS = {
   logicalW: vsLogicalW,
   kx: vsKx,
   scale: vsScale,
+  vp: vsVp,
   layout: vsLayout,
   maxW: VS_MAX_W, minW: VS_MIN_W, h: VS_H
 };

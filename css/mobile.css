@@ -1,0 +1,58 @@
+/* ============================================================
+   css/mobile.css — V32: MOBILE / TABLET CĂN GIỮA TÂM + ZEN CHO PHIM CẢM ỨNG
+   File ADD-ONLY, nạp SAU css/style.css nên mọi quy tắc ở đây thắng
+   (độ đặc tử ngang nhau, quyết bằng thứ tự).
+   ============================================================ */
+
+/* ---------- 1. THÂN TRANG CHIẾM TRỌN CHIỀU CAO ĐỘNG ----------
+   100dvh đổi theo thanh URL của Chrome/Safari: khung game không còn bị
+   tính thừa một dải ~60px ở đáy rồi dồn lên mép trên.
+   display:flex chỉ còn ý nghĩa dự phòng (#app đã về position:fixed bên dưới)
+   nhưng giữ đúng công thức căn giữa tâm mà người chơi yêu cầu. */
+html, body {
+  margin: 0; padding: 0;
+  min-height: 100vh; min-height: 100dvh;
+  height: 100vh; height: 100dvh;
+  overflow: hidden;
+}
+body { display: flex; align-items: center; justify-content: center; }
+/* Trên thiết bị chạm, phần nền còn lộ ra (khe giữa khung game và dải phím)
+   nên là đen trung tính — nền trời xanh của trang rất chói khi so với Thánh
+   Đường tối. Máy tính bàn giữ nguyên nền cũ vì #app đã tràn 100% khung. */
+@media (pointer: coarse) {
+  body { background: #0b0c10; }
+  body::before { display: none; }
+}
+
+/* ---------- 2. #app: absolute centre theo TÂM, scale từng trục ----------
+   Trước đây JS ghi thẳng chuỗi transform; nay chỉ việc gán hai biến
+   --scale-x / --scale-y nên công thức căn giữa nằm lại một chỗ ở CSS.
+   Bỏ transition .15s: giữa cơn chuyển tiếp thì getBoundingClientRect()
+   trả về kích thước CHƯA xong, phép đổi tọa độ chuột→canvas bị lệch. */
+#app {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform-origin: center center;
+  transform: translate(-50%, -50%) scale(var(--scale-x, 1), var(--scale-y, 1));
+  transition: none;
+}
+
+/* ---------- 3. DẢI PHIM CẢM ỨNG ĐÓNG Đáy ----------
+   vh = chiều cao viewport tính khi thanh URL ĐÃ TẮT → 46vh thừa ra đúng
+   phần thanh URL, joystick bị đẩy một phần xuống dưới mép nhìn thấy. dvh +
+   env(safe-area-inset-bottom) đặt cụm nút ngay trên vùng an toàn (notch
+   dưới, vạch Home của iPhone). */
+.mobile-touch-bar.body-docked {
+  height: 46vh;
+  height: 46dvh;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.mobile-touch-bar.body-docked #joystick { bottom: calc(26px + env(safe-area-inset-bottom, 0px)); }
+.mobile-touch-bar.body-docked #act-dock { bottom: calc(30px + env(safe-area-inset-bottom, 0px)); }
+/* Chạm một lần là ăn: mục tiêu ít nhất 44px theo chuẩn cảm ứng. */
+.mobile-touch-bar.body-docked .big-act.primary { width: 92px !important; height: 92px !important; font-size: 30px !important; }
+/* V32: icon nút Tương tác giờ nằm trong <i class="b-ico"> để Khu 5 đổi sang
+   🕊 bằng CSS mà không phải sửa lại textContent của nút. .big-act span vốn
+   thu chữ xuống 8.5px (nhãn), nên icon phải giữ cỡ gốc của nút. */
+.big-act .b-ico { font-style: normal; line-height: 1.05; }

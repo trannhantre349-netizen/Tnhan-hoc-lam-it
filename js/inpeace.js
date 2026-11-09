@@ -332,9 +332,15 @@ const IP_PRAY_MAX = 120;                               // giữ 120 lời nguy�
 
 /* Chế độ Zen: danh sách DOM cần tắt trong Thánh Đường (đo trực tiếp trên
    localhost ngày 2026-11-02 — id nào không tồn tại thì vòng lặp bỏ qua).
-   #quest-hud đã bị CSS giữ display:none !important nên không cần liệt kê. */
+   #quest-hud đã bị CSS giữ display:none !important nên không cần liệt kê.
+   V32: bỏ 'touch' ra khỏi danh sách. Đó là cụm Joystick + nút Tương tác —
+   ẩn luôn trên điện thoại thì người chơi đứng chết giữa đại lộ, không đi
+   được, không ngồi ghế / thắp nến / quỳ lạy / thỉnh giáo được nữa. Máy
+   không có cảm ứng vẫn được khung hình sạch như cũ (ipTouchZen quyết định
+   theo loại thiết bị). */
 const IP_HUD_IDS = ['player-card', 'buff-bar', 'dock-tr', 'minimap-box',
-  'quest-panel', 'area-panel', 'ap-open-btn', 'chat-box', 'touch'];
+  'quest-panel', 'area-panel', 'ap-open-btn', 'chat-box'];
+const IP_TOUCH_ID = 'touch';
 
 /* ---------- 2. TRẠNG THÁI ---------- */
 const IP_ST = {
@@ -1016,13 +1022,24 @@ function ipCss() {
     '#ip-log .ip-e:last-child{border-bottom:0}' +
     '#ip-log .ip-d{display:block;font-size:10px;color:rgba(200,180,146,.55);margin-bottom:2px;font-style:normal}' +
     '#ip-log .ip-none{padding:12px 2px;font-size:12px;font-style:italic;text-align:center;color:rgba(214,196,164,.48)}' +
-    /* Nút rời Thánh Đường: KHÔNG mang class .modal — openModalEl() đếm mọi .modal
-       đang display:flex và engine sẽ dừng update() luôn (người chơi đứng cứng). */
-    '#ip-leave{position:absolute;right:10px;top:10px;z-index:120;display:none;padding:5px 11px;' +
-    'border-radius:9px;cursor:pointer;background:rgba(10,8,5,.42);border:1px solid rgba(214,178,110,.26);' +
-    'color:rgba(236,222,196,.5);font-family:' + IP_SERIF + ';font-size:11.5px;transition:opacity .25s,background .25s}' +
-    '#ip-leave.on{display:block}' +
-    '#ip-leave:hover{color:#fff4e0;border-color:rgba(255,222,164,.6);background:rgba(22,15,9,.72)}';
+    /* V33: nút rời Thánh Đường KHÔNG còn là thẻ HTML — xem ipExitDraw(). */
+    /* V32 — PHIM CẢM ỨNG ZEN: hiện nhưng trầm xuống cho hợp ánh nến, đậm lên
+       khi đang kéo joystick. Icon ✋ → 🕊 vàng mờ, vẫn đúng chức năng phím [E]. */
+    '#touch.ip-zen{opacity:1}' +
+    '#touch.ip-zen #joystick{opacity:.35;transition:opacity .3s ease}' +
+    '#touch.ip-zen.ip-drag #joystick,#touch.ip-zen #joystick:active{opacity:.7}' +
+    '#touch.ip-zen #joy-base{background:radial-gradient(circle at 35% 30%,rgba(255,240,214,.26),rgba(120,92,48,.16));' +
+    'border-color:rgba(255,222,164,.32);box-shadow:0 6px 18px rgba(0,0,0,.45),inset 0 2px 8px rgba(255,236,190,.14)}' +
+    '#touch.ip-zen #joy-base::before,#touch.ip-zen #joy-base::after{background:rgba(255,222,164,.16)}' +
+    '#touch.ip-zen #joy-knob{background:radial-gradient(circle at 35% 28%,#f7e6c2,#c79a4e 66%,#8d6526);' +
+    'border-color:rgba(255,240,214,.5);box-shadow:0 6px 16px rgba(0,0,0,.5),inset 0 2px 4px rgba(255,246,226,.4)}' +
+    '#touch.ip-zen #m-act .b-ico{display:none}' +
+    '#touch.ip-zen #m-act::before{content:"🕊";line-height:1.05}' +
+    '#touch.ip-zen .big-act.primary{background:radial-gradient(circle at 35% 28%,rgba(255,238,206,.34),' +
+    'rgba(199,154,78,.30) 62%,rgba(94,72,36,.42));border-color:rgba(255,222,164,.42);' +
+    'box-shadow:0 0 20px rgba(255,206,132,.20),0 8px 20px rgba(0,0,0,.5);color:rgba(255,241,215,.86)}' +
+    '#touch.ip-zen .big-act.primary span{color:rgba(255,241,215,.72);font-size:8px;' +
+    'text-shadow:0 1px 3px rgba(0,0,0,.55)}';
   document.head.appendChild(s);
 }
 
@@ -1135,8 +1152,13 @@ function ipLogCount() {
   if (sw) sw.textContent = '📖 Sổ nguyện ước của bạn (' + ipPrayers().length + ')';
 }
 function ipPrayClose() {
+  /* V33: GỠ HẲN node khỏi DOM, không chỉ display:none. Hộp Lời Nguyện là thẻ
+     .modal DUY NHẤT còn lại của Khu 5 (cần <textarea> nên không thể vẽ bằng
+     canvas) — để nó nằm im trong #app thì openModalEl()/closeAll() vẫn thấy,
+     và mọi class modal-open lại nhân cơ hội đó quay lại. ipKneelTick đã coi
+     "!ov" là hộp đã đóng nên luồng thoát vẫn đúng nguyên vẹn. */
   const ov = document.getElementById('ip-pray');
-  if (ov) ov.style.display = 'none';
+  if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
   try { if (typeof releaseFocus === 'function') releaseFocus(); } catch (e) {}
 }
 
@@ -1219,22 +1241,61 @@ function ipKneelTick(now) {
       S.p.y + 30 - Math.random() * 26, false);
 }
 
-/* ---------- 10b. CHẾ ĐỘ ZEN — DỌN SẠCH HUD ---------- */
-/* Chỉ đụng style.display NỘI TUYẾN và ghi lại giá trị cũ để trả lại y nguyên:
-   không xoá class, không sửa stylesheet — panel nào đang mở/mờ sẵn thì về Khu 1
-   vẫn đúng trạng thái đó. Code khác (syncHUD, updateBuffBar) có bật lại element
-   giữa chừng thì ipZenSync re-assert mỗi frame; giá trị ghi nhớ lấy ở lần BẬT
-   đầu tiên nên lúc khôi phục vẫn đúng như trước khi vào Thánh Đường. */
-function ipLeaveEl() {
-  let b = document.getElementById('ip-leave');
-  if (b) return b;
-  ipCss();
-  b = document.createElement('button');
-  b.type = 'button'; b.id = 'ip-leave';
-  b.textContent = '✕ Rời khỏi Thánh Đường';
-  b.addEventListener('click', ipLeave);
-  (document.getElementById('app') || document.body).appendChild(b);
-  return b;
+/* ---------- 10b. CHẾ ĐỘ ZEN — DỌN SẠCH HUD (KHÔNG DÙNG DOM CHUYỂN CẢNH) ---------- */
+/* V33: QUÉT SẠCH DOM của bản cũ. <div id="ip-cut" class="modal"> và
+   <button id="ip-leave"> là hai thẻ duy nhất mà Khu 5 dựng ra cho việc
+   chuyển cảnh; để lại một thẻ .modal display:flex là openModalEl() thấy →
+   engine bỏ cả khung update (nhân vật cứng đơ giữa fade) và syncHUD gắn
+   body.modal-open/#app.modal-open (CSS FIX PACK 6 + 7c làm mờ rồi tắt hẳn
+   cụm phím cảm ứng). Chuyển cảnh giờ vẽ 100% lên #cv, không còn thẻ nào. */
+function ipDropOldDom() {
+  const ids = ['ip-cut', 'ip-cut-cv', 'ip-leave'];
+  for (let i = 0; i < ids.length; i++) {
+    const e = document.getElementById(ids[i]);
+    if (e && e.parentNode) e.parentNode.removeChild(e);
+  }
+}
+/* Ô ✕ rời Thánh Đường — vẽ bằng Canvas, NEO THEO CỠ THIẾT BỊ THẬT.
+   #app bị scale (0.31 trên điện dọc, 1.8 trên màn 1080p), nên muốn mục tiêu
+   chạm 46px PHẢI nhân với tỉ lệ backing/thiết bị đo từ getBoundingClientRect,
+   chứ không hard-code số pixel khung hình. */
+function ipExitBox() {
+  const r = cv.getBoundingClientRect();
+  const k = (r && r.width) ? cv.width / r.width : 1;
+  const s = 46 * Math.max(.35, Math.min(6, k));
+  return { x: cv.width - s - 10 * k, y: 10 * k, w: s, h: s, k: k };
+}
+/* Zen chỉ đụng style.display NỘI TUYẾN và ghi lại giá trị cũ để trả lại y
+   nguyên: không xoá class, không sửa stylesheet — panel nào đang mở/mờ sẵn thì
+   về Khu 1 vẫn đúng trạng thái đó. Code khác (syncHUD, updateBuffBar) có bật
+   lại element giữa chừng thì ipZenSync re-assert mỗi frame. */
+/* V32: Thánh Đường vẫn CẦN phim cảm ứng trên thiết bị chạm — chỉ ẩn HUD
+   (máu, level, nhiệm vụ, minimap, cửa hàng, chat). Máy bàn phím/chuột thì
+   giấu luôn cho khung hình sạch. */
+function ipIsTouch() {
+  try {
+    if ('ontouchstart' in window) return true;
+    if ((navigator.maxTouchPoints || 0) > 0) return true;
+    if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return true;
+  } catch (e) {}
+  return false;
+}
+function ipTouchZen() {
+  const el = document.getElementById(IP_TOUCH_ID);
+  if (!el) return;
+  if (ipIsTouch()) {
+    /* Trước đây từng bị ẩn (đang ở máy không cảm ứng mà cắm thêm màn chạm):
+       trả đúng giá trị nội tuyến cũ, không xoá class của cảnh khác. */
+    if (el.style.display === 'none') el.style.display = IP_ST.hud[IP_TOUCH_ID] || '';
+    el.classList.add('ip-zen');
+    /* #joystick không tự thêm class khi đang kéo → đọc state của ui.js. */
+    el.classList.toggle('ip-drag', !!(window.joy && window.joy.active));
+    return;
+  }
+  el.classList.remove('ip-zen', 'ip-drag');
+  if (el.style.display === 'none') return;
+  if (!(IP_TOUCH_ID in IP_ST.hud)) IP_ST.hud[IP_TOUCH_ID] = el.style.display;
+  el.style.display = 'none';
 }
 function ipZenOn() {
   if (IP_ST.zen) return;
@@ -1245,8 +1306,8 @@ function ipZenOn() {
     IP_ST.hud[id] = el.style.display;
     el.style.display = 'none';
   }
-  const b = ipLeaveEl();
-  if (b) b.classList.add('on');
+  ipTouchZen();
+  ipDropOldDom();          // phòng khi tab này còn sót thẻ của bản cũ
 }
 function ipZenOff() {
   if (!IP_ST.zen) return;
@@ -1256,8 +1317,8 @@ function ipZenOff() {
     if (el) el.style.display = IP_ST.hud[id];
   }
   IP_ST.hud = {};
-  const b = document.getElementById('ip-leave');
-  if (b) b.classList.remove('on');
+  const t = document.getElementById(IP_TOUCH_ID);
+  if (t) t.classList.remove('ip-zen', 'ip-drag');
 }
 function ipZenSync() {
   if (S.scene === 'INPEACE') {
@@ -1266,6 +1327,9 @@ function ipZenSync() {
       const el = document.getElementById(IP_HUD_IDS[i]);
       if (el && el.style.display !== 'none') el.style.display = 'none';
     }
+    /* re-assert cả cụm phím: F12 đổi Device Toolbar / xoay máy giữa chừng là
+       display + class phải theo lại loại thiết bị ngay frame đó. */
+    if (IP_ST.zen) ipTouchZen();
   } else if (IP_ST.zen) ipZenOff();
 }
 /* Lối ra thứ hai (ngoài [E] ở mép dưới và phím Esc): một nút mờ duy nhất. */
@@ -1320,6 +1384,7 @@ function ipWorld() {
   IP_ST.fly = null; IP_MOTES.length = 0; ipPrayClose(); ipNpcReset();
   IP_AMB.length = 0;
   ipZenOff();
+  ipPrayClose(); ipDropOldDom();      // về Khu 1 là KHÔNG còn gì của Khu 5 trên DOM
   setZone('1. THÀNH PHỐ', 'Network City (World Map)');
   ipBgmStop();
   if (typeof sfxPlay === 'function') sfxPlay('pop', .8);
@@ -1327,67 +1392,96 @@ function ipWorld() {
   try { if (typeof saveGame === 'function') saveGame(); } catch (e) {}
 }
 
-/* ---------- 12. CẮT CẢNH TỐI MÀU NẾN ---------- */
-function ipCutOv() {
-  let ov = document.getElementById('ip-cut');
-  if (!ov) {
-    ov = document.createElement('div');
-    ov.id = 'ip-cut'; ov.className = 'modal';
-    ov.innerHTML = '<canvas id="ip-cut-cv" width="960" height="600" style="width:100%;height:100%;display:block"></canvas>';
-    /* V31: cắt cảnh vẽ trong KHÔNG GIAN BACKING (khung 960 mà #app đã rộng
-       1067 thì chữ bị béo 11%). Gán width theo khung nhìn thật cho khớp cảnh. */
-    const cc = ov.querySelector('#ip-cut-cv');
-    if (cc && typeof VS !== 'undefined') cc.width = VS.backW();
-    document.getElementById('app').appendChild(ov);
-  }
-  ov.style.cssText = 'display:flex;position:absolute;inset:0;padding:0;margin:0;background:transparent;' +
-    'border:0;border-radius:0;z-index:160;transform:none;animation:none;overflow:hidden';
-  return ov;
-}
-function ipCutFrame(c, p, cap) {
-  /* đường cong tam giác: 0 → 1 (nửa đầu) → 0 (nửa sau), làm mượt bằng cosine */
-  const a = .5 - .5 * Math.cos(Math.PI * 2 * p);
-  /* V31: mọi phép đo theo canvas thật, không hard-code 960/480 nữa. */
-  const W = c.canvas.width, H = c.canvas.height, cx = W / 2;
-  c.clearRect(0, 0, W, H);
-  c.fillStyle = 'rgba(16,11,5,' + (a * .97).toFixed(3) + ')'; c.fillRect(0, 0, W, H);
-  const cg = c.createRadialGradient(cx, 300, 40, cx, 300, 520);
-  cg.addColorStop(0, 'rgba(196,142,64,' + (a * .34).toFixed(3) + ')');
-  cg.addColorStop(1, 'rgba(26,18,8,0)');
-  c.fillStyle = cg; c.fillRect(0, 0, W, H);
-  if (cap && a > .55) {
-    c.globalAlpha = Math.min(1, (a - .55) / .3);
-    c.textAlign = 'center';
-    c.font = 'italic 400 22px ' + IP_SERIF;
-    c.lineWidth = 6; c.strokeStyle = 'rgba(0,0,0,.9)'; c.strokeText(cap, cx, 296);
-    c.fillStyle = '#f4e7c8'; c.fillText(cap, cx, 296);
-    c.font = '400 13px ' + IP_SERIF; c.fillStyle = '#c9aa66';
-    c.fillText('🕊      🕊', cx, 326);
-    c.globalAlpha = 1; c.textAlign = 'left';
-  }
-}
+/* ---------- 12. CHUYỂN CẢNH — 100% VẼ BẰNG CANVAS (V33) ---------- */
+/* Bản cũ dựng <div id="ip-cut" class="modal"> ôm một <canvas> riêng phủ lên
+   #app. Ba tai hại của nó:
+     1) openModalEl() thấy .modal display:flex → engine.js:1384 trả luôn, cả
+        khung update bị bỏ: nhân vật cứng đơ, đồng hồ buff đứng yên suốt 0.9s.
+     2) syncHUD đọc cùng hàm đó → gắn body.modal-open + #app.modal-open →
+        FIX PACK 6/7c (style.css:1574,1597) làm opacity:0 + pointer-events:none
+        cho .mobile-touch-bar: đúng lúc vào/ra cảnh thì điện thoại MẤT phím.
+     3) Fade chạy bằng requestAnimationFrame RIÊNG. Tab bị ẩn (mobile chuyển
+        app, Chrome throttle) là rAF ngừng chạy → finish() không bao giờ được
+        gọi, tấm canvas đen 97% treo lại trên interface: chính là "cột đen dựng
+        đứng" người chơi báo.
+   Nay không còn một thẻ HTML nào: một lớp phủ đen vẽ trực tiếp lên #cv theo
+   KHÔNG GIAN BACKING (setTransform 1,1 → phủ khít cv.width × cv.height, kể cả
+   khi widescreen đang giãn bằng kx), caption căn đúng giữa cv.width/2. */
 function ipFade(cap, then) {
   if (IP_CUT) return;
-  const ov = ipCutOv(), cv = document.getElementById('ip-cut-cv'), c = cv.getContext('2d');
-  const t0 = performance.now();
-  let fired = false;
-  IP_CUT = { ov: ov };
-  const finish = () => {
-    IP_CUT = null;
-    ov.style.cssText = 'display:none';
-    c.clearRect(0, 0, c.canvas.width, c.canvas.height);
-    if (!fired) { fired = true; try { then(); } catch (e) {} }
-  };
-  const step = () => {
-    if (!IP_CUT) return;
-    if (ov.style.display !== 'flex') { finish(); return; }        // người chơi bấm ESC
-    const p = Math.min(1, (performance.now() - t0) / IP_FADE);
-    ipCutFrame(c, p, cap);
-    if (!fired && p >= .5) { fired = true; try { then(); } catch (e) {} }
-    if (p < 1) requestAnimationFrame(step); else finish();
-  };
-  requestAnimationFrame(step);
+  ipDropOldDom();
+  IP_CUT = { cap: cap, then: then, t0: performance.now(), fired: false };
 }
+/* Nhịp fade đi trong khung update CHUNG của game (không rAF riêng), tính bằng
+   đồng hồ thật nên mở/sau tab bị ẩn vẫn chạy đúng một lần, không treo hình. */
+function ipCutStep(now) {
+  if (!IP_CUT) return;
+  const p = Math.min(1, (now - IP_CUT.t0) / IP_FADE);
+  if (!IP_CUT.fired && p >= .5) {
+    IP_CUT.fired = true;
+    try { IP_CUT.then(); } catch (e) {}          // đổi cảnh đúng lúc tối nhất
+  }
+  if (p >= 1) { IP_CUT = null; return; }
+  /* Như bản cũ (engine đứng khung update): người chơi không đi thêm lúc màn
+     hình đang tối, nếu không sẽ lộn xộn vị trí ngay khi cảnh đích hiện ra. */
+  try { if (typeof resetInput === 'function') resetInput(); } catch (e) {}
+}
+function ipCutDraw(now) {
+  if (!IP_CUT) return;
+  const p = Math.min(1, (now - IP_CUT.t0) / IP_FADE);
+  const a = .5 - .5 * Math.cos(Math.PI * 2 * p);  // 0 → 1 (giữa) → 0
+  const W = cv.width, H = cv.height;
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = 'rgba(0, 0, 0, ' + a.toFixed(3) + ')';
+  ctx.fillRect(0, 0, W, H);
+  if (IP_CUT.cap && a > .5) {
+    ctx.globalAlpha = Math.min(1, (a - .5) / .3);
+    ctx.textAlign = 'center';
+    ctx.font = 'italic 400 22px ' + IP_SERIF;
+    ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,.9)';
+    ctx.strokeText(IP_CUT.cap, W / 2, H / 2);
+    ctx.fillStyle = '#f4e7c8'; ctx.fillText(IP_CUT.cap, W / 2, H / 2);
+    ctx.font = '400 13px ' + IP_SERIF; ctx.fillStyle = '#c9aa66';
+    ctx.fillText('🕊      🕊', W / 2, H / 2 + 30);
+    ctx.globalAlpha = 1; ctx.textAlign = 'left';
+  }
+  ctx.restore();
+}
+/* ✕ RỜI THÁNH ĐƯỜNG — vẽ trên canvas, không thẻ HTML. Cùng một chỗ với [E] ở
+   cổng đá: đây là lối ra một chạm cho ngón cái, cỡ luôn bằng 46px THIẾT BỊ. */
+function ipExitDraw() {
+  if (S.scene !== 'INPEACE' || IP_CUT) return;
+  const b = ipExitBox();
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = .55;
+  if (typeof izb === 'function') izb(b.x, b.y, b.w, b.h, b.w * .28, 'rgba(10,8,5,.66)');
+  else { ctx.fillStyle = 'rgba(10,8,5,.66)'; ctx.fillRect(b.x, b.y, b.w, b.h); }
+  ctx.strokeStyle = 'rgba(255,222,164,.42)'; ctx.lineWidth = Math.max(1, b.k);
+  ctx.beginPath();
+  ctx.arc(b.x + b.w / 2, b.y + b.h / 2, b.w * .46, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(240,228,200,.92)';
+  ctx.font = '700 ' + Math.round(b.h * .42) + 'px ' + (typeof IZF !== 'undefined' ? IZF : 'sans-serif');
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('✕', b.x + b.w / 2, b.y + b.h / 2 + b.h * .02);
+  ctx.restore();
+}
+/* Chạm vào ✕: quy client → pixel BACKING đúng từng trục (sx ≠ sy vẫn chuẩn),
+   rồi mới tới hitbox — toạ độ thế giới của ghế/nến/Sư Thầy không liên quan. */
+if (typeof cv !== 'undefined' && cv) cv.addEventListener('pointerdown', function (e) {
+  try {
+    if (S.scene !== 'INPEACE' || IP_CUT) return;
+    const r = cv.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    const b = ipExitBox();
+    const px = (e.clientX - r.left) * cv.width / r.width;
+    const py = (e.clientY - r.top) * cv.height / r.height;
+    if (px < b.x || px > b.x + b.w || py < b.y || py > b.y + b.h) return;
+    ipLeave();
+  } catch (err) {}
+});
 
 /* ---------- 13. UPDATE ---------- */
 /* Nhánh nến: tàn lửa bay đều đều từ cụm đã thắp (dt-biến, không phụ thuộc FPS). */
@@ -1590,8 +1684,12 @@ propCollides = function (sc, nx, ny) {
 
 const _ipOldUpd = update;
 update = function () {
-  _ipOldUpd.apply(this, arguments);
   const now = performance.now();
+  /* Fade chạy TRƯỚC engine: cảnh đích được bật ngay khung tối nhất để engine
+     kịp resetInput + clampWalkY với Scene mới, và người chơi đứng yên suốt
+     lượt tối (đúng như bản DOM cũ vẫn pause nguyên khung update). */
+  try { ipCutStep(now); } catch (e) {}
+  _ipOldUpd.apply(this, arguments);
   const dt = Math.min(.05, (now - (IP_ST.last || now)) / 1000);
   IP_ST.last = now;
   try { ipUpdate(dt, now); } catch (e) {}
@@ -1600,7 +1698,11 @@ update = function () {
 const _ipOldRnd = render;
 render = function () {
   _ipOldRnd();
-  if (S.scene === 'INPEACE' && !IP_CUT) { try { ipScene(); } catch (e) {} }
+  /* ipScene KHÔNG còn bị chặn lúc fade: dưới lớp đen đang mờ dần người chơi
+     phải thấy Thánh Đường thật của Scene đích, không phải nền trống trơn. */
+  if (S.scene === 'INPEACE') { try { ipScene(); } catch (e) {} }
+  try { ipExitDraw(); } catch (e) {}
+  try { ipCutDraw(performance.now()); } catch (e) {}
 };
 
 const _ipOldAct = doAction;

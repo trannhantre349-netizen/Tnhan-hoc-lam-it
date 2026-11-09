@@ -2915,10 +2915,32 @@ const _updAmb = update; update = function () { try { ambStep(); } catch (e) {} _
 const _rndAmb = render; render = function () { _rndAmb(); try { ambBubbles(); } catch (e) {} };
 
 /* ============ TỰ ĐỘNG CANH GIỮA MÀN HÌNH (DỌC VÀ NGANG) ============ */
+/* V32: mọi phép đo khung đi qua visualViewport khi trình duyệt có nó.
+   innerHeight/innerWidth vẫn tính cả dải bị THANH URL che, nên trên điện
+   thoại khung game bị đẩy tụt lên mép trên và hàng nút dưới nằm lún dưới
+   thanh URL. visualViewport trả đúng vùng người chơi đang trông thấy.
+   Hàm này đặt ở game.js (nạp trước widescreen.js) để cả hai bên dùng
+   chung một số đo — sx/sy lệch nhau là quay lại vệt đen bên hông. */
+function fitVp() {
+  const vv = window.visualViewport;
+  const iw = window.innerWidth || 0, ih = window.innerHeight || 0;
+  const vw = (vv && vv.width) || 0, vh = (vv && vv.height) || 0;
+  /* MÀN DỌC: lấy visualViewport — nó trừ thanh URL, nếu không khung bị dồn
+     lên mép trên và hàng nút lún xuống dưới thanh URL.
+     MÀN NGANG (V33): bắt buộc lấy innerWidth/innerHeight. Ở chế độ giả lập
+     mobile, visualViewport trả chiều cao ĐÃ TRỪ thanh công cụ (400 → ~290),
+     VIRTUAL_W phình theo tỉ lệ sai đó và khung bị co lại 0.484 thay vì
+     0.667 → hai dải đen khổng lồ bên hông. innerWidth/innerHeight CHÍNH LÀ
+     khung 824x400 mà người chơi thấy trong DevTools. */
+  const portraitGuess = ih > iw ? true : (vh > vw && iw === 0);
+  const w = Math.max(1, portraitGuess ? (vw || iw) : (iw || vw));
+  const h = Math.max(1, portraitGuess ? (vh || ih) : (ih || vh));
+  return { w: w, h: h, portrait: h > w };
+}
+
 function fitApp() {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  const isPortrait = h > w;
+  const v = fitVp();
+  const w = v.w, h = v.h;
   const app = document.getElementById('app');
   const touch = document.getElementById('touch');
   if (!app) return;
@@ -2926,25 +2948,43 @@ function fitApp() {
      rồi mới scale). vh của viewport vô nghĩa với khung đã scale → modal tràn khỏi
      #app và overflow:hidden cắt mất header + ✕. */
   app.style.setProperty('--shop-h', Math.round(Math.min(h * 0.82, 600 * 0.92)) + 'px');
+  /* V32: co giãn ghi qua hai biến CSS --scale-x/--scale-y (công thức
+     translate(-50%,-50%) scale(...) nằm ở css/mobile.css), không còn chuỗi
+     transform hard-code trong JS. */
 
-  if (isPortrait) {
-    // Màn hình dọc: Khung game ở trên, phím bấm ở dưới
-    const scale = Math.min((w - 12) / 960, (h * 0.48) / 600);
+  if (v.portrait) {
+    /* Màn hình dọc: khung game ở trên, dải phím cảm ứng dock dưới.
+       Dải đó cao 46dvh (xem .mobile-touch-bar.body-docked) → căn KHUNG GIỮA
+       KHOẢNG CÒN LẠI phía trên thay vì dán sát mép trên như bản cũ; vẫn chừa
+       18px để không bao giờ chạm hàng nút. */
+    const band = h * 0.46;
+    const avail = Math.max(120, h - band);
+    const scale = Math.min((w - 12) / 960, (avail - 18) / 600);
+    app.style.setProperty('--scale-x', scale);
+    app.style.setProperty('--scale-y', scale);
     app.style.left = '50%';
-    app.style.top = `${10 + (300 * scale)}px`;
-    app.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    app.style.top = Math.round(avail / 2) + 'px';
     if (touch) touch.classList.add('portrait-mode');
   } else {
-    // Màn hình ngang: Khung game canh giữa toàn màn hình
-    const scale = Math.min((w - 16) / 960, (h - 16) / 600);
+    /* V33: màn ngang = hai trục ĐỘC LẬP theo đúng khung thiết bị, không dùng
+       Math.min nữa (Math.min ở 824x400 ra 0.64 → khung 960 chỉ hiển thị 614px,
+       thừa ~210px nền đen hai bên). Divisor ở đây là 960 vì game.js chưa biết
+       gì về khung nhìn mở rộng; js/widescreen.js chạy sau sẽ viết lại chính
+       xác theo VIRTUAL_W thật đang gắn trên #cv. */
+    app.style.setProperty('--scale-x', w / 960);
+    app.style.setProperty('--scale-y', h / 600);
     app.style.left = '50%';
     app.style.top = '50%';
-    app.style.transform = `translate(-50%, -50%) scale(${scale})`;
     if (touch) touch.classList.remove('portrait-mode');
   }
 }
 window.addEventListener('resize', fitApp);
 window.addEventListener('orientationchange', () => setTimeout(fitApp, 200));
+/* V32: thanh URL tụt lên / thụt xuống CHỈ đổi visualViewport, không bắn
+   resize trên window → phải nghe riêng nó, nếu không khung đứng yên ở
+   số đo cũ và bị che mất dải dưới. */
+if (window.visualViewport && window.visualViewport.addEventListener)
+  window.visualViewport.addEventListener('resize', fitApp);
 
 /* ============ ĐIỀU KHIỂN CẢM ỨNG ĐỘC LẬP (KHÔNG BỊ LỖI BLUR) ============ */
 
