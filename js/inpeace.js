@@ -330,6 +330,11 @@ const IP_SEAT_PEACE_MS = 5 * 60 * 1000;  // cộng thêm 5 phút cho buff 🕊
 const IP_EXIT_CD = .4, IP_ENTER_CD = .25;
 const IP_BOW_HOLD = 2200;
 const IP_JOY_R = 10;
+/* V35 — CẦN ĐIỀU KHIỂN THẬT TRONG KHU 5. IP_JOY_MAX/IP_JOY_DEAD lấy đúng hệ số
+   của ui.js (biên độ núm 34px, vùng chết 9px): kéo chưa qua vùng chết coi như
+   không kéo, kéo hết cỡ mới đạt 1.0. IP_STROLL_K .95 = đi CHẬM hơn ngoài phố
+   vì đường này không dùng SPEED_BOOST — đại lộ tĩnh tâm chỉ có bước thong thả. */
+const IP_JOY_MAX = 34, IP_JOY_DEAD = 9, IP_STROLL_K = .95;
 const IP_PEACE_MS = 10 * 60 * 1000;                    // buff 🕊 10 phút
 const IP_XP = 100;
 /* Ảnh V26 là nội thất CHỤP CHIỀU nên đã tối sẵn; phủ .45 như V25 là thành
@@ -346,7 +351,11 @@ const IP_PRAY_MAX = 120;                               // giữ 120 lời nguy�
    ẩn luôn trên điện thoại thì người chơi đứng chết giữa đại lộ, không đi
    được, không ngồi ghế / thắp nến / quỳ lạy / thỉnh giáo được nữa. Máy
    không có cảm ứng vẫn được khung hình sạch như cũ (ipTouchZen quyết định
-   theo loại thiết bị). */
+   theo loại thiết bị).
+   V35: xác nhận lại bằng TEST THẬT — danh sách này KHÔNG bao giờ được chứa
+   'touch', 'joystick', 'joy-base', 'joy-knob', 'act-dock' hay 'm-act'.
+   ipTouchZen() còn là tuyến phòng thủ cuối: nếu một lớp khác (modal, dock)
+   lỡ để display:none thì nó khôi phục ngay frame đó trên máy có cảm ứng. */
 const IP_HUD_IDS = ['player-card', 'buff-bar', 'dock-tr', 'minimap-box',
   'quest-panel', 'area-panel', 'ap-open-btn', 'chat-box'];
 const IP_TOUCH_ID = 'touch';
@@ -1037,8 +1046,10 @@ function ipCss() {
     /* V32 — PHIM CẢM ỨNG ZEN: hiện nhưng trầm xuống cho hợp ánh nến, đậm lên
        khi đang kéo joystick. Icon ✋ → 🕊 vàng mờ, vẫn đúng chức năng phím [E]. */
     '#touch.ip-zen{opacity:1}' +
-    '#touch.ip-zen #joystick{opacity:.35;transition:opacity .3s ease}' +
-    '#touch.ip-zen.ip-drag #joystick,#touch.ip-zen #joystick:active{opacity:.7}' +
+    '#touch.ip-zen #joystick,#touch.ip-zen #act-dock{opacity:.45;' +
+    'transition:opacity .3s ease}' +
+    '#touch.ip-zen.ip-drag #joystick,#touch.ip-zen #joystick:active,' +
+    '#touch.ip-zen #m-act:active{opacity:.7}' +
     '#touch.ip-zen #joy-base{background:radial-gradient(circle at 35% 30%,rgba(255,240,214,.26),rgba(120,92,48,.16));' +
     'border-color:rgba(255,222,164,.32);box-shadow:0 6px 18px rgba(0,0,0,.45),inset 0 2px 8px rgba(255,236,190,.14)}' +
     '#touch.ip-zen #joy-base::before,#touch.ip-zen #joy-base::after{background:rgba(255,222,164,.16)}' +
@@ -1312,6 +1323,12 @@ function ipTouchZen() {
 function ipZenOn() {
   if (IP_ST.zen) return;
   IP_ST.zen = 1;
+  /* V35: style Zen của cụm cảm ứng (#touch.ip-zen) nằm trong stylesheet của
+     Khu 5 — trước đây thẻ đó chỉ được nạp lúc mở hộp Lời Nguyện (ipCss ở 1124),
+     nên vào Thánh Đường bằng điện thoại LẦN ĐẦU là cụm nút vẫn mang opacity
+     .65 gốc chứ không phải .45 tĩnh tâm. Gọi sớm: ipCss tự bỏ qua nếu thẻ đã
+     tồn tại, không bao giờ nhân bản stylesheet. */
+  ipCss();
   for (let i = 0; i < IP_HUD_IDS.length; i++) {
     const id = IP_HUD_IDS[i], el = document.getElementById(id);
     if (!el) continue;
@@ -1666,6 +1683,7 @@ function ipRelease() {
   else if (st === 'kneel') ipEnd();
   else return false;
   IP_ST.exitCd = IP_EXIT_CD;
+  ipTapOff();          // V35: đứng dậy là hết đích chạm, kẻo vừa đứng đã tự bước đi
   return true;
 }
 
@@ -1679,6 +1697,7 @@ function ipUpdate(dt, now) {
   if (S.scene !== 'INPEACE' && (IP_ST.st || IP_ST.kn || IP_ST.si)) {
     IP_ST.st = ''; IP_ST.kn = 0; IP_ST.si = 0; IP_ST.pew = null;
     IP_ST.fly = null; IP_MOTES.length = 0; ipPrayClose();
+    ipTapOff(); IP_AN = null;      // V35: ra khỏi Khu 5 là xoá sạch đích chạm
     /* rời cảnh giữa lúc cúi lạy (fast-travel, ESC): ipNpcTick KHÔNG chạy nữa
        nên ba bạn sẽ đứng nguyên thế cúi mãi tới lần vào sau → dựng lại hết. */
     ipNpcReset();
@@ -1703,7 +1722,7 @@ function ipUpdate(dt, now) {
          ipCamStep lúc đang khoá: camera phải đứng yên suốt lúc quỳ/ngồi, nếu
          không edge-scroll sửa lại S.p.x vừa khoá và người chơi trôi về mép. */
       if (IP_ST.st) { S.p.x = IP_ST.kx; S.p.y = IP_ST.ky; S.p.moving = false; }
-    } else ipCamStep();
+    } else { ipAnalogStep(); ipTapStep(); ipCamStep(); }
     /* V34: exitCd còn = 0.4s vừa đứng dậy → không gợi ý ghế/nến/NPC, kẻo cú
        chạm thoát ngồi lại xuống ngay lập tức. */
     if (IP_ST.st || IP_ST.exitCd > 0 || openModalEl()) { targetAct = null; return; }
@@ -1783,6 +1802,155 @@ doAction = function () {
   }
   _ipOldAct.apply(this, arguments);
 };
+
+/* ---------- 14b. BA ĐƯỜNG ĐI CHO MỘT NGÓN CÁI (V35) ---------- */
+/* Trên iPhone, đại lộ Khu 5 có ba cách bước và cả ba đổ về cùng một hàm
+   ipStepBy(): (1) kéo cần Joystick — vector THẬT, kéo nhẹ đi nhẹ; (2) chạm lên
+   sàn — IP_TAP, tự huỷ ngay khi cần hoặc phím lên tiếng; (3) phím cứng của
+   PC — engine tự lo, không đụng một dòng nào.
+   Lý do phải tự tính bước: engine chỉ nhận touchDir kiểu BẬT/TẮT (ui.js đặt
+   bit hễ núm vượt 9px), nên kéo 10px và kéo hết cỡ cho ra cùng một tốc độ
+   2.6*1.4 px/frame — ngoài phố thì ổn, trong nơi tĩnh tâm thì thành chạy. */
+let IP_AN = null;                        // vector núm của frame đang tính
+const IP_TAP = { on: false, wx: 0, y: 0, stuck: 0 };
+
+function ipTapOff() { IP_TAP.on = false; IP_TAP.stuck = 0; }
+
+function ipKx() {
+  try {
+    if (typeof VS !== 'undefined' && VS && typeof VS.kx === 'function') return VS.kx() || 1;
+  } catch (e) {}
+  return 1;
+}
+
+/* Độ kéo đã chuẩn hoá 0..1 sau khi trừ vùng chết; null = không kéo. */
+function ipJoyVec() {
+  try {
+    const j = window.joy;
+    if (!j || !j.active) return null;
+    const dx = j.dx || 0, dy = j.dy || 0, d = Math.hypot(dx, dy);
+    if (d <= IP_JOY_DEAD) return null;
+    const m = Math.min(1, (d - IP_JOY_DEAD) / (IP_JOY_MAX - IP_JOY_DEAD));
+    return { x: dx / d * m, y: dy / d * m, m: m };
+  } catch (e) { return null; }
+}
+
+/* Chạy TRƯỚC engine: gỡ 4 bit touchDir để engine không đi HỘ (nếu không thì
+   cộng dồn hai bước = đi nhanh gấp đôi), giữ vector cho ipAnalogStep dùng ở
+   KHUNG HÌNH SAU engine. Bàn phím đi bằng held() nên vẫn nguyên. */
+function ipJoyPreStep() {
+  IP_AN = null;
+  if (S.scene !== 'INPEACE' || IP_CUT || IP_ST.st || !ipIsTouch()) return;
+  const v = ipJoyVec();
+  if (!v) return;
+  touchDir.up = touchDir.down = touchDir.left = touchDir.right = false;
+  IP_AN = v;
+  ipTapOff();
+}
+
+/* Một bước chân có kiểm tra chặn, dùng lại đúng bộ máy của engine:
+   propCollides đã được Khu 5 viết lại theo toạ độ THẾ GIỚI (1735) và
+   SCENE_WALK.INPEACE kẹp dải đi bộ. */
+function ipStepBy(dx, dy, faceX) {
+  const x0 = S.p.x, y0 = S.p.y, w = SCENE_WALK.INPEACE;
+  if (dx !== 0) { const nx = x0 + dx; if (!propCollides('INPEACE', nx, y0)) S.p.x = nx; }
+  if (dy !== 0) {
+    const ny = Math.max(w.minY, Math.min(w.maxY, y0 + dy));
+    if (canWalk('INPEACE', ny) && !propCollides('INPEACE', S.p.x, ny)) S.p.y = ny;
+  }
+  const moved = (S.p.x !== x0 || S.p.y !== y0);
+  if (moved) {
+    S.p.moving = true; S.p.step++;
+    if (faceX) S.p.dir = faceX > 0 ? 1 : -1;
+  }
+  return moved;
+}
+
+function ipStrollSpd() { return (S.p.spd || 2.6) * IP_STROLL_K; }
+
+function ipAnalogStep() {
+  const v = IP_AN; IP_AN = null;
+  if (!v || S.scene !== 'INPEACE' || IP_CUT || IP_ST.st) return;
+  const s = ipStrollSpd();
+  ipStepBy(v.x * s, v.y * s, v.x);
+}
+
+/* Đích chạm tính bằng THẾ GIỚI nên đi qua mép khung, camera cuộn (_camStep)
+   vẫn đưa tới đúng nơi. 45 khung bí lối = tường thật → tự buông đích. */
+function ipTapStep() {
+  if (!IP_TAP.on || S.scene !== 'INPEACE') return;
+  if (IP_CUT || IP_ST.st || openModalEl()) { ipTapOff(); return; }
+  const dx = IP_TAP.wx - ipWx(), dy = IP_TAP.y - S.p.y;
+  const d = Math.hypot(dx, dy);
+  if (d < 5) { ipTapOff(); return; }
+  const s = Math.min(ipStrollSpd(), d);
+  if (ipStepBy(dx / d * s, dy / d * s, dx)) IP_TAP.stuck = 0;
+  else if (++IP_TAP.stuck > 45) ipTapOff();
+}
+
+/* Đích chạm hiện bằng một vòng sáng mờ ngay mặt sàn — vẽ theo KHÔNG GIAN LOGIC
+   nhân kx của widescreen nên màn ngang giãn vẫn đúng chỗ đã chạm. */
+function ipTapDraw() {
+  if (!IP_TAP.on || S.scene !== 'INPEACE' || IP_CUT) return;
+  const cam = Math.max(0, Math.min(IP_CAM_MAX, window._camX || 0));
+  ctx.save();
+  ctx.setTransform(ipKx(), 0, 0, 1, 0, 0);
+  ctx.globalAlpha = .5;
+  ctx.strokeStyle = 'rgba(255,222,164,.8)';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.ellipse(IP_TAP.wx - cam, IP_TAP.y + 30, 13, 4.6, 0, 0, 6.2832);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/* Chạm sàn = bước tới chạm. Lọc kỹ ba thứ: ô ✕ rời Thánh Đường (đã có
+   listener riêng ở 1496), các phần tử DOM nổi trên canvas (joystick, nút
+   Tương tác, dock — sự kiện của chúng không xuống tới #cv), và vùng KHÔNG
+   phải sàn đi bộ. Toạ độ chân = wy, hệ neo của nhân vật = wy - 30. */
+if (typeof cv !== 'undefined' && cv) cv.addEventListener('pointerdown', function (e) {
+  try {
+    if (S.scene !== 'INPEACE' || IP_CUT || IP_ST.st) return;
+    if (typeof openModalEl === 'function' && openModalEl()) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const r = cv.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    const bx = (e.clientX - r.left) * cv.width / r.width;
+    const by = (e.clientY - r.top) * cv.height / r.height;
+    const b = ipExitBox();
+    if (bx >= b.x && bx <= b.x + b.w && by >= b.y && by <= b.y + b.h) return;
+    const wy = by, wx = bx / ipKx() + (window._camX || 0);
+    if (wy < IP_FEET_TOP - 18 || wy > IP_FEET_BOT + 12) return;
+    if (wx <= IP_X0 + 6 || wx >= IP_X1 - 6) return;
+    IP_TAP.on = true; IP_TAP.stuck = 0;
+    IP_TAP.wx = Math.max(IP_X0 + 8, Math.min(IP_X1 - 8, wx));
+    IP_TAP.y = Math.max(SCENE_WALK.INPEACE.minY,
+      Math.min(SCENE_WALK.INPEACE.maxY, wy - 30));
+  } catch (err) {}
+});
+
+/* Người chơi tự lái (phím hoặc cần) thì đích chạm phải buông ngay lập tức —
+   [E]/Space là phím tương tác, không phải lệnh lái, nên nằm ngoài danh sách. */
+window.addEventListener('keydown', function (e) {
+  try {
+    if (!IP_TAP.on || S.scene !== 'INPEACE' || openModalEl()) return;
+    if (/^(Key[WASD]|Arrow(Up|Down|Left|Right))$/.test(e.code)) ipTapOff();
+  } catch (err) {}
+}, true);
+
+/* Hai lớp bọc PHÍA TRÊN bọc cũ (section 14) — không sửa bọc cũ: pre-step phải
+   chạy trước engine, vòng vẽ đích chạy sau khi ipScene đã dựng xong nền. */
+const _ipOldUpd35 = update;
+update = function () {
+  try { ipJoyPreStep(); } catch (e) {}
+  return _ipOldUpd35.apply(this, arguments);
+};
+const _ipOldRnd35 = render;
+render = function () {
+  _ipOldRnd35.apply(this, arguments);
+  try { ipTapDraw(); } catch (e) {}
+};
+
 
 /* Đàn thỏ thiên thần KHÔNG vào nhà thờ: Khu 5 là nơi tĩnh tâm tuyệt đối.
    bunnyHerd() = BUN.herd[S.scene] || spawnBunnies() → trả về mảng RỖNG
