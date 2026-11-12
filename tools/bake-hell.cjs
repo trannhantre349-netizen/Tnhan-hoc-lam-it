@@ -131,12 +131,15 @@ function biggestBlob(cut, cw, ch) {
 }
 
 /* Lớp RGBA của ô: màu nguyên bản, alpha = 255 cho nét đặc, = mức feather cho
-   viền sát nền. */
-function makeLayer(im, cw, ch, cut) {
+   viền sát nền. PHẢI cộng (x0,y0) khi đọc nguồn — cutCell trả mặt nạ theo ô
+   nhưng bộ nhớ đệm layer chỉ rộng cw×ch, nên thiếu offset là mọi ô bị tô bằng
+   màu của ô (0,0) (bài học 2026-11-12: Quỷ Vương + Tiểu Quỷ ra bóng xanh lơ
+   Ma Trơi, còn nền trắng của ô gốc biến thành thân trắng viền dày). */
+function makeLayer(im, x0, y0, cw, ch, cut) {
   const W = im.w, d = im.d;
   const lay = new Float64Array(cw * ch * 4);
   for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
-    const i = y * cw + x, o = i * 4, s = (y * W + x) * 4;
+    const i = y * cw + x, o = i * 4, s = ((y0 + y) * W + (x0 + x)) * 4;
     if (cut.bg[i]) continue;
     lay[o] = d[s]; lay[o + 1] = d[s + 1]; lay[o + 2] = d[s + 2];
     lay[o + 3] = cut.keep[i] > 0 ? cut.keep[i] : 255;
@@ -199,7 +202,7 @@ async function bake(srcRel, outRel, cols, rows, CW, CH, foot, fitH, minPx) {
         console.error('  Ô r' + r + 'c' + c + ' KHÔNG thấy nhân vật (px=' + (blob ? blob.n : 0) + ')');
         process.exit(1);
       }
-      const lay = makeLayer(im, cw, ch, cut);
+      const lay = makeLayer(im, x0, y0, cw, ch, cut);
       const g = blitCell(png, c * CW, r * CH, CW, CH, foot, lay, cw, ch, blob, fitH);
       lines.push(`r${r}c${c} nguồn ${blob.bx1 - blob.bx0 + 1}x${blob.by1 - blob.by0 + 1} px=${blob.n} -> ${g.dw}x${g.dh} @đáy${foot - 1}`);
     }
