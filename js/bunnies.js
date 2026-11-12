@@ -334,6 +334,9 @@ class BunnyNPC {
 /* ---------- dựng bầy: cảnh nào nạp xong là tự có thỏ, quay lại giữ nguyên bầy cũ ---------- */
 function spawnBunnies(count) {
   const sc = S.scene;
+  /* V41: Khu 6 Địa Ngục không nuôi thỏ — chặn ngay chỗ sinh để BUN.herd['HELL']
+     không bao giờ tồn tại, mọi vòng lặp đọc bầy đều thấy rỗng. */
+  if (sc === 'HELL') return [];
   const n = Math.max(0, Math.min(MAX_BUNNIES, count == null
     ? BUN_MIN + ((Math.random() * (BUN_MAX - BUN_MIN + 1)) | 0) : count | 0));
   const herd = [];
@@ -349,6 +352,7 @@ function bunnyBudget() { return BUN.eff; }
 function bunnyStep() {
   const now = performance.now(), dt = Math.min(.05, (now - (BUN.t || now)) / 1000);
   BUN.t = now;
+  if (S.scene === 'HELL') return;                        // V41: Địa Ngục — không thỏ, không hiệu ứng rơi đồ
   BUN.ms += (dt * 1000 - BUN.ms) * .06;
   /* Vùng chết 20..24ms: dưới 20ms (~50fps) thì thả thêm thỏ, trên 24ms thì ẩn
      bớt. Ngưỡng hồi phục phải CAO HƠN 16.7ms — máy 60fps chạy đúng 16.7ms mỗi
@@ -464,6 +468,7 @@ function bunFloat(f) {
   ctx.restore();
 }
 function bunOverlay() {
+  if (S.scene === 'HELL') return;                        // V41: bong bóng thỏ không có chỗ dưới Âm Phủ
   const cam = bunCam();
   ctx.save();
   if (cam) ctx.translate(-cam, 0);                      // thỏ & hiệu vẽ theo toạ độ thế giới
@@ -493,7 +498,7 @@ ambList = function () { return _bunHideAmb ? [] : _ambListBun(); };
 
 const _sprBun = drawSprite;
 drawSprite = function (x, y, r = 'p') {
-  if (r !== 'p' || !IMG.bunny || S.scene === 'WORLD') return _sprBun(x, y, r);
+  if (r !== 'p' || !IMG.bunny || S.scene === 'WORLD' || S.scene === 'HELL') return _sprBun(x, y, r);
   const pf = y + 30, eff = bunnyBudget(), B = [], A = [], herd = bunnyHerd();
   for (let i = 0; i < herd.length; i++) if (herd[i].lod <= eff && bunOnScreen(herd[i])) B.push(herd[i]);
   try { _ambListBun().forEach(n => A.push(n)); } catch (e) {}

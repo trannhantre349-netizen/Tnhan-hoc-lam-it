@@ -2775,3 +2775,66 @@ function ipNpcReset() {
   }
   IP_PUFF.length = 0;
 }
+
+/* ---------- 17. NÚT 🗺️ BẢN ĐỒ DỊCH CHUYỂN NHANH (V39) ---------- */
+/* Nút 🗺️ HTML (#wm-badge) là CON của #minimap-box, mà Zen Khu 5 ẩn cả cụm
+   minimap theo thiết kế → trong Thánh Đường không còn đường mở bản đồ. Nút mới
+   vẽ bằng Canvas, hình học suy ra thẳng từ ipExitBox() nên hai ô vuông cùng cỡ,
+   🗺️ luôn nằm TRÁI ✕ một khe 8px THIẾT BỊ — không chồng nhau trên máy bàn lẫn
+   iPhone 13 vì cả hai cùng nhân tử lệ backing k. */
+function ipMapBox() {
+  const e = ipExitBox();
+  return { x: e.x - e.w - 8 * e.k, y: e.y, w: e.w, h: e.h, k: e.k };
+}
+function ipMapDraw() {
+  if (S.scene !== 'INPEACE' || IP_CUT) return;
+  const b = ipMapBox();
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = .6;
+  if (typeof izb === 'function') izb(b.x, b.y, b.w, b.h, b.w * .28, 'rgba(10,8,5,.66)');
+  else { ctx.fillStyle = 'rgba(10,8,5,.66)'; ctx.fillRect(b.x, b.y, b.w, b.h); }
+  ctx.strokeStyle = 'rgba(255,222,164,.5)'; ctx.lineWidth = Math.max(1, b.k);
+  ctx.beginPath();
+  ctx.arc(b.x + b.w / 2, b.y + b.h / 2, b.w * .46, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(240,228,200,.95)';
+  ctx.font = '700 ' + Math.round(b.h * .44) + 'px ' + (typeof IZF !== 'undefined' ? IZF : 'sans-serif');
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('🗺️', b.x + b.w / 2, b.y + b.h / 2 + b.h * .02);
+  ctx.restore();
+}
+/* Bấm/chạm 🗺️ = mở bản đồ NGAY tại chỗ, không rời cảnh (nhờ vậy thẻ KHU 5 mới
+   hiện "📍 ĐANG Ở ĐÂY"). Listener này đăng ký SAU listener "chạm sàn = bước tới
+   chạm" (1907) trên cùng #cv nên nó đã kịp đặt đích chạm cho cú bấm này — phải
+   ipTapOff() để nhân vật không tự bước đi sau lưng người chơi. V34 đã có sẵn
+   đường dọn tư thế khi rời cảnh bằng fast-travel (ipUpdate), nên đang ngồi/quỳ
+   mà mở bản đồ rồi đi khu khác vẫn an toàn. */
+if (typeof cv !== 'undefined' && cv) cv.addEventListener('pointerdown', function (e) {
+  try {
+    if (S.scene !== 'INPEACE' || IP_CUT) return;
+    if (typeof openModalEl === 'function' && openModalEl()) return;
+    if (typeof openWorldMap !== 'function') return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const r = cv.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    const px = (e.clientX - r.left) * cv.width / r.width;
+    const py = (e.clientY - r.top) * cv.height / r.height;
+    const b = ipMapBox();
+    /* Nới 6px THIẾT BỊ ra TRÁI/TRÊN/DƯỚI cho dễ chạm trên iPhone 13; biên PHẢI
+       giữ nguyên vì ngay sát đó là ✕ — nới vào ✕ là một chạm thành hai việc. */
+    const pad = 6 * b.k;
+    if (px < b.x - pad || px > b.x + b.w || py < b.y - pad || py > b.y + b.h + pad) return;
+    ipTapOff();
+    openWorldMap();
+  } catch (err) {}
+});
+
+/* Vẽ ở ngoài cùng chuỗi render của Khu 5 (wrapper mới bọc wrapper cũ) nên 🗺️
+   không bị nền đại lộ hay ảnh Sư Thầy che; phim chuyển cảnh IP_CUT tự ẩn nó. */
+const _ipOldRndMap = render;
+render = function () {
+  const out = _ipOldRndMap.apply(this, arguments);
+  try { ipMapDraw(); } catch (e) {}
+  return out;
+};

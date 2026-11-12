@@ -5284,6 +5284,15 @@ const shipReady = () => !!S.ship;
    sở hữu nó — từ đó bản đồ cho bay dù chưa tới Lv.6. */
 function shipUnlock() { if (!S.ship) { S.ship = true; saveGame(); } }
 
+/* Ảnh nền thẻ Khu 6: bản baked là nguồn chính; nếu cache/PWA chưa kịp có thì
+   thử ảnh gốc (Chrome tự đoán định dạng WebP đổi tên .png nên vẫn vẽ được). */
+let WM_HELL_FB = null;
+function wmHellBg() {
+  if (IMG.hellBg && IMG.hellBg.width) return IMG.hellBg;
+  if (!WM_HELL_FB) { WM_HELL_FB = new Image(); WM_HELL_FB.src = 'assets/img/hell_bg.png'; }
+  return (WM_HELL_FB.width && WM_HELL_FB.complete) ? WM_HELL_FB : null;
+}
+
 function wmSpots() {
   const city = STAGES.filter(s => !!S.missionsDone[s.id]).length;
   const wins = ['win0', 'win1', 'win2'].filter(k => !!S.missionsDone[k]).length;
@@ -5297,7 +5306,13 @@ function wmSpots() {
     { id: 'LUNAR_BASE', no: 'KHU 3', icon: '🌙', name: 'CĂN CỨ MẶT TRĂNG',
       sub: '10 trạm ải không gian · boss Trung tâm Quản trị hệ thống lõi',
       prog: '🚀 ' + luDone() + '/' + LUNAR_STAGES.length + ' trạm',
-      img: IMG.lunar_bg, tint: '#a855f7', need: true }
+      img: IMG.lunar_bg, tint: '#a855f7', need: true },
+    { id: 'INPEACE', no: 'KHU 5', icon: '🕊️', name: 'THÁNH ĐƯỜNG TĨNH TÂM',
+      sub: 'Hành lang tĩnh lặng — ngồi ghế thiền định, thắp nến nguyện ước và thỉnh giáo Sư Thầy',
+      prog: '🕊️ Không gian thư giãn Zen', img: IMG.ipBg, tint: '#f59e0b' },
+    { id: 'HELL', no: 'KHU 6', icon: '🔥', name: 'ĐỊA NGỤC TRẦN NHÂN',
+      sub: 'Âm ty rực lửa — hóa thân Quỷ Đỏ Nam/Nữ, tuần tra yêu ma và bái kiến Quỷ Vương',
+      prog: '👹 Hóa thân Quỷ Đỏ', img: wmHellBg(), tint: '#ef4444' }
   ];
 }
 /* Chỉ Khu 3 có điều kiện; hai khu đầu luôn đi được. */
@@ -5333,7 +5348,11 @@ function wmCard(spot) {
   const lock = wmLock(spot), here = S.scene === spot.id;
   const edge = here ? '#4ade80' : (lock ? '#3b4a68' : spot.tint);
   const c = document.createElement('div');
-  c.style.cssText = 'flex:1;min-width:0;display:flex;flex-direction:column;border-radius:14px;' +
+  /* flex:0 0 calc((100% - 28px)/3): % tính theo BỀ RỘNG KHUNG NHÌN của dải cuộn
+     chứ không theo bề rộng nội dung, nên đúng 3 thẻ luôn nằm gọn trong modal và
+     thẻ thứ 4–5 chờ sẵn bên phải cho người chơi vuốt. */
+  c.style.cssText = 'flex:0 0 calc((100% - 28px) / 3);min-width:0;scroll-snap-align:start;' +
+    'display:flex;flex-direction:column;border-radius:14px;' +
     'overflow:hidden;cursor:' + (lock ? 'not-allowed' : 'pointer') + ';border:2px solid ' + edge +
     ';background:linear-gradient(180deg,#111e38,#0a1222);transition:transform .12s ease,box-shadow .12s ease' +
     (lock ? ';filter:saturate(.5) brightness(.85)' : '');
@@ -5376,14 +5395,69 @@ function renderWorldMap(body) {
          shipReady() ? '#4ade80' : '#94a3b8', '#101f2b', shipReady() ? '#2f7a52' : '#33445e');
   body.appendChild(hud);
 
+  /* Dải thẻ lướt ngang. Hàng cũ ép 5 thẻ vào 748px nên mỗi thẻ teo còn ~140px,
+     chữ vỡ từng dòng; đổi sang 3 thẻ một màn + vuốt sang phải, thẻ 4–5 chờ sẵn. */
+  const railWrap = document.createElement('div');
+  railWrap.style.cssText = 'position:relative';
   const grid = document.createElement('div');
-  grid.style.cssText = 'display:flex;gap:12px;align-items:stretch';
+  grid.id = 'wm-rail';
+  grid.style.cssText = 'display:flex;gap:14px;align-items:stretch;overflow-x:auto;' +
+    'overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;' +
+    'padding:0 2px 8px;scrollbar-width:thin;scrollbar-color:#3b5bb5 transparent';
   wmSpots().forEach(s => grid.appendChild(wmCard(s)));
-  body.appendChild(grid);
+  railWrap.appendChild(grid);
+  body.appendChild(railWrap);
+
+  function wmRailSync() {
+    const max = grid.scrollWidth - grid.clientWidth, sl = grid.scrollLeft;
+    const on = sl > 2, onEnd = sl < max - 2;
+    aL.style.opacity = on ? '.5' : '0'; aL.style.pointerEvents = on ? 'auto' : 'none';
+    aR.style.opacity = onEnd ? '.5' : '0'; aR.style.pointerEvents = onEnd ? 'auto' : 'none';
+  }
+  /* Hai mũi tên chỉ để giúp PC lướt (chuột không vuốt được); mờ để không giành
+     mắt với thẻ, hết chỗ cuộn thì tự tàng hình. */
+  function wmArrow(left, dir) {
+    const b = document.createElement('div');
+    b.textContent = dir < 0 ? '◀' : '▶';
+    b.title = dir < 0 ? 'Lướt sang trái' : 'Lướt sang phải';
+    b.style.cssText = 'position:absolute;top:100px;' + (left ? 'left:-9px;' : 'right:-9px;') +
+      'width:28px;height:44px;border-radius:99px;display:flex;align-items:center;' +
+      'justify-content:center;background:rgba(9,17,34,.88);border:1.5px solid #3b5bb5;' +
+      'color:#a9c6ff;font-size:13px;font-weight:800;cursor:pointer;opacity:.5;' +
+      'user-select:none;transition:opacity .12s ease;z-index:3';
+    b.onmouseenter = () => { b.style.opacity = '1'; };
+    b.onmouseleave = () => { wmRailSync(); };
+    b.onclick = () => {
+      const step = (grid.firstChild ? grid.firstChild.offsetWidth : 240) + 14;
+      grid.scrollLeft += dir * step;
+      setTimeout(wmRailSync, 330);
+    };
+    railWrap.appendChild(b);
+    return b;
+  }
+  const aL = wmArrow(true, -1), aR = wmArrow(false, 1);
+
+  /* Con lăn chuột → lướt ngang, nhưng CHỈ khi dải còn chỗ theo hướng cuộn; chạm
+     mép rồi thì trả wheel lại cho modal để còn đọc dòng ghi chú phía dưới. */
+  grid.addEventListener('wheel', function (e) {
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    const max = grid.scrollWidth - grid.clientWidth;
+    if (max <= 2) return;
+    if ((e.deltaY < 0 && grid.scrollLeft <= 1) || (e.deltaY > 0 && grid.scrollLeft >= max - 1)) return;
+    e.preventDefault();
+    grid.scrollLeft += e.deltaY;
+    wmRailSync();
+  }, { passive: false });
+  grid.addEventListener('scroll', wmRailSync);
+  /* scrollend = thời điểm trình duyệt ĐÃ Ghim xong thẻ (swipe quán tính kéo dài
+     hơn một nhịp), cập nhật lại độ mờ mũi tên cho đúng trạng thái cuối. */
+  grid.addEventListener('scrollend', wmRailSync);
+  wmRailSync();
 
   const note = document.createElement('p');
   note.style.cssText = 'margin-top:12px;font-size:10.5px;color:#8ea3c4;line-height:1.65';
   note.innerHTML = '💡 <b>Dịch chuyển nhanh</b> giữ nguyên nhân vật, trang phục, Coin, XP và tiến trình ải. ' +
+    '<b>Vuốt ← →</b> (hoặc con lăn chuột / hai mũi tên bên khung) để xem đủ 5 khu. ' +
     'Riêng <b style="color:#c4b5fd">KHU 3 · Căn cứ Mặt Trăng</b> cần <b>Lv.' + WM_SHIP_LV + '</b> ' +
     '<i>hoặc</i> một lần tự tay bấm <b>[E]</b> tại <b>Bãi Đáp Phi Thuyền</b> ở quảng trường Khu 1 — bay xong là Phi thuyền được ghi nhận vĩnh viễn, hết khoá.';
   body.appendChild(note);
@@ -5405,6 +5479,42 @@ function wmToStreet() {
   showToast('🛣️ Ra tới Phố Ngoài — tiệm sửa máy và bàn cài Win ở ngay đây.');
   beep(380); saveGame();
 }
+/* Rời Thánh Đường bằng bản đồ thì KHÔNG đi qua ipWorld() — mà ipWorld mới là
+   chỗ tắt nhạc thiền, gỡ HUD Zen và xoá DOM sót của Khu 5. Tự làm ba việc đó
+   ở đây, nếu không sang khu khác vẫn còn tiếng nhạc + mảnh DOM Khu 5 lơ lửng. */
+function wmLeaveInpeace() {
+  if (S.scene !== 'INPEACE') return;
+  try {
+    if (typeof ipZenOff === 'function') ipZenOff();
+    if (typeof ipBgmStop === 'function') ipBgmStop();
+    if (typeof ipDropOldDom === 'function') ipDropOldDom();
+  } catch (e) {}
+}
+/* Cùng một bài cho Khu 6: hell.js ẩn #minimap-box/#dock-tr/#quest-panel bằng
+   inline style. Nếu mang nguyên trạng thái đó sang Khu 5 thì ipZenOn ghi nhầm
+   'none' vào bộ nhớ HUD của nó, và minimap biến mất vĩnh viễn sau này.
+   hudSync() chỉ chịu trả HUD khi KHÔNG ở Khu 6, nên đổi cảnh tạm rồi gọi. */
+function wmLeaveHell(id) {
+  if (S.scene !== 'HELL' || id === 'HELL') return;
+  try {
+    if (window.HELL && typeof window.HELL.hudSync === 'function') {
+      const keep = S.scene; S.scene = '';
+      window.HELL.hudSync();
+      S.scene = keep;
+    }
+  } catch (e) {}
+}
+function wmToInpeace() {
+  if (typeof ipEnter !== 'function') { showToast('🕊️ Khu 5 chưa nạp xong — thử lại sau nhé.'); return; }
+  ipEnter();
+  /* ipEnter thả chân tại world 120 (an toàn tuyệt đối); bản đồ đưa ra đầu hành
+     lang 150 cho giống lối đi bộ, nhưng chỉ khi cột cổng không chiếm chỗ đó. */
+  if (typeof propCollides !== 'function' || !propCollides('INPEACE', 140, S.p.y)) S.p.x = 140;
+}
+function wmToHell() {
+  if (typeof hlEnter !== 'function') { showToast('🔥 Khu 6 chưa nạp xong — thử lại sau nhé.'); return; }
+  hlEnter();
+}
 /* Bấm thẻ trên bản đồ: kiểm điều kiện, đóng modal rồi đặt nhân vật vào khu.
    Lên Mặt Trăng đi qua luLaunch để còn xem đoạn phim phóng 2 giây. */
 function wmGo(id) {
@@ -5418,7 +5528,10 @@ function wmGo(id) {
     return;
   }
   closeWorldMap();
+  wmLeaveInpeace(); wmLeaveHell(id);
   if (id === 'LUNAR_BASE') { shipUnlock(); luLaunch(); return; }
+  if (id === 'INPEACE') { wmToInpeace(); return; }
+  if (id === 'HELL') { wmToHell(); return; }
   if (id === 'STREET') wmToStreet(); else wmToWorld();
 }
 
@@ -5536,45 +5649,55 @@ const LQM_G1 = {
   stars(g) { const el = MGX.t - g.t0; return el <= 45 ? 3 : el <= 80 ? 2 : 1; }
 };
 
-/* ---------- ② ĐIỀU ÁP LÀM MÁT LÕI SERVER (kéo thanh + xả áp) ---------- */
+/* ---------- ② HẠ NHIỆT LÕI SERVER 1 CHẠM (bấm thân cột hoặc nút ❄️) ---------- */
 const LQM_G2 = {
   init(g, t) {
-    g.t0 = t; g.win = false; g.s = [1.5, 1.5, 1.5, 1.5];
-    g.p = [0.7, 2.1, 3.6, 5.0]; g.q = [1.3, 0.4, 2.8, 4.4];
-    g.T = [52, 52, 52, 52]; g.prog = 0; g.lastVent = -99; g.drag = -1; g.inb = true;
+    g.t0 = t; g.win = false;
+    g.T = [52, 52, 52, 52];
+    g.rate = [3.4, 4.6, 3.0, 4.1];   // °C/giây — cố định lúc mở ải, không dao động theo frame
+    g.tap = [-9, -9, -9, -9];
+    g.prog = 0; g.nOk = 4; g.ok = true; g.lastVent = -99;
   },
   tick(g, t, dt) {
+    g.nOk = 0;
     for (let i = 0; i < 4; i++) {
-      const storm = 36 + 16 * Math.sin(0.45 * t + g.p[i]) + 4 * Math.sin(1.15 * t + g.q[i]);
-      g.T[i] += (30 + storm - 4.6 * g.s[i] - g.T[i]) * Math.min(1, 0.5 * dt);
+      g.T[i] = Math.min(92, g.T[i] + g.rate[i] * dt);
+      if (g.T[i] >= 35 && g.T[i] <= 75) g.nOk++;
     }
-    g.inb = g.T.every(v => v >= 40 && v <= 65);
-    g.prog = lqClamp(g.prog + (g.inb ? 13 : -14) * dt, 0, 100);
+    g.ok = g.nOk >= 2;
+    if (g.ok) g.prog = Math.min(100, g.prog + 15 * dt);   // chỉ tiến, không bao giờ trừ lùi
     if (g.prog >= 100) g.win = true;
   },
   ptr(g, k, p, t) {
-    if (k === 'down') {
-      if (p.y >= 336 && p.y <= 384 && p.x >= 320 && p.x <= 580) { this.vent(g, t); return; }
-      for (let i = 0; i < 4; i++) {
-        const gx = 50 + i * 170;
-        if (p.x >= gx - 8 && p.x <= gx + 148 && p.y >= 286 && p.y <= 326) g.drag = i;
-      }
+    if (k !== 'down' || g.win) return;
+    const v = lq2Vent();
+    if (p.x >= v.x && p.x <= v.x + v.w && p.y >= v.y && p.y <= v.y + v.h) { this.vent(g, t); return; }
+    for (let i = 0; i < 4; i++) {
+      const c = lq2Col(i);
+      if (p.x >= c.x && p.x <= c.x + c.w && p.y >= c.y && p.y <= c.y + c.h) { this.cool(g, i, t); return; }
     }
-    if (g.drag >= 0 && (k === 'down' || k === 'move')) {
-      const gx = 50 + g.drag * 170;
-      g.s[g.drag] = lqClamp((p.x - gx) / 140 * 5, 0, 5);
-    }
-    if (k === 'up') g.drag = -1;
+  },
+  cool(g, i, t) {
+    g.T[i] = Math.max(45, g.T[i] - 20);
+    g.tap[i] = t;
+    beep(560 + i * 60, 'triangle', .07, .04);
+    mgBurst('lu-mini', 50 + i * 170 + 70, 165, '#67e8f9', 12);
   },
   vent(g, t) {
-    if (t - g.lastVent < 8) { beep(180, 'square', .08, .03); return; }
+    if (t - g.lastVent < 3) { beep(180, 'square', .08, .03); return; }
     g.lastVent = t;
-    for (let i = 0; i < 4; i++) g.T[i] = Math.max(25, g.T[i] - 10);
+    for (let i = 0; i < 4; i++) { g.T[i] = 50; g.tap[i] = t; }
+    g.prog = Math.min(100, g.prog + 25);
+    if (g.prog >= 100) g.win = true;
     beep(300, 'sawtooth', .18, .04);
-    mgBurst('lu-mini', 450, 360, '#67e8f9', 14);
+    mgBurst('lu-mini', 380, 348, '#67e8f9', 18);
   },
-  hint(g) { return '🎚️ Kéo thanh gạch để chỉnh công suất làm mát · Giữ CẢ 4 cột trong 40–65°C để nạp tiến độ · 💨 XẢ ÁP hạ ngay −10°C (hồi 8 giây)'; },
-  stars(g) { const el = MGX.t - g.t0; return el <= 35 ? 3 : el <= 55 ? 2 : 1; }
+  hint(g) {
+    if (g.win) return '✅ Lõi đã mát — tiến độ 100%';
+    return '👆 Bấm vào thân cột MÁY 1–4 (hoặc nút ❄️ LÀM MÁT dưới cột) để hạ ngay −20°C · Cột nóng trên 75°C sẽ đỏ lên · Cần ≥2/4 cột mát là tiến độ chạy '+
+      Math.round(g.prog) + '% · 💨 XẢ ÁP đưa cả 4 cột về 50°C và cộng thẳng +25%';
+  },
+  stars(g) { const el = MGX.t - g.t0; return el <= 9 ? 3 : el <= 16 ? 2 : 1; }
 };
 
 /* ---------- ③ BẮT SÓNG LASER VỆ TINH (ngắm chảo + chỉnh sóng) ---------- */

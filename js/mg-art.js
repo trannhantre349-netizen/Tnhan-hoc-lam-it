@@ -1892,43 +1892,44 @@ function lqDrawCircuit(g, S, t) {
   mgTxt(g, 'Click vào ô để xoay 90° · đưa dòng ⚡ chạm được hộp ĐÍCH', 380, 390, { size: 10.5, color: '#94a3b8', align: 'center' });
 }
 
-/* ② ĐIỀU ÁP LÀM MÁT */
+/* ② HẠ NHIỆT LÕI SERVER 1 CHẠM — hình học dùng chung cho cả vẽ lẫn hit-test */
+function lq2Col(i) { return { x: 50 + i * 170, y: 56, w: 140, h: 262 }; }
+function lq2Vent() { return { x: 260, y: 326, w: 240, h: 46 }; }
 function lqDrawThermal(g, S, t) {
   lqGridBg(g, t);
-  mgTxt(g, 'ĐIỀU ÁP LÀM MÁT LÕI SERVER — GIỮ 40–65°C', 380, 24, { size: 11.5, color: '#7dd3fc', align: 'center' });
+  mgTxt(g, 'HẠ NHIỆT LÕI SERVER 1 CHẠM — VÙNG AN TOÀN 35–75°C', 380, 24, { size: 11.5, color: '#7dd3fc', align: 'center' });
   lqTimeTag(g, S, t);
   mgPanel(g, 50, 36, 660, 16, '#0b1526', '#070d18');
-  g.fillStyle = S.inb ? '#22c55e' : '#f97316';
+  g.fillStyle = S.ok ? '#22c55e' : '#f97316';
   if (S.prog > 0) g.fillRect(52, 38, 656 * S.prog / 100, 12);
-  mgTxt(g, 'TIẾN ĐỘ ĐIỀU ÁP ' + Math.round(S.prog) + '%', 380, 48, { size: 9.5, color: '#e2e8f0', align: 'center' });
-  const yOf = T => 288 - (T - 20) * (218 / 70);
-  const zt = yOf(65), zb = yOf(40);
+  mgTxt(g, 'TIẾN ĐỘ ĐIỀU ÁP ' + Math.round(S.prog) + '%  ·  CỘT ĐANG MÁNG ' + S.nOk + '/4', 380, 48, { size: 9.5, color: '#e2e8f0', align: 'center' });
+  const yOf = T => 262 - (T - 20) * (198 / 70);
+  const zt = yOf(75), zb = yOf(35);
   for (let i = 0; i < 4; i++) {
     const gx = 50 + i * 170, bx = gx + 40, bw = 56;
-    mgPanel(g, bx, 70, bw, 218, '#0b1526', '#070d18');
-    g.fillStyle = 'rgba(34,197,94,.16)'; g.fillRect(bx + 2, zt, bw - 4, zb - zt);
+    mgPanel(g, bx, 64, bw, 198, '#0b1526', '#070d18');
+    g.fillStyle = 'rgba(34,197,94,.15)'; g.fillRect(bx + 2, zt, bw - 4, zb - zt);
     g.strokeStyle = 'rgba(34,197,94,.5)'; g.setLineDash([4, 3]); g.lineWidth = 1;
     g.beginPath(); g.moveTo(bx, zt); g.lineTo(bx + bw, zt); g.moveTo(bx, zb); g.lineTo(bx + bw, zb); g.stroke(); g.setLineDash([]);
-    const T = S.T[i], yT = Math.max(70, Math.min(288, yOf(T)));
-    const inb = T >= 40 && T <= 65;
-    const col = inb ? '#22c55e' : (T > 65 ? '#ef4444' : '#38bdf8');
-    const grd = g.createLinearGradient(0, 288, 0, 70);
+    const T = S.T[i], yT = Math.max(64, Math.min(262, yOf(T)));
+    const inb = T >= 35 && T <= 75;
+    const col = inb ? '#22c55e' : '#ef4444';
+    const grd = g.createLinearGradient(0, 262, 0, 64);
     grd.addColorStop(0, alphaC(col, .22)); grd.addColorStop(1, alphaC(col, .92));
-    g.fillStyle = grd; g.fillRect(bx + 4, yT, bw - 8, 288 - yT);
-    g.strokeStyle = col; g.lineWidth = 2; g.strokeRect(bx + 4.5, yT + .5, bw - 9, 288 - yT);
-    mgTxt(g, Math.round(T) + '°C', gx + 68, 64, { size: 13, align: 'center', color: col, glow: inb ? '#22c55e' : col, glowSize: 6 });
-    mgTxt(g, 'MÁY ' + (i + 1), gx + 68, 304, { size: 10, align: 'center', color: '#cbd5e1' });
-    mgPanel(g, gx, 312, 140, 20, '#0e1a2e', '#081020', 'rgba(120,160,220,.3)');
-    for (let k = 0; k <= 5; k++) { g.fillStyle = 'rgba(148,163,184,.45)'; g.fillRect(gx + k * 28 - .5, 316, 1, 12); }
-    const hx = gx + (S.s[i] / 5) * 140;
-    g.fillStyle = '#67e8f9'; g.shadowColor = '#22d3ee'; g.shadowBlur = 10;
-    rr(g, hx - 7, 308, 14, 28, 6); g.fill(); g.shadowBlur = 0;
-    g.strokeStyle = '#e0f2fe'; g.lineWidth = 1.5; rr(g, hx - 7, 308, 14, 28, 6); g.stroke();
+    g.fillStyle = grd; g.fillRect(bx + 4, yT, bw - 8, 262 - yT);
+    g.strokeStyle = col; g.lineWidth = 2; g.strokeRect(bx + 4.5, yT + .5, bw - 9, 262 - yT);
+    mgTxt(g, Math.round(T) + '°C', gx + 68, 60, { size: 13, align: 'center', color: col, glow: inb ? '#22c55e' : '#ef4444', glowSize: 6 });
+    const fl = Math.max(0, 1 - (t - S.tap[i]) / .5);
+    if (fl > 0) { g.fillStyle = alphaC('#a5f3fc', .4 * fl); rr(g, bx, 64, bw, 198, 9); g.fill(); }
+    mgTxt(g, 'MÁY ' + (i + 1), gx + 68, 278, { size: 10, align: 'center', color: '#cbd5e1' });
+    mgPanel(g, gx + 6, 284, 128, 34, fl > .4 ? '#15506b' : '#0e2a3d', '#081a28', fl > .4 ? 'rgba(103,232,249,.95)' : 'rgba(103,232,249,.45)');
+    mgTxt(g, '❄️ LÀM MÁT', gx + 70, 306, { size: 12, align: 'center', color: fl > .4 ? '#ecfeff' : '#a5f3fc', glow: inb ? null : '#ef4444', glowSize: 8 });
   }
-  const cd = Math.max(0, 8 - (t - S.lastVent));
-  mgPanel(g, 320, 348, 260, 40, cd > 0 ? '#1a2333' : '#0f2f3e', '#0a1420', cd > 0 ? 'rgba(100,116,139,.4)' : 'rgba(103,232,249,.6)');
-  mgTxt(g, cd > 0 ? '💨 XẢ ÁP — hồi ' + cd.toFixed(1) + 's' : '💨 XẢ ÁP  (−10°C toàn dàn)',
-    450, 373, { size: 12, align: 'center', color: cd > 0 ? '#64748b' : '#a5f3fc', glow: cd > 0 ? null : '#22d3ee' });
+  const v = lq2Vent(), cd = Math.max(0, 3 - (t - S.lastVent));
+  mgPanel(g, v.x, v.y, v.w, v.h, cd > 0 ? '#1a2333' : '#0f2f3e', '#0a1420', cd > 0 ? 'rgba(100,116,139,.4)' : 'rgba(103,232,249,.6)');
+  mgTxt(g, cd > 0 ? '💨 XẢ ÁP — hồi ' + cd.toFixed(1) + 's' : '💨 XẢ ÁP  (cả 4 cột về 50°C, +25%)',
+    v.x + v.w / 2, v.y + 29, { size: 11.5, align: 'center', color: cd > 0 ? '#64748b' : '#a5f3fc', glow: cd > 0 ? null : '#22d3ee' });
+  mgTxt(g, 'Chạm thẳng vào cột hoặc nút ❄️ bên dưới để hạ −20°C · Có ≥2 cột mát là tiến độ chạy, không bao giờ bị trừ lùi', 380, 390, { size: 10.5, color: '#94a3b8', align: 'center' });
 }
 
 /* ③ BẮT SÓNG LASER */

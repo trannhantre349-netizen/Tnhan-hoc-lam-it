@@ -8,6 +8,7 @@
    Nguồn (assets/img/, đều là WebP lossy đổi tên .png — 1024x572, nền trắng):
      demon_players_sheet.png  lưới 5 cột x 2 hàng (hàng 0 Quỷ Nam, 1 Quỷ Nữ)
      hell_npcs_sheet.png      lưới 4 cột x 2 hàng (Ma Trơi, Tiểu Quỷ / Quỷ Vương, Vạc)
+     hell_st1..5.png          5 TRẠM IT SUPPORT ÂM PHỦ (V41), mỗi trạm một ảnh
    Đích (assets/img/baked/):
      hell_demon_sheet.png  750x356, ô 150x178 — ĐÚNG BẰNG grid của sheet người
                            (baked/male_sprites.png) nên skins.js vẽ bằng cùng
@@ -18,6 +19,9 @@
                            từng loại mà không lệch chân.
      hell_bg.png           1024x572, nền Địa Ngục chuyển từ WebP sang PNG thật
                            để offline/PWA đọc được và không lem thêm khi vẽ.
+     hell_st1..5.png       5 trạm, GIỮ NGUYÊN khổ ảnh nguồn (không cắt ô, không
+                           dời cụm) — hell.js tự neo ĐÁY ảnh xuống mặt sàn và
+                           tự co theo chiều cao trạm. Xem bakeFlat() bên dưới.
 
    Node không có bộ giải mã WebP builtin, nên ảnh RIFF/WEBP đi qua wasm của
    @jsquash/webp (devDependency trong tools/, không nằm trong gói game).
@@ -227,6 +231,100 @@ async function bake(srcRel, outRel, cols, rows, CW, CH, foot, fitH, minPx) {
   }
 }
 
+/* ---------- 4. TRẠM ÂM PHỦ: tẩy nền trắng TOÀN ẢNH, GIỮ NGUYÊN KHUNG ----------
+   Khác hai sheet ở trên (cắt ô rồi dời cụm lớn nhất vào giữa), 5 trạm
+   hell_st1..5 PHẢI giữ đúng bố cục Artist vẽ — mạch ảnh, dây cáp, nhân vật
+   trong trạm nằm so le nhau, dời về tâm ô là hỏng hết cảnh. Nên ảnh ra cùng
+   khổ ảnh nguồn, chỉ kênh alpha đổi. Flood-fill chạy trên cả ảnh: seed đúng
+   4 biên, feather 2px y hệt hai sheet.
+   SCRIPT IN ra "nền trắng còn sót" = số pixel đặc mà vẫn gần trắng. Nếu con
+   số này lớn và nằm KÍN trong nét vẽ (không thông ra biên) thì đó là nền thật
+   bị kẹt — ví dụ khoảng trống giữa các vòng dây cáp trạm 1. Với loại này ta
+   truyền pocketMin > 0: tẩy thêm mọi cụm trắng thuần có diện tích >= pocketMin
+   mà flood-fill biên không với tới.
+   CHIỀU NGƯỢC: trạm 4 có đĩa hào quang trắng tinh quanh server, trạm 2 có quầng
+   đèn lồng — đó là NÉT VẼ thật, truyền pocketMin (hoặc truyền 0) là thủng hiệu
+   ứng, nên hai trạm đó để mặc định. */
+async function bakeFlat(srcRel, outRel, pocketMin) {
+  const src = path.join(ROOT, srcRel), out = path.join(ROOT, outRel);
+  const im = await readRGBA(src);
+  const W = im.w, H = im.h, d = im.d;
+  const cut = cutCell(im, 0, 0, W, H);
+
+  /* Nhãn cụm trắng thuần CHƯA bị flood-fill biên với tới = nền kẹt trong nét. */
+  const kill = new Uint8Array(W * H);
+  let killed = 0;
+  const pockets = [];
+  if (pocketMin > 0) {
+    const isW = (i) => {
+      const o = i * 4, r = d[o], g = d[o + 1], b = d[o + 2];
+      return Math.min(r, g, b) >= WHITE_MIN && (255 - r) + (255 - g) + (255 - b) <= WHITE_SUM;
+    };
+    const seen = new Uint8Array(W * H);
+    for (let i = 0; i < W * H; i++) {
+      if (cut.bg[i] || !isW(i) || seen[i]) continue;
+      const comp = [];
+      let n = 0, px0 = W, py0 = H, px1 = -1, py1 = -1;
+      comp.push(i); seen[i] = 1;
+      for (let h = 0; h < comp.length; h++) {
+        const p = comp[h], x = p % W, y = (p - x) / W;
+        n++;
+        if (x < px0) px0 = x; if (x > px1) px1 = x;
+        if (y < py0) py0 = y; if (y > py1) py1 = y;
+        const nb = [];
+        if (x > 0) nb.push(p - 1);
+        if (x < W - 1) nb.push(p + 1);
+        if (p >= W) nb.push(p - W);
+        if (p < W * H - W) nb.push(p + W);
+        for (const q2 of nb) if (!cut.bg[q2] && !seen[q2] && isW(q2)) { seen[q2] = 1; comp.push(q2); }
+      }
+      if (n >= pocketMin) {
+        pockets.push(n + '@' + px0 + ',' + py0 + ' ' + (px1 - px0 + 1) + 'x' + (py1 - py0 + 1));
+        killed += n;
+        for (const p of comp) kill[p] = 1;
+      }
+    }
+  }
+
+  const png = new PNG({ width: W, height: H });
+  let op = 0, pocket = 0, bx0 = W, by0 = H, bx1 = -1, by1 = -1;
+  for (let i = 0; i < W * H; i++) {
+    if (cut.bg[i] || kill[i]) continue;
+    const o = i * 4;
+    const a = cut.keep[i] > 0 ? cut.keep[i] : 255;
+    png.data[o] = d[o]; png.data[o + 1] = d[o + 1]; png.data[o + 2] = d[o + 2]; png.data[o + 3] = a;
+    op++;
+    const x = i % W, y = (i - x) / W;
+    if (x < bx0) bx0 = x; if (x > bx1) bx1 = x;
+    if (y < by0) by0 = y; if (y > by1) by1 = y;
+    const mn = Math.min(d[o], d[o + 1], d[o + 2]);
+    if (a === 255 && mn >= WHITE_MIN && (255 - d[o]) + (255 - d[o + 1]) + (255 - d[o + 2]) <= WHITE_SUM) pocket++;
+  }
+  if (!op) { console.error('  ' + path.basename(srcRel) + ': KHÔNG có nét nào — ảnh trắng toàn bộ'); process.exit(1); }
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  fs.writeFileSync(out, PNG.sync.write(png, { deflateLevel: 9 }));
+  console.log('\n' + path.basename(srcRel) + ' ' + W + 'x' + H + ' -> ' + path.relative(ROOT, out));
+  console.log('  đặc ' + op + ' px (' + (100 * op / (W * H)).toFixed(1) + '% ảnh) · bbox ' +
+    (bx1 - bx0 + 1) + 'x' + (by1 - by0 + 1) + ' @(' + bx0 + ',' + by0 + ')' +
+    ' · trắng sót ' + pocket + ' px (' + (100 * pocket / op).toFixed(2) + '% nét)');
+  if (pocketMin > 0) console.log('  tẩy nền kẹt ' + killed + ' px' +
+    (pockets.length ? ' — ' + pockets.join(' | ') : ' (không cụm nào >= ' + pocketMin + ' px)'));
+  if (DEBUG) {
+    const p = path.join(ROOT, 'tmp', 'hell', path.basename(outRel).replace('.png', '_debug.png'));
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    const dbg = new PNG({ width: W, height: H });
+    for (let i = 0; i < W * H; i++) {
+      const a = png.data[i * 4 + 3] / 255;
+      dbg.data[i * 4] = Math.round(png.data[i * 4] * a + 255 * (1 - a));
+      dbg.data[i * 4 + 1] = Math.round(png.data[i * 4 + 1] * a);
+      dbg.data[i * 4 + 2] = Math.round(png.data[i * 4 + 2] * a + 255 * (1 - a));
+      dbg.data[i * 4 + 3] = 255;
+    }
+    fs.writeFileSync(p, PNG.sync.write(dbg));
+    console.log('  ảnh soi: ' + path.relative(ROOT, p));
+  }
+}
+
 (async () => {
   /* fitH=158 đúng bằng SK_GEO.BODY của sheet người -> Quỷ cao ngang người,
      skSheetChibi() không phải đổi một con số nào. */
@@ -235,6 +333,10 @@ async function bake(srcRel, outRel, cols, rows, CW, CH, foot, fitH, minPx) {
   /* Ô NPC giữ nguyên tỉ lệ gốc (fitH=0) — hell.js tự co theo từng loại. */
   await bake('assets/img/hell_npcs_sheet.png', 'assets/img/baked/hell_npcs.png',
     4, 2, 256, 286, 278, 0, 2500);
+  /* V41: 5 TRẠM IT SUPPORT ÂM PHỦ — ảnh rời, giữ nguyên khổ, chỉ tẩy nền trắng.
+     pocketMin=1 riêng trạm 1: nền trắng kẹt trong các vòng dây cáp dưới gầm bàn. */
+  for (let i = 1; i <= 5; i++)
+    await bakeFlat('assets/img/hell_st' + i + '.png', 'assets/img/baked/hell_st' + i + '.png', i === 1 ? 1 : 0);
   const bg = await readRGBA(path.join(ROOT, 'assets/img/hell_bg.png'));
   const bgPng = new PNG({ width: bg.w, height: bg.h });
   bgPng.data = Buffer.from(bg.d);

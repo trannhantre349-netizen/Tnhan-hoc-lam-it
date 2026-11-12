@@ -112,10 +112,18 @@ const ASSETS = {
      đổi ảnh + đổi hàng theo giới tính, không đổi công thức vẽ. */
   hellBg: 'assets/img/baked/hell_bg.png?v=1',
   demonSheet: 'assets/img/baked/hell_demon_sheet.png?v=1',
-  hellNpcs: 'assets/img/baked/hell_npcs.png?v=1'
+  hellNpcs: 'assets/img/baked/hell_npcs.png?v=1',
+  /* V41: 5 TRẠM IT SUPPORT ÂM PHỦ — ảnh rời 1024x1024, giữ nguyên bố cục gốc,
+     chỉ tẩy nền trắng (tools/bake-hell.cjs, hàm bakeFlat). hell.js neo ĐÁY ảnh
+     xuống mặt sàn đá và tự co theo chiều cao trạm, nên không cần biết bbox. */
+  hellSt1: 'assets/img/baked/hell_st1.png?v=1',
+  hellSt2: 'assets/img/baked/hell_st2.png?v=1',
+  hellSt3: 'assets/img/baked/hell_st3.png?v=1',
+  hellSt4: 'assets/img/baked/hell_st4.png?v=1',
+  hellSt5: 'assets/img/baked/hell_st5.png?v=1'
 };
 
-const IMG = { bg: null, chars: {}, avf: null, femSprites: null, maleSprites: null, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null, creatures: null, bunny: null, hvStations: null, hvBg: null, hvBgClean: null, ipBg: null, ipBench: null, ipMonkSheet: null, ipAbbot: null, hellBg: null, demonSheet: null, hellNpcs: null };
+const IMG = { bg: null, chars: {}, avf: null, femSprites: null, maleSprites: null, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null, creatures: null, bunny: null, hvStations: null, hvBg: null, hvBgClean: null, ipBg: null, ipBench: null, ipMonkSheet: null, ipAbbot: null, hellBg: null, demonSheet: null, hellNpcs: null, hellSt1: null, hellSt2: null, hellSt3: null, hellSt4: null, hellSt5: null };
 let assetsReady = false;
 
 /* ============================================================
@@ -301,6 +309,10 @@ function loadOne(src) {
   jobs.push(loadOne(ASSETS.hellBg).then(im => { IMG.hellBg = im; }));
   jobs.push(loadOne(ASSETS.demonSheet).then(im => { IMG.demonSheet = im; }));
   jobs.push(loadOne(ASSETS.hellNpcs).then(im => { IMG.hellNpcs = im; }));
+  /* V41: 5 trạm Âm Phủ — thiếu ảnh nào hell.js vẽ khối trụ đá thay ảnh đó, vẫn
+     bấm [E] sửa máy được bình thường. */
+  for (let i = 1; i <= 5; i++)
+    jobs.push(loadOne(ASSETS['hellSt' + i]).then(im => { IMG['hellSt' + i] = im; }));
 
   Object.entries(ASSETS.chars).forEach(([k, src]) => {
     jobs.push(loadOne(src).then(im => { IMG.chars[k] = im; }));

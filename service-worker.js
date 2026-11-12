@@ -12,7 +12,7 @@
 
    Thêm tài nguyên mới? Cập nhật cả ASSETS.js và PRECACHE bên dưới.
    ============================================================ */
-const CACHE_NAME = 'it-game-v1.83';
+const CACHE_NAME = 'it-game-v1.88';
 
 const PRECACHE = [
   // --- vỏ ứng dụng ---
@@ -106,6 +106,13 @@ const PRECACHE = [
   './assets/img/baked/hell_bg.png?v=1',
   './assets/img/baked/hell_demon_sheet.png?v=1',
   './assets/img/baked/hell_npcs.png?v=1',
+  // --- V41: 5 TRẠM IT SUPPORT ÂM PHỦ (ảnh rời 1024x1024, bakeFlat tẩy nền trắng
+  //     giữ nguyên bố cục). bake: node tools/bake-hell.cjs ---
+  './assets/img/baked/hell_st1.png?v=1',
+  './assets/img/baked/hell_st2.png?v=1',
+  './assets/img/baked/hell_st3.png?v=1',
+  './assets/img/baked/hell_st4.png?v=1',
+  './assets/img/baked/hell_st5.png?v=1',
   './assets/img/icon-113.png',
   './assets/img/baked/npc_lan.png',
   './assets/img/baked/npc_tuan.png',
@@ -134,7 +141,10 @@ const PRECACHE = [
   './assets/audio/bgm.mp3',
   // --- V23 Khu 5: nhạc tĩnh tâm (120s loop khít, tự tổng hợp bằng
   //     node tools/make-inpeace-bgm.cjs) ---
-  './assets/sfx/inpeace_bgm.mp3'
+  './assets/sfx/inpeace_bgm.mp3',
+  // --- V42 Khu 6: nhạc Địa Ngục Trần Nhân (js/hell.js mục 17 fetch + decode
+  //     một lần, loop, duck xuống 16% khi mở hộp) ---
+  './assets/sfx/hell_bgm.mp3'
 ];
 
 /* ---------- install: nạp trước toàn bộ, không để 1 file lỗi chặn cả app ---------- */
