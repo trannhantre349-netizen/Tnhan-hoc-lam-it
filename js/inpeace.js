@@ -321,6 +321,15 @@ const IP_SEAT_MIN_MS = 1500;             // ngồi đủ 1,5 giây mới tính m
 const IP_SEAT_COOL_MS = 60 * 1000;       // mỗi ghế cách nhau 1 phút mới thưởng tiếp
 const IP_SOUL_XP = 10;                   // "+10 Tâm Hồn" khi đứng dậy
 const IP_SEAT_PEACE_MS = 5 * 60 * 1000;  // cộng thêm 5 phút cho buff 🕊
+/* V34 — CHỐNG KẸT TƯ THẾ. thoát 0.4s: một cú bấm vừa đứng dậy KHÔNG được
+   ngồi/quỳ/thắp nến lại ngay (cùng một pointerdown, cùng một nhịp). vào
+   0.25s: phím đang GIỮ hoặc núm đang kéo sẵn không được dựng tư thế lên rồi
+   gỡ xuống trong chính frame đó. 2.2s: cúi lạy / bái kiến tự mở khoá sau khi
+   hoạt ảnh xong và bong bóng lời chúc đã hiện — người chơi không phải tìm
+   phím gỡ khoá. 10px = đúng vùng chết của joystick trong ui.js (DEAD). */
+const IP_EXIT_CD = .4, IP_ENTER_CD = .25;
+const IP_BOW_HOLD = 2200;
+const IP_JOY_R = 10;
 const IP_PEACE_MS = 10 * 60 * 1000;                    // buff 🕊 10 phút
 const IP_XP = 100;
 /* Ảnh V26 là nội thất CHỤP CHIỀU nên đã tối sẵn; phủ .45 như V25 là thành
@@ -352,6 +361,8 @@ const IP_ST = {
   tSit: 0,       // thời điểm bắt đầu ngồi yên (để tính "ngồi đủ lâu")
   kx: 0, ky: 0,  // vị trí bị khoá khi quỳ/ngồi
   t0: 0, last: 0,
+  exitCd: 0,     // giây còn lại: vừa ĐỨNG DẬY → tạm chặn mọi lệnh ngồi/quỳ/lạy lại
+  enterCd: 0,    // giây còn lại: vừa NGỒI XUỐNG → tạm bỏ qua phím kéo dài
   fly: null,     // { txt, lines, t0 } dòng chữ bay lên trần kính màu
   pray: 0,       // số lời nguyện đã gửi trong phiên
   zen: 0,        // 1 = HUD đang bị ẩn
@@ -1170,6 +1181,7 @@ function ipKneel() {
   IP_ST.st = 'down'; IP_ST.kn = 0;
   IP_ST.kx = S.p.x; IP_ST.ky = S.p.y;
   IP_ST.t0 = performance.now();
+  IP_ST.enterCd = IP_ENTER_CD;           // V34: phím đang giữ không được gỡ tư thế ngay
   if (typeof sfxPlay === 'function') sfxPlay('pop', .7);
   beep(320, 'sine', .12, .025);
 }
@@ -1566,6 +1578,7 @@ function ipSit(p) {
   IP_ST.kx = sx - 10 - cam;
   IP_ST.ky = ipSeatY(p) - 30;
   IP_ST.t0 = performance.now(); IP_ST.tSit = 0;
+  IP_ST.enterCd = IP_ENTER_CD;           // V34: phím đang giữ không được gỡ tư thế ngay
   if (typeof sfxPlay === 'function') sfxPlay('pop', .6);
   beep(240, 'sine', .14, .02);
 }
@@ -1624,7 +1637,43 @@ function ipSitTick(now) {
   }
 }
 
+/* ---------- 10d. MỔ KHOÁ TƯ THẾ (V34) ---------- */
+/* vui lòng xem IP_EXIT_CD / IP_ENTER_CD ở phần hằng số. */
+function ipJoyDrag() {
+  try {
+    const j = window.joy;
+    return !!j && j.active &&
+      (Math.abs(j.dx) > IP_JOY_R || Math.abs(j.dy) > IP_JOY_R);
+  } catch (e) { return false; }
+}
+
+/* MỘT đường ra duy nhất cho MỌI tư thế khoá, PC lẫn cảm ứng:
+     sit/seated → ipStand()   (có thưởng Tâm Hồn + cooldown ghế)
+     bow        → ipBowEnd()  (thưởng đã trao lúc cúi)
+     kneel      → ipEnd()     (đóng hộp Lời Nguyện rồi đứng lên)
+   'down'/'rise'/'up'/'stand'/'bowup' là hoạt ảnh ĐANG chạy — để nó tự xong,
+   bấm thêm cũng không cắt ngang được. exitCd bật ra 0.4s để chính cú bấm
+   này không ngồi lại xuống ngay. */
+function ipRelease() {
+  /* openModalEl() chặn TRƯỚC MỌI đường (phím, cần, nút chạm): lúc hộp Lời
+     Nguyện đang mở thì [E]/Space là để gửi bài, không phải để đứng dậy — gỡ
+     khoá ở đây là người chơi mất luôn chữ vừa gõ. */
+  if (IP_CUT || !IP_ST.st || IP_ST.enterCd > 0) return false;
+  if (typeof openModalEl === 'function' && openModalEl()) return false;
+  const st = IP_ST.st;
+  if (st === 'sit' || st === 'seated') ipStand();
+  else if (st === 'bow') ipBowEnd();
+  else if (st === 'kneel') ipEnd();
+  else return false;
+  IP_ST.exitCd = IP_EXIT_CD;
+  return true;
+}
+
 function ipUpdate(dt, now) {
+  /* V34: hai bộ đếm ngược đi bằng dt TIÊM TÍCH (không đọc đồng hồ thật) nên
+     tab bị ẩn rồi mở lại không bị "nợ" cả chục giây khoá. */
+  if (IP_ST.exitCd > 0) IP_ST.exitCd = Math.max(0, IP_ST.exitCd - dt);
+  if (IP_ST.enterCd > 0) IP_ST.enterCd = Math.max(0, IP_ST.enterCd - dt);
   ipZenSync();
   /* Rời cảnh bằng đường vòng (fast-travel, ESC giữa cắt cảnh) → dọn tư thế */
   if (S.scene !== 'INPEACE' && (IP_ST.st || IP_ST.kn || IP_ST.si)) {
@@ -1644,12 +1693,20 @@ function ipUpdate(dt, now) {
   if (IP_CUT) return;
   if (S.scene === 'INPEACE') {
     if (IP_ST.st) {
-      /* khoá di chuyển: engine vừa tính xong vị trí frame này → kẹp lại.
-         KHÔNG chạy ipCamStep: camera phải đứng yên suốt lúc quỳ/ngồi, nếu không
-         edge-scroll sẽ sửa lại S.p.x vừa khoá và người chơi trôi dần về mép. */
-      S.p.x = IP_ST.kx; S.p.y = IP_ST.ky; S.p.moving = false;
+      /* V34 (Mobile): kéo cần Joystick = đứng dậy. joy.dx/dy là độ lệch núm so
+         với tâm (ui.js), vùng chết 9px; KHÔNG cần buông ngón — vừa kéo là tư
+         thế được gỡ ngay frame đó. openModalEl() chặn hộp Lời Nguyện: lúc đó
+         cần nằm sau modal, kéo là để gõ chữ chứ không phải để đi. */
+      if (ipJoyDrag() && !openModalEl()) ipRelease();
+      /* Khoá di chuyển: engine vừa tính xong vị trí frame này → kẹp lại, NHƯNG
+         chỉ khi vẫn còn tư thế (vừa ipRelease xong là đi được liền). KHÔNG chạy
+         ipCamStep lúc đang khoá: camera phải đứng yên suốt lúc quỳ/ngồi, nếu
+         không edge-scroll sửa lại S.p.x vừa khoá và người chơi trôi về mép. */
+      if (IP_ST.st) { S.p.x = IP_ST.kx; S.p.y = IP_ST.ky; S.p.moving = false; }
     } else ipCamStep();
-    if (IP_ST.st || openModalEl()) { targetAct = null; return; }
+    /* V34: exitCd còn = 0.4s vừa đứng dậy → không gợi ý ghế/nến/NPC, kẻo cú
+       chạm thoát ngồi lại xuống ngay lập tức. */
+    if (IP_ST.st || IP_ST.exitCd > 0 || openModalEl()) { targetAct = null; return; }
     ipPrompt();
     return;
   }
@@ -1709,7 +1766,11 @@ const _ipOldAct = doAction;
 doAction = function () {
   if (IP_CUT) return;
   if (S.scene === 'INPEACE') {
-    if (IP_ST.st || !targetAct) return;              // đang quỳ: [E] không làm gì khác
+    /* V34: [E] / nút Tương tác cảm ứng là ĐƯỜNG RA của tư thế khoá, không phải
+       tombol vô dụng. Bản cũ return ngay khi IP_ST.st nên trên điện thoại, một
+       khi ngồi xuống thì bấm gì cũng cứng đơ tại chỗ. */
+    if (IP_ST.st) { ipRelease(); return; }
+    if (!targetAct) return;
     if (targetAct.t === 'ip_pray') { ipKneel(); return; }
     if (targetAct.t === 'ip_bow') { ipBow(IP_NPC[targetAct.i]); return; }
     if (targetAct.t === 'ip_light') { ipLight(IP_CANDLES[targetAct.i] || IP_CANDLES[0]); return; }
@@ -1750,20 +1811,22 @@ drawSprite = function (x, y, r) {
   try { _ipOldSpr(x, y, r); } finally { ctx.restore(); }
 };
 
-/* ĐỨNG DẬY bằng phím bất kỳ trong nhóm di chuyển (WASD / mũi tên / Space).
-   Lắng nghe CAPTURE trước engine.js để nhân vật bật dậy ngay cùng frame;
-   modal lời nguyện đang mở thì BỎ QUA — lúc đó phím là để gõ chữ. */
+/* ĐỨNG DẬY bằng phím bất kỳ trong nhóm di chuyển (WASD / mũi tên / Space) và
+   bằng Escape. Lắng nghe CAPTURE trước engine.js để nhân vật bật dậy ngay cùng
+   frame; modal lời nguyện đang mở thì BỎ QUA — lúc đó phím là để gõ chữ.
+   V34: Escape vào danh sách (PC cần một phím gỡ khoá không làm rời cảnh), và
+   e.repeat bị bỏ qua — giữ phím liên tục KHÔNG được vừa ngồi xuống đã đứng
+   dậy; ipRelease còn tự chặn trong IP_ENTER_CD 0.25s. */
 const IP_STAND_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD',
-  'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'];
+  'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Escape'];
 window.addEventListener('keydown', function (e) {
   try {
     if (S.scene !== 'INPEACE') return;
-    if (IP_ST.st !== 'sit' && IP_ST.st !== 'seated' && IP_ST.st !== 'bow') return;
-    if (openModalEl()) return;
+    if (!IP_ST.st) return;                       // đang đứng tự do → để engine đi
+    if (openModalEl()) return;                   // hộp Lời Nguyện: phím là để gõ chữ
     if (IP_STAND_KEYS.indexOf(e.code) < 0) return;
-    /* Ngồi ghế → ipStand() (có thưởng Tâm Hồn); quỳ lạy cùng bạn → ipBowEnd()
-       (thưởng đã trao LÚC CÚI, đứng dậy chỉ là mở khoá di chuyển). */
-    if (IP_ST.st === 'bow') ipBowEnd(); else ipStand();
+    if (e.repeat) return;
+    ipRelease();
   } catch (err) {}
 }, true);
 
@@ -2375,6 +2438,7 @@ function ipBow(n) {
   const now = performance.now(), wx = ipWx();
   IP_ST.st = 'bow'; IP_ST.kn = 0; IP_ST.npc = n;
   IP_ST.kx = S.p.x; IP_ST.ky = S.p.y; IP_ST.t0 = now;
+  IP_ST.enterCd = IP_ENTER_CD;           // V34: phím đang giữ không được gỡ tư thế ngay
   /* hai bạn QUAY VÀO NHAU rồi mới cúi — người chơi quay theo NPC, NPC quay
      theo người chơi (tư thế đồng bộ đúng nghĩa). */
   S.p.dir = (n.x >= wx) ? 1 : -1;
@@ -2441,6 +2505,11 @@ function ipBowEnd() {
 function ipBowTick(now) {
   if (IP_ST.st === 'bow') {
     IP_ST.kn = ipSmooth(Math.min(1, (now - IP_ST.t0) / IP_BOW_MS));
+    /* V34: cúi 0.34s + giữ tư thế lạy, tới 2.2s (bong bóng IP_SAY_MS còn ~0.8s)
+       TỰ ĐỨNG DẬY. Bản cũ để nguyên 'bow' vô thời hạn — người chơi bấm gì cũng
+       không đi được vì ipUpdate kẹp S.p.x/y về điểm khoá, và đó chính là ca kẹt
+       tư thế khi bái kiến Sư Thầy. */
+    if (now - IP_ST.t0 >= IP_BOW_HOLD) { ipBowEnd(); IP_ST.exitCd = IP_EXIT_CD; }
   } else if (IP_ST.st === 'bowup') {
     const p = Math.min(1, (now - IP_ST.t0) / IP_BOW_MS);
     IP_ST.kn = 1 - ipSmooth(p);
