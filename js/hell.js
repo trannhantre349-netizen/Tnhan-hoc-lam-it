@@ -20,7 +20,11 @@
    ============================================================ */
 
 /* ---------- 1. HÌNH HỌC ---------- */
-const HL_MAP_W = 2500;
+/* V44: đại lộ Âm Phủ dài 2880px — đúng bằng Phố Ngoài, vì Khu 6 giờ có 5 trạm
+   việc + khu ngai riêng ở cuối đường. Dải nền gương 3 bản (HL_PROM_MIN_W
+   3228px) vẫn phủ kín 2880 + khung nhìn rộng nhất, camera _camX giữ nguyên
+   cơ chế edge-scroll nên iPhone 13 (844×390) vẫn tràn viền hai mép. */
+const HL_MAP_W = 2880;
 const HL_VIEW_H = 600;
 let HL_VIEW_W = 960;
 let HL_CAM_MAX = HL_MAP_W - HL_VIEW_W;
@@ -40,11 +44,25 @@ const HL_NW = 256, HL_NC = 286, HL_NFOOT = 278;
 const HL_CELL = { ghost_a: [0, 0], ghost_b: [1, 0], imp_a: [2, 0], imp_b: [3, 0],
                   king_a: [0, 1], king_b: [1, 1], pot_a: [2, 1], pot_b: [3, 1] };
 
+/* V44: lưới 5 QUỶ GIAO VIỆC baked/hell_job_npcs.png — ảnh ra 1120x304, ô 224
+   x 304, bàn chân neo tại dòng 300 (đo bằng tools/bake-hell.cjs).
+   HL_JINK = kích thước NÉT thật của từng ô do chính log bake in ra. Vẽ theo
+   nét chứ không theo cả ô: co về 76px là cao THÂN người đúng 76px, và đáy nét
+   luôn nằm tại dòng 300 nên chân ghim thẳng xuống mặt sàn. */
+const HL_JW = 224, HL_JH = 304, HL_JFOOT = 300;
+const HL_JINK = [[220, 247], [142, 284], [193, 222], [180, 225], [191, 295]];
+
 /* Cổng KHE NỨT nằm ở CUỐI PHỐ NGOÀI (STREET), không nằm ở Khu Trung Tâm.
    x là toạ độ THẾ GIỚI của phố (dài 2880), y = ĐIỂM CHÂN trên vỉa hè (312).
    Chọn 2620 vì nó lọt giữa hai căn nhà 2470 và 2790 — cả hai đều nhường
-   [E] trong bán kính 70px nên nhãn của cổng không bao giờ bị nuốt. */
-const HL_GATE = { x: 2620, y: 312, r: 62 };
+   [E] trong bán kính 70px nên nhãn của cổng không bao giờ bị nuốt.
+   V43: thay khe nứt vẽ tay bằng vòm lửa thật baked/hell_gate.png.
+   box = khung NỘI DUNG do tools/bake-hell.cjs đo (ảnh 765x1024, cụm pixel
+   728x864 @24,94) — neo theo box chứ không theo cả ảnh vì ảnh nguồn chừa lề
+   trắng 67px phía trên, vẽ cả ảnh là cổng nổi bồng bềnh trên vỉa hè.
+   h = 176px chiều CAO phần nét (165–185 theo yêu cầu); bề rộng tự suy ra từ
+   tỉ lệ gốc: 728/864 × 176 ≈ 148px, lọt gọn giữa hai căn nhà. */
+const HL_GATE = { x: 2620, y: 312, r: 62, h: 176, box: [24, 94, 751, 957] };
 /* Lõi cổng: đứng trong vòng này thì [E] LUÔN là khe nứt. Đi bộ lang thang trên
    phố hay dừng ngay trước cửa (dải chat của họ phủ 2540→2660), mà cửa để người
    chơi đi xuống Địa Ngục thì không thể để một NPC che mất được. */
@@ -55,7 +73,11 @@ const HL_GATE_CORE = 44;
    trạm che mất (bài học Khu 5). */
 const HL_PORTAL = { x: 120, y: 540, r: 54, pk: 472 };
 const HL_POT = { x: 1150, y: 536, r: 60, pk: 474 };
-const HL_KING = { x: 2250, y: 534, r: 66, pk: 470 };
+/* V44: VUA TÁCH KHỎI NGAI. Ngai Vàng Hắc Diện Thạch đứng sát cuối đường
+   (HL_STATIONS[5], x=2740), Quỷ Vương đứng dạng riêng bên trái ở 2600 —
+   bán kính [E] 66px của vua (2534..2666) không chạm trạm nào: trạm 5 ở 2230
+   cách hẳn 400px, ngai thì r=0 nên không có [E] để giành. */
+const HL_KING = { x: 2600, y: 534, r: 66, pk: 470 };
 /* Ba Hồn Ma Trơi: bay LƠ LƯNG XUYÊN VẬT CẢN — hoàn toàn không có va chạm,
    không có [E] để không cướp nút của vạc/quỷ vương. */
 const HL_GHOSTS = [{ x: 420, y: 452, ph: 0.0 }, { x: 1010, y: 428, ph: 2.1 }, { x: 1760, y: 462, ph: 4.4 }];
@@ -70,6 +92,8 @@ const HL_FADE = 900;
    HL_KING_H/92 làm hệ số phóng bệ đá, nên đổi một chỗ là cả ngai lớn theo. */
 const HL_KING_H = 126, HL_POT_H = 78, HL_IMP_H = 74, HL_GHOST_H = 72;
 const HL_P_SCALE = 1.25;                             // nhân vật Quỷ Đỏ vẽ to 1.25x
+/* V44: danh hiệu Quỷ Vương phong khi đã làm đủ 5 việc Âm Phủ. */
+const HL_KING_TITLE = 'Trùm IT Âm Phủ';
 /* Bảng tên khu chỉ hiện 3 giây đầu rồi tự mờ (V37) — vào cảnh là để ĐỌC tên,
    sau đó màn hình phải trả lại cho cảnh. */
 const HL_TITLE_HOLD = 3, HL_TITLE_FADE = .9;
@@ -332,6 +356,68 @@ function hlRiftDraw(g, x, feetY, hgt, t, label) {
   g.restore();
 }
 
+/* ---------- 8b. CỔNG VÀO ĐỊA NGỤC Ở PHỐ NGOÀI (V43, ảnh thật) ---------- */
+/* Kích thước vẽ của cổng: HẸN TỶ LỆ ĐỀU k = h/bh nên ảnh giữ nguyên tỉ lệ gốc,
+   bề rộng tự suy ra từ bbox nội dung — không bao giờ méo hình. */
+function hlGateSize() {
+  const b = HL_GATE.box, bw = b[2] - b[0] + 1, bh = b[3] - b[1] + 1;
+  const k = HL_GATE.h / bh;
+  return { b: b, bw: bw, bh: bh, dw: bw * k, dh: bh * k };
+}
+/* Vẽ ở HỆ THẾ GIỚI (gọi từ trong ctx.translate(-camX) của drawStreet).
+   ĐÁY cụm pixel ghim đúng mặt sàn vỉa hè, trục x căn giữa HL_GATE.x.
+   Ban đêm stNightPass phủ xanh 0.58 lên cả phố và cổng vẽ TRƯỚC màn đêm nên
+   cũng tối theo: vì lớp phủ là pha MÀU (không nhân), nền càng sáng thì sau khi
+   phủ vẫn càng sáng — nên cộng sáng ngay tại đây, hai lượt liên tiếp, vẫn còn
+   TRƯỚC nhân vật. Nếu để lượt cộng sáng ra lớp phủ trên cùng thì người chơi
+   đứng trước cổng bị lửa tô đè lên mất dạng. */
+function hlGateLit() {
+  if (typeof stDayNight !== 'function') return 0;
+  const ph = stDayNight();
+  return Math.min(.42, Math.max(ph.night, ph.dusk * .55) * .42);
+}
+function hlGateArt(g, x, feetY, t) {
+  const im = hlImg('hellGate');
+  if (!im || !(im.naturalWidth || im.width)) {          // thiếu ảnh: khe nứt vector cũ
+    hlRiftDraw(g, x, feetY, 116, t, '🔥 ĐỊA NGỤC TRẦN NHÂN');
+    return;
+  }
+  const s = hlGateSize();
+  g.save();
+  if (typeof hvGlow === 'function') {
+    g.globalCompositeOperation = 'lighter';
+    /* hai quầng: lửa trong vòm (giữa cổng) + hắt xuống thềm đá dưới chân */
+    hvGlow(g, x, feetY - s.dh * .52, s.dh * .6, '255,110,30', .2 + .05 * Math.sin(t * 1.7));
+    hvGlow(g, x, feetY - 4, s.dh * .3, '255,180,70', .16 + .05 * Math.sin(t * 3.1));
+  }
+  g.restore();
+  const lit = hlGateLit();
+  for (let pass = 0; pass <= (lit > .02 ? 1 : 0); pass++) {
+    g.save();
+    if (pass) { g.globalCompositeOperation = 'lighter'; g.globalAlpha = lit; }
+    try { g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; } catch (e) {}
+    g.drawImage(im, s.b[0], s.b[1], s.bw, s.bh, x - s.dw / 2, feetY - s.dh, s.dw, s.dh);
+    g.restore();
+  }
+}
+/* Nhãn [E] ghim vào CHÂN CỔNG chứ không theo đầu nhân vật: mép dưới của bảng
+   nằm ngay trên mặt thềm (26% chiều cao cổng = đúng chỗ đá bắt đầu vòm), nên
+   người chơi nhìn là biết đứng đâu để bấm. Vẽ bằng hệ MÀN HÌNH (lớp phủ sau
+   drawStreet đã nhả translate) và cỡ chữ y hệt drawPrompt của game.js. */
+function hlGatePrompt(g, sx, feetY, txt) {
+  const s = hlGateSize();
+  g.save();
+  g.font = 'bold 12px ' + (typeof IZF !== 'undefined' ? IZF : 'sans-serif');
+  const w = Math.round(g.measureText(txt).width + 22), h = 24;
+  const x = Math.round(sx - w / 2), y = Math.round(feetY - s.dh * .26 - h - 4);
+  if (typeof izb === 'function') izb(x, y, w, h, 12, '#fff7d6');
+  else { g.fillStyle = '#fff7d6'; g.fillRect(x, y, w, h); }
+  g.fillStyle = '#3b2f10';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(txt, x + w / 2, y + h / 2 + 1);
+  g.restore();
+}
+
 /* Bệ đá + thảm đỏ của Quỷ Vương: vẽ TRƯỚC sprite trong cùng khoá sâu nên
    vua đứng CHẾM TRÊN bệ, không phải nổi trên nền hang. Thảm loang về phía
    người chơi (hình thang perspective) để lối đi cuối đại lộ ra "ngai". */
@@ -339,9 +425,12 @@ function hlDaisDraw(g, x, feetY, t) {
   g.save();
   /* V42: bệ + thảm rộng theo chiều cao vua (DS = 126/92) để ngai, bệ và vua
      cùng một cỡ. CHỈ nhân bề NGANG: thảm đổ xuống phía người chơi mà dài thêm
-     là tràn ra ngoài khung 600px. */
+     là tràn ra ngoài khung 600px.
+     V44: từ khi NGAI (2740) đứng TÁCH khỏi vua (2600), bệ phải co lại — để
+     nguyên 128*DS = 175px nửa bề thì bậc đá bò sang 2775, che mất một nửa
+     thân ngai vàng và trông như hai khối dính nhau. */
   const DS = HL_KING_H / 92;
-  const cw0 = 74 * DS, cw1 = 128 * DS, cl = 96;
+  const cw0 = 58 * DS, cw1 = 100 * DS, cl = 96;
   const q = g.createLinearGradient(0, feetY - 6, 0, feetY + cl);
   q.addColorStop(0, 'rgba(150,22,28,.95)'); q.addColorStop(.55, 'rgba(112,14,20,.9)');
   q.addColorStop(1, 'rgba(74,8,14,.72)');
@@ -357,7 +446,7 @@ function hlDaisDraw(g, x, feetY, t) {
     g.fillRect(ex - 2, feetY + cl, 4, 5);
   }
   /* hai bậc đá: bậc dưới rộng, bậc trên sát chân vua */
-  const st = [[112 * DS, 20], [86 * DS, 16]];
+  const st = [[88 * DS, 20], [68 * DS, 16]];
   for (let i = 0; i < st.length; i++) {
     const rw = st[i][0], hh = st[i][1], yy = feetY - 2 - (st.length - 1 - i) * 13;
     const s = g.createLinearGradient(0, yy - hh, 0, yy + 6);
@@ -438,15 +527,16 @@ function hlBowEnd() {
   HL_ST.st = '';
   HL_ST.exitCd = HL_EXIT_CD;
   const line = HL_JUDGE[Math.floor(Math.random() * HL_JUDGE.length)];
-  /* V41: Ngai vàng chỉ mở hầu bao khi 4/4 CA SỬA MÁY Âm Phủ đã xong. Chưa đủ
-     thì Quỷ Vương chỉ nhắc — không trừ, không ghi cờ, người chơi lên đường
-     sửa tiếp và quay lại bái kiến. */
+  /* V41→V44: Ngai vàng chỉ mở hầu bao khi đủ 5/5 VIỆC ÂM PHỦ. Chưa đủ thì Quỷ
+     Vương chỉ nhắc — không trừ, không ghi cờ, người chơi lên đường làm tiếp.
+     Vua giờ đứng riêng ở x=2600, ngai ở 2740 nên phần thưởng lớn gắn với NGÀI
+     chứ không gắn với cái ghế nữa. */
   const ca = hlCaDone();
   if (ca < HL_CA_N) {
     if (typeof showBanner === 'function')
       showBanner('QUỶ VƯƠNG TRẦN NHÂN',
-        '“Lũ tiểu quỷ đang kêu trời vì rớt mạng kìa, sửa giúp ta rồi quay lại lĩnh thưởng!”',
-        '🔧 Ca sửa máy Âm Phủ: ' + ca + '/' + HL_CA_N + ' — còn ' + (HL_CA_N - ca) + ' trạm chưa xong', 'red');
+        '“Lũ quỷ đang kêu trời vì virus với lag kìa, làm đủ 5 việc rồi quay lại lĩnh thưởng!”',
+        '🔧 Việc Âm Phủ: ' + ca + '/' + HL_CA_N + ' — còn ' + (HL_CA_N - ca) + ' trạm chưa xong', 'red');
     if (typeof beep === 'function') { try { beep(300, 'square', .12, .03); } catch (e) {} }
     return true;
   }
@@ -454,15 +544,18 @@ function hlBowEnd() {
   HL_ST.aura = 1;                                  // hào quang Quỷ Vương, bật mỗi lần bái kiến đủ ca
   if (first) {
     S.missionsDone.hell_king = true;
-    if (typeof addXP === 'function') addXP(120);
-    if (typeof addCoin === 'function') addCoin(150);
+    if (typeof addXP === 'function') addXP(150);
+    if (typeof addCoin === 'function') addCoin(200);
+    /* Danh hiệu đi theo S.title y hệt phần thưởng boss cũ (game.js:7070) —
+     Hồ sơ, bảng kết quả và chữ ký HUD đều tự đọc lại một chỗ này. */
+    S.title = HL_KING_TITLE;
     try { if (typeof saveGame === 'function') saveGame(); } catch (e) {}
     if (typeof showBanner === 'function')
       showBanner('QUỶ VƯƠNG TRẦN NHÂN PHÁN XÉT', '“' + line + '”',
-        '👹 Ân tứ: +120 EXP · +150 Coin · 🩸 Hào Quang Quỷ Vương', 'red');
+        '👹 Ân tứ: +150 EXP · +200 Coin · 🏅 Danh hiệu ' + HL_KING_TITLE + ' · 🩸 Hào Quang Quỷ Vương', 'red');
   } else if (typeof showBanner === 'function') {
     showBanner('QUỶ VƯƠNG TRẦN NHÂN PHÁN XÉT', '“' + line + '”',
-      '🔧 4/4 ca xong hết — phần thưởng lớn đã nhận, ở đây chỉ còn lửa', 'red');
+      '🔧 ' + HL_CA_N + '/' + HL_CA_N + ' việc xong hết — phần thưởng lớn đã nhận, ở đây chỉ còn lửa', 'red');
   }
   if (typeof syncHUD === 'function') { try { syncHUD(); } catch (e) {} }
   return true;
@@ -488,9 +581,10 @@ function hlStartle(im) {
 function hlPrompt() {
   const wx = hlWx(), wy = S.p.y + 18;
   const near = (o, dy0, dy1) => Math.abs(wx - o.x) < o.r && wy > o.y - dy0 && wy < o.y + dy1;
-  /* V41: 4 trạm sửa máy đứng LON GIAN hơn mọi điểm nhấn khác trên đại lộ và
-     không trùng vùng nào của vạc/cổng, nên ưu tiên đầu tiên. Trạm 5 không có
-     `act` — [E] của nó chính là nhãn bái kiến Quỷ Vương bên dưới. */
+  /* V41: các trạm sửa máy đứng LON GIAN hơn mọi điểm nhấn khác trên đại lộ và
+     không trùng vùng nào của vạc/cổng, nên ưu tiên đầu tiên.
+     V44: vòng lặp chỉ đi qua 5 trạm VIỆC (HL_CA_N) — NGAI VÀNG (n=6, r:0,
+     không có `act`) không bao giờ bắt [E]; bái kiến là vùng riêng của vua. */
   const st = hlNearStation();
   if (st) { targetAct = { t: 'hl_st', n: st.n, txt: st.act }; return; }
   if (near(HL_KING, 110, 100)) {
@@ -603,7 +697,7 @@ function hlEnter() {
   if (typeof chord === 'function') chord([110, 165, 220]);
   if (typeof showBanner === 'function')
     showBanner('KHU 6 · ĐỊA NGỤC TRẦN NHÂN', '🔥 Hóa Thân Quỷ Đỏ',
-      'Đi hết 2500px hang lửa · Chạm Tiểu Quỷ để nó đánh rơi đồ · Bái kiến Quỷ Vương', 'red');
+      'Đi hết 2880px hang lửa · 5 quỷ giao việc dọc đường · Bái kiến Quỷ Vương khi đủ 5/5', 'red');
   try { if (typeof saveGame === 'function') saveGame(); } catch (e) {}
 }
 function hlStreet() {
@@ -773,10 +867,17 @@ function hlScene() {
      trên dải đi bộ (500) nên nhân vật bao giờ cũng đi TRƯỚC trạm, không có
      chuyện trạm che mất người (và cũng không có va chạm ẩn). */
   hlStList(list, vis, t);
+  /* V44: 5 QUỶ GIAO VIỆC đứng bên trái trạm — pk 478 lớn hơn trạm (476) nên
+     quỷ đứng TRƯỚC bàn máy tính nhưng vẫn nhỏ hơn mép trên dải đi bộ (500),
+     người chơi luôn đi trước mặt quỷ. */
+  hlJobList(list, vis, t);
   /* TÀN LỬA DƯỚI CHÂN (yêu cầu): người chơi là Quỷ Đỏ thì chân phải biết. */
   list.push({ k: pfy, f: () => drawSprite(px, S.p.y, 'p') });
   list.sort((a, b) => a.k - b.k);
   for (let i = 0; i < list.length; i++) { try { list[i].f(); } catch (e) {} }
+  /* Bong bóng thoại quỷ giao việc vẽ SAU depth-sort: nhân vật đi ngang trước
+     mặt quỷ thì chữ vẫn nổi trên đầu, không bị thân quỷ hay người chơi che. */
+  hlJobSayPass(ctx, vis, t);
 
   /* Hồn Ma bay: VẼ SAU cùng lớp dưới (xuyên mọi thứ, kể cả nhân vật) vì
      chúng là khói — bị che thì mất hết chất. */
@@ -860,7 +961,7 @@ function hlUpdate(dt, now) {
   hlBgmStep();
   if (S.scene === 'HELL' || S.scene === 'STREET') hlEmbStep(dt);
   if (S.scene === 'HELL') {
-    hlGhostTick(dt, now); hlImpTick(dt); hlAuraTick(dt); hlBowTick(now);
+    hlGhostTick(dt, now); hlImpTick(dt); hlAuraTick(dt); hlBowTick(now); hlJobTick(dt);
     const cam = window._camX || 0;
     /* tàn lửa dưới chân Quỷ: bước thì rớt nhiều, đứng thì thưa thưa */
     if (S.p.moving && Math.random() < .55) hlEmber(cam + S.p.x + (Math.random() - .5) * 18, S.p.y + 28, false);
@@ -934,6 +1035,21 @@ drawSprite = function (x, y, r) {
   try { _hlOldSpr(x, y, r); } finally { ctx.restore(); }
 };
 
+/* V43: CỔNG VÀO ĐỊA NGỤC ở cuối Phố Ngoài — vẽ từ ảnh baked/hell_gate.png,
+   CẮM VÀO drawAccident() chứ không vẽ ở lớp phủ render():
+   · drawStreet gọi drawAccident ngay TRƯỚC khi vẽ nhân vật (game.js:3468-3469)
+     và vẫn còn trong ctx.translate(-camX) → vẽ theo HỆ THẾ GIỚI, và người chơi
+     đứng tới là đứng TRƯỚC vòm lửa, không bị khối cổng 148x176 che mất.
+   · màn đêm stNightPass() vẽ SAU nên cổng bị nhuộm tối như mọi vật thể khác
+     trong phố; hlGateArt tự cộng sáng thêm một lượt khi trời tối (xem mục 8b),
+     còn tàn lửa cứ rực vì nó vẽ trên cùng bằng composite 'lighter'.
+   Không đụng một dòng nào vào game.js: đây là hook bọc hàm, idiom cũ của file. */
+const _hlOldAcc = drawAccident;
+drawAccident = function () {
+  if (S.scene === 'STREET') { try { hlGateArt(ctx, HL_GATE.x, HL_GATE.y + 4, Date.now() / 1000); } catch (e) {} }
+  return _hlOldAcc.apply(this, arguments);
+};
+
 const _hlOldUpd = update;
 update = function () {
   const now = performance.now();
@@ -948,20 +1064,26 @@ const _hlOldRnd = render;
 render = function () {
   _hlOldRnd();
   if (S.scene === 'HELL') { try { hlScene(); } catch (e) {} }
-  /* Cổng Khe Nứt ở CUỐI PHỐ NGOÀI: game.js vẽ STREET rồi return sớm nên lớp
-     này phải tự nhân toạ độ cuộn — drawStreet() đã dịch hết rồi. */
+  /* Lớp phủ STREET: game.js vẽ STREET rồi return sớm nên phần TÀN LỬA + NHÃN
+     [E] của cổng phải vẽ ở đây, tự nhân toạ độ cuộn (drawStreet đã nhả
+     translate). Còn THÂN CỔNG vẽ sớm hơn, trong wrapper drawAccident (mục 15). */
   if (S.scene === 'STREET' && !HL_CUT) {
     try {
-      const t = Date.now() / 1000, cam = window._camX || 0;
-      const sx = HL_GATE.x - cam;
-      if (sx > -160 && sx < HL_VIEW_W + 160) {
-        hlRiftDraw(ctx, sx, HL_GATE.y + 4, 116, t, '🔥 ĐỊA NGỤC TRẦN NHÂN');
-        if (Math.random() < .5) hlEmber(HL_GATE.x + (Math.random() - .5) * 34, HL_GATE.y - 6, true);
-        if (targetAct && targetAct.t === 'to_hell' && typeof drawPrompt === 'function')
-          drawPrompt('[E] 🔥 VÀO ĐỊA NGỤC TRẦN NHÂN');
+      const cam = window._camX || 0;
+      const sx = HL_GATE.x - cam, feetY = HL_GATE.y + 4;
+      if (sx > -220 && sx < HL_VIEW_W + 220) {
+        /* V43: cổng 148x176 nên tàn lửa cũng toả theo bề ngang ảnh: một dải
+           rực ở hai góc thềm đá, thêm vài hạt bay ngay miệng vòm lửa. */
+        const gw = hlGateSize().dw;
+        if (Math.random() < .6)
+          hlEmber(HL_GATE.x + (Math.random() - .5) * gw * .84, feetY - 6 - Math.random() * 8, true);
+        if (Math.random() < .22)
+          hlEmber(HL_GATE.x + (Math.random() - .5) * gw * .3, feetY - 40 - Math.random() * 60, true);
+        if (targetAct && targetAct.t === 'to_hell')
+          hlGatePrompt(ctx, sx, feetY, '[E] 🔥 VÀO ĐỊA NGỤC TRẦN NHÂN');
       }
-      /* tàn lửa khe nứt đi hệ THẾ GIỚI, phải tự dịch theo _camX vì drawStreet
-         đã vẽ xong và nhả transform rồi. */
+      /* tàn lửa đi hệ THẾ GIỚI, phải tự dịch theo _camX vì transform gốc đã
+         trở về màn hình. */
       ctx.save(); ctx.translate(-cam, 0); hlEmbDraw(ctx); ctx.restore();
     } catch (e) {}
   }
@@ -977,8 +1099,7 @@ doAction = function () {
        Tương tác cảm ứng là nút hành động của hộp đó. mg-coding.js đã làm điều
        này cho HEAVEN, nhưng wrapper doAction của hell mới là vòng ngoài nên
        trong HELL phải tự lo, không thì Space/E câm lì giữa lúc sửa máy. */
-    if (HVM && HVM.hl) { if (typeof hvMiniPulse === 'function') hvMiniPulse(); return; }
-    if (LQM && LQM.hl) { if (typeof lqmPulse === 'function') lqmPulse(); return; }
+    if (HLM) { hlMgPulse(); return; }
     /* [E] / nút Tương tác cảm ứng là ĐƯỜNG RA của tư thế khoá, không phải
        tombol vô dụng (bài học kẹt thế ngồi Khu 5). */
     if (HL_ST.st) { hlRelease(); return; }
@@ -1121,49 +1242,69 @@ render = function () {
 };
 
 /* ============================================================
-   16. V41 — 5 TRẠM IT SUPPORT ÂM PHỦ + CUỘC THI CA SỬA MÁY
+   16. V41 → V44 — 5 TRẠM VIỆC ÂM PHỦ + QUỶ GIAO VIỆC + NGAI RIÊNG
    ------------------------------------------------------------
-   Trạm 1..4 = 4 "ca sửa máy", mỗi ca mở lại MỘT minigame đã có sẵn của game
-   (không viết minigame mới, không sửa minigame cũ):
-     1 🖥️ diệt virus  -> ải bug của Khu 4   (hvMiniEnter 1 = HVM_G2)
-     2 🌐 cáp quang   -> ải đấu cáp Khu 3   (lqmEnter 4 = lq_cable)
-     3 ❄️ hạ nhiệt    -> ải làm mát Khu 3   (lqmEnter 1 = lq_bio, bản V40)
-     4 💾 sổ sinh tử -> ải nối mạch Khu 3   (lqmEnter 0 = lq_lab)
-   Thắng trong Địa Ngục PHẢI KHÔNG được ghi cờ lq_/hv_ hay trả Coin của Khu
-   3/Khu 4 (900–1600 Coin), nên lqmWin/hvMiniWin được bọc: có cờ .hl là phần
-   thưởng đi về hell_stN + XP/Coin cố định, không đụng gì tới tiến trình khu khác.
-   Trạm 5 = Ngai Vàng đặt ngay SAU Quỷ Vương, không có ca riêng — [E] của nó là
-   nhãn bái kiến cũ, và hlBowEnd chỉ thưởng lớn khi đã đủ 4/4.
+   V44 bỏ hẳn việc mượn minigame của Khu 3/Khu 4: cả 5 ải đều là code mới
+   trong hell.js (mục 18), không gọi lqmEnter/hvMiniEnter một lần nào.
+   Mỗi trạm có một QUỶ GIAO VIỆC đứng ngay bên trái (baked/hell_job_npcs.png),
+   bảng tên + nhún nhẹ + bong bóng thoại tự chạy tới khi người chơi lại gần,
+   đúng kiểu dân phố ngoài STREET.
+   Ngai Vàng Hắc Diện Thạch là phần tử CUỐI danh sách (n=6, ca:false) — nó
+   không phải một "việc", chỉ là đồ cảnh đứng sau Quỷ Vương.
    ============================================================ */
 
 /* box = khung NỘI DUNG thật của ảnh 1024x1024, do tools/bake-hell.cjs đo và in
    ra log lúc bake (bbox). Neo theo box chứ không theo cả ảnh: ảnh nguồn chừa
    lề trắng 28–78px dưới đáy, vẽ cả ảnh là trạm nổi bồng bềnh trên mặt sàn.
    Artist đổi ảnh nguồn -> chạy bake rồi chép lại 5 bộ số này. */
-const HL_CA_N = 4;
+const HL_CA_N = 5;
 /* V42: ảnh trạm gốc chỉ 879–931px nội dung mà vẽ 120–134px thì chìm nghỉm trong
-   hang lửa 2500px. Phóng lên ~1.8 lần (172–188px, ngai 240px) theo HẸN TỶ LỆ
-   ĐỀU (k = h / bh, bề rộng tự suy ra từ bw) nên không hề méo hình. Đáy vẫn neo
-   y=545 — sát mặt sàn đá, trên mép dưới dải đi bộ một chút để chân bàn chạm đất. */
+   hang lửa. Phóng lên ~1.8 lần (172–188px, ngai 240px) theo HẸN TỶ LỆ ĐỀU
+   (k = h / bh, bề rộng tự suy ra từ bw) nên không hề méo hình. Đáy vẫn neo
+   y=545 — sát mặt sàn đá, trên mép dưới dải đi bộ một chút để chân bàn chạm đất.
+   V44: 5 trạm việc cách đều 450px trên đại lộ 2880px, ngai dời riêng ra cuối. */
 const HL_STATIONS = [
-  { n: 1, id: 'hell_st1', img: 'hellSt1', x: 450, y: 545, h: 184, r: 66, pk: 476,
-    box: [80, 50, 958, 945], mg: 'hv', mi: 1, xp: 40, coin: 50, rgb: '120,220,255',
-    act: '[E] 🖥️ DIỆT VIRUS CHO TIỂU QUỶ', sign: '🖥️ DIỆT VIRUS' },
+  { n: 1, id: 'hell_st1', img: 'hellSt1', x: 430, y: 545, h: 184, r: 66, pk: 476,
+    box: [80, 50, 958, 945], mg: 'virus', xp: 40, coin: 50, rgb: '120,220,255',
+    act: '[E] 🖥️ DIỆT VIRUS ÂM PHỦ', sign: '🖥️ DIỆT VIRUS ÂM PHỦ' },
   { n: 2, id: 'hell_st2', img: 'hellSt2', x: 880, y: 545, h: 176, r: 66, pk: 476,
-    box: [130, 70, 896, 952], mg: 'lq', mi: 4, xp: 45, coin: 60, rgb: '255,170,60',
-    act: '[E] 🌐 NỐI CÁP QUANG VONG XUYÊN', sign: '🌐 NỐI CÁP QUANG' },
-  { n: 3, id: 'hell_st3', img: 'hellSt3', x: 1320, y: 545, h: 188, r: 66, pk: 476,
-    box: [97, 25, 926, 995], mg: 'lq', mi: 1, xp: 50, coin: 70, rgb: '140,240,255',
-    act: '[E] ❄️ HẠ NHIỆT LÒ SERVER', sign: '❄️ HẠ NHIỆT LÕI' },
-  { n: 4, id: 'hell_st4', img: 'hellSt4', x: 1760, y: 545, h: 172, r: 66, pk: 476,
-    box: [211, 69, 812, 956], mg: 'lq', mi: 0, xp: 60, coin: 80, rgb: '220,150,255',
-    act: '[E] 💾 CỨU DỮ LIỆU SỔ SINH TỬ', sign: '💾 CỨU SỔ SINH TỬ' },
-  /* pk 468 < HL_KING.pk 470 → ngai luôn đứng SAU vua, đúng thứ trước-sau của
-     một cái ngai có người ngồi. Cao 240px để vua 126px ngồi trước vẫn còn thấy
-     lưng ngai looming phía sau. */
-  { n: 5, id: 'hell_st5', img: 'hellSt5', x: 2220, y: 532, h: 240, r: 0, pk: 468,
-    box: [47, 76, 977, 970], ca: false, rgb: '255,120,40', sign: '👹 NGAI VÀNG' }
+    box: [130, 70, 896, 952], mg: 'ping', xp: 45, coin: 60, rgb: '255,170,60',
+    act: '[E] 🌐 HỨNG GÓI TIN VONG XUYÊN', sign: '🌐 GÓI TIN VONG XUYÊN' },
+  { n: 3, id: 'hell_st3', img: 'hellSt3', x: 1330, y: 545, h: 188, r: 66, pk: 476,
+    box: [97, 25, 926, 995], mg: 'fan', xp: 50, coin: 70, rgb: '140,240,255',
+    act: '[E] 🌀 QUẠT TẮT LỬA LÒ SERVER', sign: '🌀 QUẠT TẮT LÒ SERVER' },
+  { n: 4, id: 'hell_st4', img: 'hellSt4', x: 1780, y: 545, h: 172, r: 66, pk: 476,
+    box: [211, 69, 812, 956], mg: 'crypto', xp: 55, coin: 80, rgb: '220,150,255',
+    act: '[E] 📜 GIẢI MÃ SỔ SINH TỬ', sign: '📜 GIẢI MÃ SỔ SINH TỬ' },
+  /* Trạm 5 không có ảnh rời — TƯỜNG LỬA Diêm Vương do hlWallArt() vẽ vector
+     (cột đá + màn lửa), vẫn neo đáy y=545 và cao 190px cho ngang trạm 3. */
+  { n: 5, id: 'hell_st5', x: 2230, y: 545, h: 190, r: 66, pk: 476, wall: true,
+    mg: 'wall', xp: 65, coin: 90, rgb: '255,90,40',
+    act: '[E] ⚡ PHÁ TƯỜNG LỬA DIÊM VƯƠNG', sign: '⚡ TƯỜNG LỬA DIÊM VƯƠNG' },
+  /* pk 468 < HL_KING.pk 470 → ngai luôn đứng SAU vua. V44: ngai x=2740, vua
+     x=2600 — hai thân tách nhau, không còn cảnh vua ngồi che mất ngai. */
+  { n: 6, id: 'hell_throne', img: 'hellSt5', x: 2740, y: 532, h: 240, r: 0, pk: 468,
+    box: [47, 76, 977, 970], ca: false, rgb: '255,120,40', sign: '👹 NGAI VÀNG HẮC DIỆN' }
 ];
+
+/* Năm QUỶ GIAO VIỆC đứng bên trái trạm (x = trạm − 80..−100). ca !== false nên
+   bảng hiệu ✔ của trạm và tên quỷ là hai lớp chữ khác nhau, không đè nhau:
+   bảng trạm nằm trên ĐỈNH trạm (y≈310), tên quỷ nằm trên ĐẦU quỷ (y≈460). */
+const HL_JOBS = [
+  { n: 1, cell: 0, fb: 'imp_a', x: 350, y: 552, h: 76, ph: 0.0, sayT: 0, sayCd: 0,
+    name: 'Quỷ Cụt Sừng 404', line: 'Cứu ta! Tải crack bí kíp dính virus nổ màn hình rồi!' },
+  { n: 2, cell: 1, fb: 'ghost_a', x: 800, y: 552, h: 76, ph: 1.4, sayT: 0, sayCd: 0,
+    name: 'Ma Trơi Ping-9999ms', line: 'Mạng Vong Xuyên lag quá, gửi email báo mộng mãi không đi!' },
+  { n: 3, cell: 2, fb: 'imp_b', x: 1250, y: 552, h: 76, ph: 2.8, sayT: 0, sayCd: 0,
+    name: 'Yêu Tinh Quạt-Hú', line: 'CPU cháy khét lẹt như than tổ ong rồi, quạt giúp ta với!' },
+  { n: 4, cell: 3, fb: 'ghost_b', x: 1700, y: 552, h: 76, ph: 4.2, sayT: 0, sayCd: 0,
+    name: 'Phán Quan Mất-File', line: 'Toang rồi! Sổ Sinh Tử bị mã hóa đòi chuộc Bitcoin!' },
+  { n: 5, cell: 4, fb: 'king_a', x: 2150, y: 552, h: 76, ph: 5.6, sayT: 0, sayCd: 0,
+    name: 'Thần Chết Mù-WiFi', line: 'Tường lửa Diêm Vương sập nguồn, dò đúng sóng mới mở được!' }
+];
+const HL_JOB_H = 76;                    // chiều cao thân quỷ trên màn hình
+const HL_JOB_SAY_R = 170;               // khoảng cách tự bật bong bóng thoại
+const HL_JOB_SAY_MS = 3.6, HL_JOB_SAY_CD = 13;
 
 /* Cờ hoàn thành là boolean trong file save → PHẢI khai STAGE_IDS, nếu không
    applySave() xoá sạch khi nạp (bài học Khu 4). */
@@ -1188,9 +1329,55 @@ function hlNearStation() {
 }
 
 /* ----- vẽ ----- */
+/* V44: TƯỜNG LỬA DIÊM VƯƠNG (trạm 5) không có ảnh rời nên vẽ vector: hai cột
+   đá nham thạch + màn lửa chảy, chân tường nằm đúng feetY như mọi trạm khác
+   (k = h/bh để mọi trạm cùng một mặt sàn). */
+function hlWallArt(g, s, t) {
+  const feetY = s.y + 2, h = s.h, w = Math.round(h * .9);
+  const x0 = s.x - w / 2, x1 = s.x + w / 2, yTop = feetY - h;
+  g.save();
+  /* hai cột đá */
+  for (let i = 0; i < 2; i++) {
+    const cx = i ? x1 - 22 : x0, cw = 22;
+    const st = g.createLinearGradient(cx, 0, cx + cw, 0);
+    st.addColorStop(0, '#241016'); st.addColorStop(.45, '#4a2530'); st.addColorStop(1, '#1a0a10');
+    g.fillStyle = st; g.fillRect(cx, yTop - 10, cw, h + 10);
+    g.fillStyle = 'rgba(255,140,60,.20)';
+    for (let k = 0; k < 4; k++) g.fillRect(cx + 2, yTop + 6 + k * (h / 4), cw - 4, 3);
+    /* đầu cột đội lửa */
+    g.globalCompositeOperation = 'lighter';
+    const q = g.createRadialGradient(cx + cw / 2, yTop - 14, 2, cx + cw / 2, yTop - 14, 26);
+    q.addColorStop(0, 'rgba(255,220,120,.85)'); q.addColorStop(.5, 'rgba(255,120,30,.45)');
+    q.addColorStop(1, 'rgba(255,60,10,0)');
+    g.fillStyle = q; g.beginPath(); g.arc(cx + cw / 2, yTop - 14, 26, 0, 6.2832); g.fill();
+    g.globalCompositeOperation = 'source-over';
+  }
+  /* màn lửa giữa hai cột: sóng chạy theo t nên không bao giờ đứng hình */
+  g.globalCompositeOperation = 'lighter';
+  const fl = g.createLinearGradient(0, feetY, 0, yTop);
+  fl.addColorStop(0, 'rgba(255,90,20,.55)'); fl.addColorStop(.55, 'rgba(255,140,40,.30)');
+  fl.addColorStop(1, 'rgba(255,200,90,.10)');
+  g.fillStyle = fl;
+  g.beginPath();
+  g.moveTo(x0 + 22, feetY);
+  for (let i = 0; i <= 12; i++) {
+    const u = i / 12, yy = yTop + 8 + Math.sin(t * 2.2 + u * 7.4) * 7;
+    g.lineTo(x0 + 22 + (w - 44) * u, yy);
+  }
+  g.lineTo(x1 - 22, feetY); g.closePath(); g.fill();
+  g.globalCompositeOperation = 'source-over';
+  /* song sắt nhà tù âm phủ đè lên màn lửa */
+  g.strokeStyle = 'rgba(30,10,8,.72)'; g.lineWidth = 3;
+  for (let i = 1; i < 5; i++) {
+    const bx = x0 + 22 + (w - 44) * i / 5;
+    g.beginPath(); g.moveTo(bx, yTop + 6); g.lineTo(bx, feetY - 2); g.stroke();
+  }
+  g.restore();
+}
 function hlStArt(g, s, t) {
-  const im = hlImg(s.img);
   const feetY = s.y + 2;
+  if (s.wall) { hlWallArt(g, s, t); return; }
+  const im = hlImg(s.img);
   if (!im || !(im.naturalWidth || im.width)) {         // thiếu ảnh: trụ lửa + nhãn, hitbox vẫn đúng
     hlRiftDraw(g, s.x, s.y, Math.round(s.h * .55), t, s.sign);
     return;
@@ -1209,8 +1396,9 @@ function hlStSign(g, s, t) {
   const done = s.ca !== false && !!S.missionsDone[s.id];
   /* V42: trạm cao gấp ~1.8 nên bảng hiệu cũng phải nhả lên THEO, không chỉ
      cách đỉnh một khe cố định — mép trên ảnh trạm 1-4 là ăng-ten/nóc nhà, để
-     sát quá là bảng đè lên chi tiết. Khe = 30px + 10% chiều cao trạm. */
-  const top = s.y + 2 - s.h - ((s.n === 5 ? 40 : 30) + Math.round(s.h * .1));
+     sát quá là bảng đè lên chi tiết. Khe = 30px + 10% chiều cao trạm; NGAI (n=6,
+     ca:false) cao 240px và có lưng ngai vút cao nên chừa hẳn 40px. */
+  const top = s.y + 2 - s.h - ((s.ca === false ? 40 : 30) + Math.round(s.h * .1));
   g.save();
   g.globalCompositeOperation = 'lighter';
   if (typeof hvGlow === 'function')
@@ -1232,14 +1420,108 @@ function hlStList(list, vis, t) {
     list.push({ k: s.pk, f: () => hlStDraw(ctx, s, t) });
   }
 }
+
+/* ---------- 16b. V44 — QUỶ GIAO VIỆC ---------- */
+/* Vẽ NÉT của ô c (không phải cả ô) nên `h` là chiều cao THÂN quỷ đúng nghĩa:
+   76px là 76px, không phải 76px trừ đi phần lề trắng của ô 304px. Đáy nét luôn
+   nằm tại dòng HL_JFOOT nên feetY là mặt sàn, giống hệt quy ước của hlNpc. */
+function hlJobNpc(c, wx, feetY, h, flip, alpha) {
+  const ink = HL_JINK[c];
+  if (!ink) return false;
+  const im = hlImg('hellJobNpcs');
+  if (!im || !(im.naturalWidth || im.width))
+    return hlNpc(HL_JOBS[c].fb, wx, feetY, h, flip, alpha);   // thiếu ảnh: dùng ô sheet cũ
+  const k = h / ink[1], dw = ink[0] * k, dh = ink[1] * k;
+  const sx = c * HL_JW + Math.round((HL_JW - ink[0]) / 2), sy = HL_JFOOT - ink[1];
+  ctx.save();
+  if (alpha != null) ctx.globalAlpha = alpha;
+  try { ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; } catch (e) {}
+  if (flip) { ctx.translate(wx, 0); ctx.scale(-1, 1); ctx.translate(-wx, 0); }
+  ctx.drawImage(im, sx, sy, ink[0], ink[1], wx - dw / 2, feetY - dh, dw, dh);
+  ctx.restore();
+  return true;
+}
+/* Nhún nhẹ tại chỗ (2px, nhịp riêng theo pha) + bảng tên ma quái. BONG BÓNG
+   THOẠI vẽ ở lượt riêng SAU depth-sort (hlJobSayPass) nên nhân vật đi ngang
+   không che mất chữ — y hệt cách dân phố STREET nói chuyện. */
+function hlJobDraw(g, j, t) {
+  const bob = Math.round(Math.sin(t * 2.1 + j.ph) * 2);
+  const fy = j.y + bob;
+  hlJobNpc(j.cell, j.x, fy, HL_JOB_H, false, 1);
+  if (typeof hvCap === 'function')
+    hvCap(g, j.x, fy - HL_JOB_H - 15, j.name,
+      { font: 'italic 700 11px ', h: 20, r: 10, pad: 12, bg: 'rgba(28,10,34,.9)',
+        rim: 'rgba(196,140,255,.8)', lw: 1.4, fg: '#f0d9ff', blur: 10, olw: 1.2 });
+}
+function hlJobList(list, vis, t) {
+  for (let i = 0; i < HL_JOBS.length; i++) {
+    const j = HL_JOBS[i];
+    if (!vis(j.x)) continue;
+    list.push({ k: 478, f: () => hlJobDraw(ctx, j, t) });
+  }
+}
+function hlJobSayPass(g, vis, t) {
+  for (let i = 0; i < HL_JOBS.length; i++) {
+    const j = HL_JOBS[i];
+    if (j.sayT > 0 && vis(j.x)) hlJobSayDraw(g, j, t);
+  }
+}
+/* Bật/tắt bong bóng theo khoảng cách: lại gần là nói, rời ra là thôi, và sau
+   khi nói xong phải nghỉ HL_JOB_SAY_CD giây để không lải nhải bên tai. */
+function hlJobTick(dt) {
+  const wx = hlWx();
+  for (let i = 0; i < HL_JOBS.length; i++) {
+    const j = HL_JOBS[i];
+    if (j.sayT > 0) { j.sayT -= dt; if (j.sayT <= 0) { j.sayT = 0; j.sayCd = HL_JOB_SAY_CD; } continue; }
+    if (j.sayCd > 0) { j.sayCd -= dt; continue; }
+    if (Math.abs(wx - j.x) < HL_JOB_SAY_R) j.sayT = HL_JOB_SAY_MS;
+  }
+}
+function hlWrapTxt(g, txt, maxW) {
+  const words = String(txt).split(' '), out = [];
+  let cur = '';
+  for (let i = 0; i < words.length; i++) {
+    const next = cur ? cur + ' ' + words[i] : words[i];
+    if (g.measureText(next).width > maxW && cur) { out.push(cur); cur = words[i]; }
+    else cur = next;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+function hlJobSayDraw(g, j, t) {
+  const headY = j.y - HL_JOB_H - 26;
+  const a = Math.max(0, Math.min(1, j.sayT / .5, (HL_JOB_SAY_MS - j.sayT) / .25 + 1));
+  g.save();
+  g.globalAlpha = Math.min(1, a);
+  g.font = 'italic 700 12px ' + (typeof IZF !== 'undefined' ? IZF : 'sans-serif');
+  const lines = hlWrapTxt(g, j.line, 236);
+  let tw = 0;
+  for (let i = 0; i < lines.length; i++) tw = Math.max(tw, g.measureText(lines[i]).width);
+  const lh = 16, w = Math.round(tw + 24), h = lines.length * lh + 14;
+  const x = Math.round(j.x - w / 2), y = Math.round(headY - h - 10);
+  g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 12; g.shadowOffsetY = 3;
+  g.fillStyle = 'rgba(255,246,230,.95)';
+  if (typeof rr === 'function') { rr(g, x, y, w, h, 10); g.fill(); } else g.fillRect(x, y, w, h);
+  g.shadowBlur = 0; g.shadowOffsetY = 0;
+  g.beginPath(); g.moveTo(j.x - 6, y + h - 1); g.lineTo(j.x + 6, y + h - 1);
+  g.lineTo(j.x, y + h + 9); g.closePath(); g.fill();
+  g.strokeStyle = 'rgba(214,120,60,.8)'; g.lineWidth = 1.4;
+  if (typeof rr === 'function') { rr(g, x, y, w, h, 10); g.stroke(); }
+  g.fillStyle = '#4a2412'; g.textAlign = 'center';
+  for (let i = 0; i < lines.length; i++) g.fillText(lines[i], j.x, y + 16 + i * lh);
+  g.textAlign = 'left';
+  g.restore();
+}
 /* V42: badge dời khỏi góc trên-TRÁI. Chỗ cũ nằm dưới thẻ "Nhân-IT Lv.x" nên
    người chơi chỉ thấy đúng chữ 0/4 lòi ra. Giờ nó áp sát MÉP TRÁI của nút 🗺️,
    vẽ bằng ĐÚNG hệ pixel backing + hệ số k của hlExitBox(): tự nhảy xuống khi
    ✕ tránh banner khẩn cấp, tự đổi cỡ theo mọi khung hình, và không thẻ HUD nào
-   che được nữa vì ngay cạnh ✕/🗺️ là vùng đã dọn sạch (mục 11b). */
+   che được nữa vì ngay cạnh ✕/🗺️ là vùng đã dọn sạch (mục 11b).
+   V44: đổi tên bộ đếm thành "Việc Âm Phủ" vì Khu 6 giờ là 5 đầu việc có quỷ
+   giao tận nơi, không còn là cuộc thi ca sửa máy mượn ải khu khác. */
 function hlCaCounter(g) {
   const n = hlCaDone(), full = n >= HL_CA_N;
-  const txt = '🔧 Ca sửa máy Âm Phủ: ' + n + '/' + HL_CA_N;
+  const txt = '🔧 Việc Âm Phủ: ' + n + '/' + HL_CA_N;
   const mb = hlMapBox(), k = mb.k;
   g.save();
   g.setTransform(1, 0, 0, 1, 0, 0);
@@ -1259,107 +1541,23 @@ function hlCaCounter(g) {
   g.restore();
 }
 
-/* ----- mở / thắng / đóng ca ----- */
-function hlCaHeader(st) {
-  const hd = document.getElementById(st.mg === 'hv' ? 'hv-mini-hd' : 'lu-mini-hd');
-  if (!hd) return;
-  const close = st.mg === 'hv' ? 'hvMiniClose()' : 'lqmClose()';
-  hd.innerHTML =
-    '<b style="font-size:16px">' + st.sign + ' — TRẠM ' + st.n + ' ÂM PHỦ</b>' +
-    '<span style="display:flex;gap:8px;align-items:center;font-size:12px;color:#fca5a5">🔧 ' +
-    hlCaDone() + '/' + HL_CA_N +
-    '<button onclick="' + close + '" style="background:#2a0d0a;color:#fff;border:1px solid #7f3a2a;border-radius:8px;padding:2px 10px;cursor:pointer">✖</button></span>';
-}
+/* ----- mở VIỆC ----- */
+/* V44: cả 5 trạm đều chạy ải RIÊNG viết trong hell.js (mục 18). Không còn một
+   lời gọi hvMiniEnter/lqmEnter nào, nên cũng không còn wrapper lqmWin/hvMiniWin
+   và cờ .hl mượn tiến trình Khu 3/Khu 4 — phần thưởng Âm Phủ đi thẳng từ
+   hlMgWin xuống hell_stN. */
 function hlOpenStation(st) {
   if (!st || !st.act || HL_CUT) return;
-  if (st.mg === 'hv') {
-    if (typeof hvMiniEnter !== 'function') return;
-    hvMiniEnter(st.mi);
-    if (!HVM) return;                    // hvmCut() chặn: không có hộp thì không đề cờ
-    HVM.hl = st;
-  } else {
-    if (typeof lqmEnter !== 'function') return;
-    lqmEnter(st.mi);
-    if (!LQM) return;
-    LQM.hl = st;
-  }
-  hlCaHeader(st);
-  if (typeof sfxPlay === 'function') { try { sfxPlay('pop', .7); } catch (e) {} }
-}
-/* Phần thưởng CỦA ÂM PHỦ: XP/Coin cố định theo trạm, một lần cho mỗi cờ
-   hell_stN. Không sao chép bất kỳ dòng nào của lqmWin/hvMiniWin ngoài việc
-   tự vẽ lại hint + nút trong hộp. */
-function hlCaFinish(st) {
-  const M = st.mg === 'hv' ? HVM : LQM;
-  if (!M) return;
-  M.done = true;
-  let stars = 1;
-  try {
-    const mod = st.mg === 'hv' ? M.mod : (typeof LQM_GAMES !== 'undefined' ? LQM_GAMES[M.i] : null);
-    if (mod && mod.stars) stars = Math.max(1, Math.min(3, mod.stars(M.g) | 0));
-  } catch (e) {}
-  const first = !S.missionsDone[st.id];
-  if (first) {
-    S.missionsDone[st.id] = true;
-    if (typeof addXP === 'function') addXP(st.xp);
-    if (typeof addCoin === 'function') addCoin(st.coin);
-  }
-  try { if (typeof saveGame === 'function') saveGame(); } catch (e) {}
-  try { if (typeof updateQuestHUD === 'function') updateQuestHUD(); } catch (e) {}
-  if (typeof sfxPlay === 'function') { try { sfxPlay('coin', 1.4); } catch (e) {} }
-  if (typeof chord === 'function') { try { chord([660, 880, 1100]); } catch (e) {} }
-  const el = document.getElementById(st.mg === 'hv' ? 'hv-mini-hint' : 'lu-mini-hint');
-  if (el) {
-    el.style.color = '#4ade80';
-    el.innerHTML = '🎉 <b>CA XONG!</b> ' + '⭐'.repeat(stars) + '☆'.repeat(3 - stars) + ' — ' +
-      (first ? '🎁 +' + st.xp + ' EXP | +' + st.coin + ' Coin'
-             : 'Quỷ Vương đã thưởng ca này rồi — làm lại cho vui, không nhận thêm') +
-      ' · 🔧 Ca sửa máy Âm Phủ: ' + hlCaDone() + '/' + HL_CA_N +
-      (hlCaDone() >= HL_CA_N ? ' · <b>Lên ngai lĩnh thưởng lớn!</b>' : '');
-  }
-  hlCaHeader(st);
-  const f = document.getElementById(st.mg === 'hv' ? 'hv-mini-foot' : 'lu-mini-foot');
-  if (f) f.innerHTML =
-    '<button onclick="hlCaClose()" style="padding:9px 30px;border:0;border-radius:12px;background:#22c55e;color:#04120a;font-weight:800;cursor:pointer;font-size:14px">✔ XONG CA</button>' +
-    '<button onclick="hlCaReplay()" style="padding:9px 18px;border:1px solid #475569;border-radius:12px;background:#161f3a;color:#cbd5e1;cursor:pointer">🔄 CHƠI LẠI</button>';
-}
-/* Hai hàm win cũ chỉ chạy khi KHÔNG phải ca Âm Phủ — cờ .hl mất là đủ. */
-if (typeof lqmWin === 'function') {
-  const _hlOldLqWin = lqmWin;
-  lqmWin = function () {
-    if (LQM && LQM.hl) { hlCaFinish(LQM.hl); return; }
-    return _hlOldLqWin.apply(this, arguments);
-  };
-}
-if (typeof hvMiniWin === 'function') {
-  const _hlOldHvWin = hvMiniWin;
-  hvMiniWin = function () {
-    if (HVM && HVM.hl) { hlCaFinish(HVM.hl); return; }
-    return _hlOldHvWin.apply(this, arguments);
-  };
-}
-function hlCaClose() {
-  const st = (LQM && LQM.hl) || (HVM && HVM.hl) || null;
-  if (st && st.mg === 'hv' && typeof hvMiniClose === 'function') hvMiniClose();
-  else if (typeof lqmClose === 'function') lqmClose();
-  /* 0.4s: đứng lại tại trạm vừa sửa xong thì nhãn [E] chưa hiện vội, kẻo cú
-     bấm "XONG CA" rơi trúng vào lần mở hộp tiếp theo. */
-  HL_ST.exitCd = HL_EXIT_CD;
-  if (typeof saveGame === 'function') { try { saveGame(); } catch (e) {} }
-}
-function hlCaReplay() {
-  const st = (LQM && LQM.hl) || (HVM && HVM.hl) || null;
-  if (!st) return;
-  if (st.mg === 'hv') { if (typeof hvMiniReplay === 'function') { hvMiniReplay(); hlCaHeader(st); } }
-  else if (typeof lqmReplay === 'function') { lqmReplay(); hlCaHeader(st); }
+  hlMgOpen(st);
 }
 
-/* Cho test + cho các lớp sau: hình học trạm và tiến trình ca sửa máy. */
+/* Cho test + cho các lớp sau: hình học trạm và tiến trình việc Âm Phủ. */
 window.HELL.stations = HL_STATIONS;
 window.HELL.caDone = hlCaDone;
 window.HELL.caN = () => HL_CA_N;
 window.HELL.openStation = hlOpenStation;
-window.HELL.closeCa = hlCaClose;
+window.HELL.closeCa = hlMgClose;
+window.HELL.jobs = HL_JOBS;
 
 /* ============================================================
    17. V42 — NHẠC NỀN RIÊNG CHO KHU 6 (assets/sfx/hell_bgm.mp3)
@@ -1488,3 +1686,634 @@ sfxBgmDuck = function () {
 window.HELL.bgm = HL_AUDIO;
 window.HELL.bgmLevel = hlBgmLevel;
 window.HELL.bgmUrl = HL_BGM_URL;
+
+/* ============================================================
+   19. V44 — 5 MINIGAME RIÊNG CỦA ÂM PHỦ (hộp #hl-mini)
+   ------------------------------------------------------------
+   Viết trọn trong hell.js: không một lời gọi hvMiniEnter/lqmEnter, nên ải
+   Khu 6 KHÔNG mở ải của Học Viện IT / Căn Cứ Mặt Trăng và không mượn tiến
+   trình của HVM/LQM.
+   * Engine TẮT update() khi có modal mở, mà MGX.t = performance.now()/1000
+     lại nhảy theo đồng hồ thật (tab ẩn một phút → một bước nhảy cả phút).
+     Vì vậy ải chạy bằng dt CỘNG DỒN tự đo trong wrapper mgFrame, clamp 0.05s.
+   * Chuột, chạm và phím đi chung một cửa: ptr / key / pulse.
+   * g.dead do chính ải gán; vòng tick chỉ phiên dịch nó thành thưởng.
+   ============================================================ */
+const HL_MG_W = 720, HL_MG_H = 340;
+let HLM = null;                        // { st, mod, g, done, stars, last }
+
+function hlMgVis() { return typeof mgVis === 'function' && mgVis('hl-mini'); }
+
+function hlMgEl() {
+  let m = document.getElementById('hl-mini');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'hl-mini'; m.className = 'modal';
+    document.getElementById('app').appendChild(m);
+  }
+  return m;
+}
+
+/* cssText là chuỗi JS đơn, dấu phẩy font có ngoặc kép an toàn (không phải
+   thuộc tính HTML nên không bị cắt như bài học style="..."). */
+function hlMgLayout() {
+  const m = hlMgEl();
+  m.style.cssText = 'display:flex;flex-direction:column;gap:8px;position:absolute;inset:14px 76px;' +
+    'transform:none;animation:none;padding:14px 20px 12px;' +
+    'background:linear-gradient(160deg,#32090a,#120306);border:2px solid #fb923c;border-radius:18px;' +
+    'color:#ffe9d6;font:13px "Segoe UI",system-ui,sans-serif;z-index:120;box-shadow:0 20px 60px #000c';
+  m.innerHTML =
+    '<div id="hl-mini-hd" style="display:flex;justify-content:space-between;align-items:center"></div>' +
+    '<div id="hl-mini-hint" style="font-size:12px;color:#ffcaa0;min-height:16px"></div>' +
+    '<div style="display:flex;justify-content:center;flex:1;align-items:center">' +
+      '<canvas id="hl-mini-cv" style="width:760px;max-width:100%;display:block;border-radius:12px;background:#180407;touch-action:none;cursor:crosshair"></canvas>' +
+    '</div>' +
+    '<div id="hl-mini-foot" style="display:flex;justify-content:center;align-items:center;gap:10px;min-height:38px"></div>';
+  const cv = document.getElementById('hl-mini-cv');
+  const pos = ev => mgPoint(cv, ev, HL_MG_W, HL_MG_H);
+  cv.addEventListener('pointerdown', ev => {
+    try { cv.setPointerCapture(ev.pointerId); } catch (e) {}
+    hlMgPtr('down', pos(ev));
+  });
+  cv.addEventListener('pointermove', ev => hlMgPtr('move', pos(ev)));
+  cv.addEventListener('pointerup', ev => hlMgPtr('up', pos(ev)));
+  cv.addEventListener('pointercancel', () => hlMgPtr('up', { x: -99, y: -99 }));
+  return m;
+}
+
+/* ----- nét vẽ chung của 5 ải ----- */
+function hlMgTxt(g, s, x, y, size, color, align, weight) {
+  g.font = (weight || 700) + ' ' + (size || 12) + 'px ' + IZF;
+  g.textAlign = align || 'left';
+  g.fillStyle = color || '#ffe9d6';
+  g.fillText(s, x, y);
+  g.textAlign = 'left';
+}
+function hlMgEmoji(g, s, x, y, size) {
+  g.font = (size || 24) + 'px ' + IZF;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(s, x, y);
+  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+}
+function hlMgBox(g, x, y, w, h, r, fill, stroke, lw) {
+  if (typeof rr === 'function') rr(g, x, y, w, h, r); else { g.beginPath(); g.rect(x, y, w, h); }
+  if (fill) { g.fillStyle = fill; g.fill(); }
+  if (stroke) { g.strokeStyle = stroke; g.lineWidth = lw || 1.5; g.stroke(); }
+}
+function hlMgBar(g, x, y, w, h, p, col) {
+  hlMgBox(g, x, y, w, h, h / 2, 'rgba(0,0,0,.5)', 'rgba(255,255,255,.12)', 1);
+  p = Math.max(0, Math.min(1, p));
+  if (p > .002) { hlMgBox(g, x, y, Math.max(h, w * p), h, h / 2, col); }
+}
+
+/* ----- khung hộp ----- */
+function hlMgHeader() {
+  const hd = document.getElementById('hl-mini-hd');
+  if (!hd || !HLM) return;
+  const st = HLM.st;
+  hd.innerHTML =
+    '<div style="font-weight:800;font-size:14px;color:#ffb347">' + st.sign + '</div>' +
+    '<div style="display:flex;align-items:center;gap:14px">' +
+      '<span id="hl-mini-live" style="font-weight:800;font-size:12px;color:#ffe9d6"></span>' +
+      '<span style="font-weight:800;font-size:12px;color:#fdba74">+' + st.xp + ' XP · +' + st.coin + ' Coin</span>' +
+    '</div>';
+}
+function hlMgHint() {
+  const el = document.getElementById('hl-mini-hint');
+  if (!el || !HLM) return;
+  el.textContent = HLM.mod.hint ? HLM.mod.hint(HLM.g) : '';
+}
+function hlMgFoot() {
+  const f = document.getElementById('hl-mini-foot');
+  if (!f || !HLM) return;
+  const mod = HLM.mod, live = !HLM.g.dead;
+  const A = 'padding:10px 26px;border:0;border-radius:12px;color:#2a0805;font-weight:800;' +
+            'cursor:pointer;font-size:14px;box-shadow:0 3px 0 #0008;background:linear-gradient(160deg,#fbbf24,#ea580c)';
+  const B = 'padding:8px 16px;border:1px solid #8a4a2a;border-radius:12px;background:#2b1010;color:#ffd7b0;cursor:pointer;font-size:12px';
+  f.innerHTML =
+    (mod.btn && live ? '<button onclick="hlMgPulse()" style="' + A + '">' + mod.btn + '</button>' : '') +
+    '<button onclick="hlMgReplay()" style="' + B + '">🔄 CHẠY LẠI</button>' +
+    '<button onclick="hlMgClose()" style="' + B + '">✖ THOÁT</button>';
+}
+
+/* ----- vòng đời ----- */
+function hlMgOpen(st) {
+  if (HLM || !st || !st.mg) return;
+  const mod = HL_MG[st.mg];
+  if (!mod) return;
+  hlMgLayout();
+  const g = {};
+  mod.init(g, st);
+  g.dead = false; g.win = false; g.up = 0;
+  HLM = { st: st, mod: mod, g: g, done: false, stars: 0, last: performance.now() };
+  hlMgHeader(); hlMgFoot(); hlMgHint();
+  try { beep(520, 'triangle', .07, .03); } catch (e) {}
+}
+function hlMgClose() {
+  if (!HLM) return;
+  const m = document.getElementById('hl-mini');
+  if (m) m.style.display = 'none';
+  HLM = null;
+  /* Nhả E rồi bấm lại ngay vẫn không mở trùng ải trong 0.4s (khu khác cũng dùng
+     HL_ST.exitCd cho cửa ra). */
+  HL_ST.exitCd = HL_EXIT_CD;
+}
+function hlMgReplay() {
+  if (!HLM) return;
+  const g = {};
+  HLM.mod.init(g, HLM.st);
+  g.dead = false; g.win = false; g.up = 0;
+  HLM.g = g; HLM.done = false; HLM.stars = 0; HLM.last = performance.now();
+  hlMgFoot(); hlMgHint();
+}
+function hlMgPulse() {
+  if (!HLM || HLM.g.dead) return;
+  if (HLM.mod.pulse) HLM.mod.pulse(HLM.g);
+}
+function hlMgPtr(kind, p) {
+  if (!HLM || HLM.g.dead) return;
+  if (HLM.mod.ptr) HLM.mod.ptr(HLM.g, kind, p);
+}
+
+/* Thưởng chỉ tính LẦN ĐẦU cho mỗi trạm — làm lại ải vẫn vui nhưng không cày
+   EXP. Coin/XP đi thẳng qua addXP/addCoin của engine nên HUD cập nhật đúng. */
+function hlMgWin() {
+  const st = HLM.st, g = HLM.g;
+  HLM.done = true;
+  HLM.stars = g.stars = (HLM.mod.stars ? HLM.mod.stars(g) : 3);
+  const first = !(S.missionsDone && S.missionsDone[st.id]);
+  if (first) {
+    S.missionsDone[st.id] = true;
+    try { addXP(st.xp); } catch (e) {}
+    try { addCoin(st.coin); } catch (e) {}
+    try { if (typeof updateQuestHUD === 'function') updateQuestHUD(); } catch (e) {}
+    try { if (typeof saveGame === 'function') saveGame(); } catch (e) {}
+  }
+  try { beep(880, 'triangle', .12, .05); } catch (e) {}
+  hlMgFoot(); hlMgHint();
+}
+function hlMgLose() {
+  HLM.done = true; HLM.stars = 0;
+  try { beep(150, 'sawtooth', .22, .04); } catch (e) {}
+  hlMgFoot(); hlMgHint();
+}
+
+function hlMgResult(g, ctx) {
+  const w = 430, h = 108, x = (HL_MG_W - w) / 2, y = (HL_MG_H - h) / 2;
+  ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(0, 0, HL_MG_W, HL_MG_H);
+  hlMgBox(ctx, x, y, w, h, 16, g.win ? 'rgba(12,48,26,.96)' : 'rgba(58,10,10,.96)',
+    g.win ? 'rgba(74,222,128,.9)' : 'rgba(248,113,113,.9)', 2);
+  const stars = g.win ? (HLM.stars || 3) : 0;
+  let s = '';
+  for (let i = 0; i < 3; i++) s += i < stars ? '⭐' : '✩';
+  hlMgTxt(ctx, s, HL_MG_W / 2, y + 30, 26, '#fde68a', 'center');
+  hlMgTxt(ctx, g.win ? (HLM.st.sign + ' — XONG!') : 'Hỏng rồi — bấm 🔄 CHẠY LẠI',
+    HL_MG_W / 2, y + 62, 15, g.win ? '#bbf7d0' : '#fecaca', 'center');
+  hlMgTxt(ctx, g.win ? 'Bấm ✖ THOÁT để quay lại hang lửa' : '',
+    HL_MG_W / 2, y + 86, 12, 'rgba(255,233,214,.75)', 'center');
+}
+
+/* ----- ải 1: 3x3 lâu Virus ----- */
+const HL_V_GX = 108, HL_V_GY = 62, HL_V_CW = 160, HL_V_CH = 74, HL_V_GAP = 12;
+const HL_MG_VIRUS = {
+  btn: '',
+  hint(g) {
+    if (g.dead) return g.win ? 'Đã diệt sạch 10 lâu Virus — bấm ✖ THOÁT để nhận việc.'
+                             : 'Hết 20 giây. Bấm 🔄 CHẠY LẠI để phá lại.';
+    return 'Bấm hoặc chạm 10 lâu 💀 trong 20 giây. Ô 😇 Thiên Thần là bạn của Diêm Vương — chạm vào bị trừ 3 giây!';
+  },
+  init(g) {
+    g.t = 20; g.hit = 0; g.need = 10; g.bad = 0; g.cells = [];
+    for (let i = 0; i < 9; i++) g.cells.push({ k: -1, life: .1 + Math.random() * .5 });
+  },
+  cellAt(p) {
+    for (let i = 0; i < 9; i++) {
+      const c = i % 3, r = (i / 3) | 0;
+      const x = HL_V_GX + c * (HL_V_CW + HL_V_GAP), y = HL_V_GY + r * (HL_V_CH + HL_V_GAP);
+      if (p.x >= x && p.x <= x + HL_V_CW && p.y >= y && p.y <= y + HL_V_CH) return i;
+    }
+    return -1;
+  },
+  ptr(g, kind, p) {
+    if (kind !== 'down') return;
+    const i = HL_MG_VIRUS.cellAt(p);
+    if (i < 0) return;
+    const c = g.cells[i];
+    if (c.k === 0) {
+      c.k = -1; c.life = .1 + Math.random() * .25; g.hit++;
+      try { beep(760, 'square', .05, .03); } catch (e) {}
+    } else if (c.k === 1) {
+      c.k = -1; c.life = .35 + Math.random() * .3; g.t = Math.max(0, g.t - 3); g.bad = .7;
+      try { beep(140, 'sawtooth', .18, .04); } catch (e) {}
+    }
+  },
+  tick(g, dt) {
+    if (g.bad > 0) g.bad -= dt;
+    g.t -= dt;
+    if (g.hit >= g.need) { g.dead = true; g.win = true; return; }
+    if (g.t <= 0) { g.t = 0; g.dead = true; g.win = false; return; }
+    for (let i = 0; i < 9; i++) {
+      const c = g.cells[i];
+      c.life -= dt;
+      if (c.life > 0) continue;
+      /* Ô trống chờ ngắn rồi hiện mặt mới; mặt đang hiện biến mất sau ~1 giây
+         nên người chơi phải đọc nhanh thay vì quét cả bảng một lượt. */
+      if (c.k < 0) { c.k = Math.random() < .22 ? 1 : 0; c.life = .75 + Math.random() * .75; }
+      else { c.k = -1; c.life = .12 + Math.random() * .3; }
+    }
+  },
+  live(g) { return '💀 ' + g.hit + '/' + g.need + '  ·  ' + g.t.toFixed(1) + 's'; },
+  stars(g) { return g.t >= 9 ? 3 : g.t >= 4 ? 2 : 1; },
+  draw(g, ctx) {
+    hlMgTxt(ctx, 'DIỆT VIRUS ÂM PHỦ — diệt đủ 10 lâu, tránh 😇', 108, 30, 14, '#ffb347');
+    hlMgBar(ctx, 108, 38, 504, 10, g.t / 20, g.t < 5 ? '#f87171' : '#38bdf8');
+    for (let i = 0; i < 9; i++) {
+      const c = g.cells[i], col = i % 3, row = (i / 3) | 0;
+      const x = HL_V_GX + col * (HL_V_CW + HL_V_GAP), y = HL_V_GY + row * (HL_V_CH + HL_V_GAP);
+      const cx = x + HL_V_CW / 2, cy = y + HL_V_CH / 2;
+      if (c.k < 0) { hlMgBox(ctx, x, y, HL_V_CW, HL_V_CH, 12, 'rgba(255,255,255,.04)', 'rgba(255,255,255,.09)', 1); continue; }
+      const p = Math.min(1, c.life / .3);
+      if (c.k === 0) {
+        hlMgBox(ctx, x, y, HL_V_CW, HL_V_CH, 12, 'rgba(96,10,26,.85)', 'rgba(248,113,113,.9)', 2);
+        ctx.globalAlpha = .35 + .65 * p;
+        hlMgEmoji(ctx, '💀', cx, cy, 40);
+        ctx.globalAlpha = 1;
+      } else {
+        hlMgBox(ctx, x, y, HL_V_CW, HL_V_CH, 12, 'rgba(30,64,90,.8)', 'rgba(125,211,252,.9)', 2);
+        hlMgEmoji(ctx, '😇', cx, cy, 38);
+      }
+    }
+    if (g.bad > 0) { ctx.globalAlpha = Math.min(.32, g.bad); ctx.fillStyle = '#ef4444'; ctx.fillRect(0, 0, HL_MG_W, HL_MG_H); ctx.globalAlpha = 1; }
+  }
+};
+
+/* ----- ải 2: hứng gói tin Vong Xuyên ----- */
+const HL_P_BW = 116, HL_P_TOP = 262, HL_P_BOT = 302;
+const HL_MG_PING = {
+  btn: '',
+  hint(g) {
+    if (g.dead) return g.win ? 'Đủ 10 gói tin — bấm ✖ THOÁT để nhận việc.'
+                             : 'Trượt hết 3 lần hoặc hết giờ. Bấm 🔄 CHẠY LẠI.';
+    return 'Kéo (hoặc chạm) cái giỏ bắt 10 📨 gói tin xanh. Né ⚡ đỏ — mỗi lần vướng mất 1 mạng. Phím A/D cũng được.';
+  },
+  init(g) {
+    g.t = 26; g.get = 0; g.need = 10; g.life = 3; g.gap = .45; g.spawn = .4;
+    g.bx = HL_MG_W / 2; g.tx = g.bx; g.items = []; g.bad = 0; g.good = 0;
+  },
+  ptr(g, kind, p) { if (kind === 'down' || kind === 'move') g.tx = p.x; },
+  key(g, code) {
+    if (code === 'KeyA' || code === 'ArrowLeft') g.left = true;
+    if (code === 'KeyD' || code === 'ArrowRight') g.right = true;
+  },
+  keyUp(g, code) {
+    if (code === 'KeyA' || code === 'ArrowLeft') g.left = false;
+    if (code === 'KeyD' || code === 'ArrowRight') g.right = false;
+  },
+  tick(g, dt) {
+    g.t -= dt; if (g.bad > 0) g.bad -= dt; if (g.good > 0) g.good -= dt;
+    if (g.get >= g.need) { g.dead = true; g.win = true; return; }
+    if (g.life <= 0 || g.t <= 0) { g.t = Math.max(0, g.t); g.dead = true; g.win = false; return; }
+    g.spawn -= dt;
+    if (g.spawn <= 0) {
+      g.spawn = g.gap;
+      g.items.push({ x: 40 + Math.random() * (HL_MG_W - 80), y: -24,
+                     v: 180 + Math.random() * 90, red: Math.random() < .34, hit: false });
+    }
+    let d = 0;
+    if (g.left) d -= 1;
+    if (g.right) d += 1;
+    if (d) g.tx += d * 470 * dt;
+    g.tx = Math.max(HL_P_BW / 2, Math.min(HL_MG_W - HL_P_BW / 2, g.tx));
+    /* Giỏ đuổi theo tay kéo thay vì nhảy tức thì: chạm trên iPhone vạch
+       ngắn là giỏ trượt theo nét vẽ, không giật cục sang góc màn hình. */
+    g.bx += (g.tx - g.bx) * Math.min(1, dt * 13);
+    for (let i = g.items.length - 1; i >= 0; i--) {
+      const it = g.items[i];
+      it.y += it.v * dt;
+      if (!it.hit && it.y >= HL_P_TOP && it.y <= HL_P_BOT && Math.abs(it.x - g.bx) < HL_P_BW / 2 - 6) {
+        it.hit = true;
+        if (it.red) { g.life--; g.bad = .5; try { beep(160, 'sawtooth', .2, .04); } catch (e) {} }
+        else { g.get++; g.good = .3; try { beep(900, 'triangle', .05, .03); } catch (e) {} }
+      }
+      if (it.y > HL_P_BOT + 26 || it.hit) g.items.splice(i, 1);
+    }
+  },
+  live(g) { return '📨 ' + g.get + '/' + g.need + '  ·  mạng ' + g.life + '  ·  ' + g.t.toFixed(0) + 's'; },
+  stars(g) { return g.t >= 10 ? 3 : g.t >= 4 ? 2 : 1; },
+  draw(g, ctx) {
+    hlMgTxt(ctx, 'HỨNG GÓI TIN VONG XUYÊN', 20, 26, 14, '#ffb347');
+    hlMgBar(ctx, 20, 34, 300, 9, g.t / 26, g.t < 6 ? '#f87171' : '#38bdf8');
+    for (let i = 0; i < g.life; i++) hlMgEmoji(ctx, '🕯️', HL_MG_W - 26 - i * 26, 30, 20);
+    ctx.strokeStyle = 'rgba(255,150,80,.16)'; ctx.lineWidth = 1;
+    for (let y = 60; y < HL_P_TOP; y += 22) {
+      const yy = y + (g.up * 40) % 22;
+      ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(HL_MG_W, yy); ctx.stroke();
+    }
+    for (const it of g.items) hlMgEmoji(ctx, it.red ? '⚡' : '📨', it.x, it.y, 30);
+    /* Miệng lưới đúng dải HL_P_TOP..HL_P_BOT — hình phải khớp vạch vô hình,
+       nếu không người chơi đoán bằng mắt rồi bị ăn một cú hụt. */
+    const bx = g.bx;
+    hlMgBox(ctx, bx - HL_P_BW / 2, HL_P_TOP, HL_P_BW, HL_P_BOT - HL_P_TOP + 8, 10,
+      g.bad > 0 ? 'rgba(190,40,40,.85)' : 'rgba(20,70,90,.85)',
+      g.bad > 0 ? '#fca5a5' : (g.good > 0 ? '#7dd3fc' : 'rgba(125,211,252,.75)'), 2.5);
+    ctx.strokeStyle = 'rgba(255,255,255,.2)'; ctx.lineWidth = 1;
+    for (let i = 1; i < 5; i++) {
+      const x = bx - HL_P_BW / 2 + i * HL_P_BW / 5;
+      ctx.beginPath(); ctx.moveTo(x, HL_P_TOP + 4); ctx.lineTo(x, HL_P_BOT + 4); ctx.stroke();
+    }
+    hlMgTxt(ctx, 'Lưới nhận gói tin ở dải này', HL_MG_W / 2, HL_MG_H - 12, 11, 'rgba(255,233,214,.5)', 'center');
+  }
+};
+
+/* ----- ải 3: quạt tắt lửa lò server ----- */
+const HL_F_MAX = 1000, HL_F_RECOVER = 36, HL_F_BLAST = 48;
+const HL_MG_FAN = {
+  btn: '🌀 QUẠT GIÓ CỰC MẠNH',
+  hint(g) {
+    if (g.dead) return g.win ? 'Lò nguội rồi — bấm ✖ THOÁT để nhận việc.'
+                             : 'Lò vẫn còn nóng khi hết 32 giây. Bấm 🔄 CHẠY LẠI.';
+    return 'Bấm 🌀 QUẠT GIÓ CỰC MẠNH (hoặc gõ Space / E) không ngừng để kéo lò từ 1000°C về 0°C trước khi hết giờ.';
+  },
+  init(g) { g.temp = HL_F_MAX; g.t = 32; g.blast = 0; },
+  pulse(g) {
+    g.temp = Math.max(0, g.temp - HL_F_BLAST); g.blast = .3;
+    /* Đỉnh nhiệt độ được kiểm tra NGAY tại phát quạt: để dành sang tick thì
+       dòng hồi phục +36°C chạy trước, lò không bao giờ về đúng 0° mà chỉ lơ
+       lửng 1°C cho đến hết giờ. */
+    if (g.temp <= 0) { g.temp = 0; g.dead = true; g.win = true; return; }
+    try { beep(240 + Math.random() * 60, 'sine', .04, .02); } catch (e) {}
+  },
+  ptr(g, kind) { if (kind === 'down') HL_MG_FAN.pulse(g); },
+  key(g, code) { if (code === 'Space' || code === 'KeyE') HL_MG_FAN.pulse(g); },
+  tick(g, dt) {
+    g.t -= dt; if (g.blast > 0) g.blast -= dt;
+    /* Nền lửa hồi phục liên tục: bấm nhịp 2 lần/giây mới thắng được chiều
+       -48 chọi +36, nghĩa là ải này bắt tay bấm thật chứ không xả một phát ăn ngay. */
+    g.temp = Math.min(HL_F_MAX, g.temp + HL_F_RECOVER * dt);
+    if (g.t <= 0) { g.t = 0; g.dead = true; g.win = false; }
+  },
+  live(g) { return Math.round(g.temp) + '°C  ·  ' + g.t.toFixed(0) + 's'; },
+  stars(g) { return g.t >= 15 ? 3 : g.t >= 6 ? 2 : 1; },
+  draw(g, ctx) {
+    hlMgTxt(ctx, 'QUẠT TẮT LỬA LÒ SERVER', 20, 26, 14, '#ffb347');
+    hlMgBar(ctx, 20, 34, 300, 9, g.t / 32, g.t < 8 ? '#f87171' : '#38bdf8');
+    const p = g.temp / HL_F_MAX;
+    hlMgTxt(ctx, Math.round(g.temp) + '°C', HL_MG_W - 20, 40, 22, p > .5 ? '#fca5a5' : '#bbf7d0', 'right');
+    /* Vạc lửa + kệ server: chiều cao lửa tỷ lệ thuận nhiệt độ nên người chơi
+       thấy ngay mình đang thắng hay chỉ gõ cho vui. */
+    hlMgBox(ctx, 250, 150, 220, 140, 12, 'rgba(30,12,18,.9)', 'rgba(255,140,80,.55)', 2);
+    for (let i = 0; i < 4; i++) {
+      const y = 166 + i * 32;
+      hlMgBox(ctx, 262, y, 196, 24, 5, 'rgba(0,0,0,.5)', 'rgba(255,255,255,.1)', 1);
+      for (let j = 0; j < 5; j++) {
+        ctx.fillStyle = p > .5 ? 'rgba(255,120,60,.9)' : 'rgba(74,222,128,.8)';
+        ctx.fillRect(272 + j * 16, y + 9, 6, 6);
+      }
+    }
+    for (let i = 0; i < 9; i++) {
+      const fx = 268 + i * 24, fh = (18 + Math.random() * 26) * p * Math.max(0, 1 - g.blast * 2.4);
+      if (fh > 1) hlMgBox(ctx, fx, 290 - fh, 18, fh, 7, 'rgba(255,' + Math.round(90 + 120 * (1 - p)) + ',40,.8)');
+    }
+    hlMgBox(ctx, 300, 118, 120, 12, 6, 'rgba(120,220,255,.25)');
+    ctx.save();
+    ctx.translate(160, 210); ctx.rotate(g.up * (g.blast > 0 ? 26 : 7));
+    for (let i = 0; i < 3; i++) {
+      ctx.rotate(2.094);
+      hlMgBox(ctx, -10, -6, 66, 12, 6, 'rgba(190,235,255,.92)', 'rgba(120,220,255,.9)', 1.5);
+    }
+    ctx.restore();
+    hlMgBox(ctx, 148, 198, 24, 24, 6, '#1e293b', '#7dd3fc', 1.5);
+    for (let i = 0; i < 5; i++) {
+      ctx.globalAlpha = .5 * Math.max(0, 1 - g.blast * 2);
+      hlMgTxt(ctx, '≋', 224 + i * 20, 206 - i * 4, 18, '#bae6fd', 'center');
+      ctx.globalAlpha = 1;
+    }
+    hlMgBar(ctx, 520, 120, 26, 180, 1 - p, '#38bdf8');
+    hlMgBox(ctx, 514, 116 + (1 - p) * 180, 38, 8, 4, p > .5 ? '#ef4444' : '#22c55e');
+    hlMgTxt(ctx, '0°C', 560, 128, 11, '#93c5fd');
+    hlMgTxt(ctx, '1000°C', 560, 306, 11, '#fca5a5');
+  }
+};
+
+/* ----- ải 4: giải mã Sổ Sinh Tử ----- */
+const HL_C_GX = 93, HL_C_GY = 64, HL_C_CW = 120, HL_C_CH = 110, HL_C_GAP = 18;
+const HL_C_SYM = ['🔌', '💀', '📜', '🔑'];
+const HL_C_NAME = ['Phích USB', 'Đầu lâu', 'Sổ Sinh Tử', 'Chìa Khoá'];
+const HL_MG_CRYPTO = {
+  btn: '',
+  hint(g) {
+    if (g.dead) return g.win ? 'Sổ Sinh Tử đã mở — bấm ✖ THOÁT để nhận việc.'
+                             : 'Hết 60 giây mà chưa đủ 4 cặp. Bấm 🔄 CHẠY LẠI.';
+    return 'Lật 8 tấm bài, ghép đủ 4 cặp giống nhau. Cặp sai úp lại sau 0,8 giây — càng ít lượt lật càng nhiều sao.';
+  },
+  init(g) {
+    g.t = 60; g.moves = 0; g.pairs = 0; g.lock = 0; g.open = [];
+    const deck = [0, 0, 1, 1, 2, 2, 3, 3];
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = (Math.random() * (i + 1)) | 0;
+      const tmp = deck[i]; deck[i] = deck[j]; deck[j] = tmp;
+    }
+    g.cards = [];
+    for (let i = 0; i < 8; i++) g.cards.push({ k: deck[i], up: false, done: false });
+  },
+  cardAt(p) {
+    for (let i = 0; i < 8; i++) {
+      const c = i % 4, r = (i / 4) | 0;
+      const x = HL_C_GX + c * (HL_C_CW + HL_C_GAP), y = HL_C_GY + r * (HL_C_CH + HL_C_GAP);
+      if (p.x >= x && p.x <= x + HL_C_CW && p.y >= y && p.y <= y + HL_C_CH) return i;
+    }
+    return -1;
+  },
+  ptr(g, kind, p) {
+    if (kind !== 'down' || g.lock > 0) return;
+    const i = HL_MG_CRYPTO.cardAt(p);
+    if (i < 0) return;
+    const c = g.cards[i];
+    if (c.done || c.up) return;
+    c.up = true; g.open.push(i);
+    try { beep(620, 'triangle', .05, .03); } catch (e) {}
+    if (g.open.length < 2) return;
+    g.moves++;
+    const a = g.cards[g.open[0]], b = g.cards[g.open[1]];
+    if (a.k === b.k) {
+      a.done = b.done = true; g.pairs++; g.open.length = 0;
+      try { beep(1040, 'triangle', .1, .04); } catch (e) {}
+    } else g.lock = .8;
+  },
+  tick(g, dt) {
+    g.t -= dt;
+    if (g.lock > 0) {
+      g.lock -= dt;
+      if (g.lock <= 0) {
+        for (const i of g.open) g.cards[i].up = false;
+        g.open.length = 0;
+      }
+    }
+    if (g.pairs >= 4) { g.dead = true; g.win = true; return; }
+    if (g.t <= 0) { g.t = 0; g.dead = true; g.win = false; }
+  },
+  live(g) { return 'cặp ' + g.pairs + '/4  ·  lượt ' + g.moves + '  ·  ' + g.t.toFixed(0) + 's'; },
+  stars(g) { return g.moves <= 6 ? 3 : g.moves <= 10 ? 2 : 1; },
+  draw(g, ctx) {
+    hlMgTxt(ctx, 'GIẢI MÃ SỔ SINH TỬ — Ghép 4 cặp bùa', HL_C_GX, 30, 14, '#ffb347');
+    hlMgBar(ctx, 460, 20, 240, 9, g.t / 60, g.t < 12 ? '#f87171' : '#a78bfa');
+    for (let i = 0; i < 8; i++) {
+      const c = g.cards[i], col = i % 4, row = (i / 4) | 0;
+      const x = HL_C_GX + col * (HL_C_CW + HL_C_GAP), y = HL_C_GY + row * (HL_C_CH + HL_C_GAP);
+      if (c.up || c.done) {
+        hlMgBox(ctx, x, y, HL_C_CW, HL_C_CH, 12,
+          c.done ? 'rgba(12,60,32,.92)' : 'rgba(48,26,86,.95)',
+          c.done ? 'rgba(74,222,128,.9)' : 'rgba(167,139,250,.9)', 2);
+        hlMgEmoji(ctx, HL_C_SYM[c.k], x + HL_C_CW / 2, y + HL_C_CH / 2 - 8, 40);
+        hlMgTxt(ctx, HL_C_NAME[c.k], x + HL_C_CW / 2, y + HL_C_CH - 14, 11, '#e9d5ff', 'center');
+      } else {
+        hlMgBox(ctx, x, y, HL_C_CW, HL_C_CH, 12, 'rgba(60,16,20,.95)', 'rgba(255,140,80,.5)', 2);
+        hlMgEmoji(ctx, '🔥', x + HL_C_CW / 2, y + HL_C_CH / 2, 30);
+      }
+    }
+  }
+};
+
+/* ----- ải 5: phá tường lửa Diêm Vương ----- */
+const HL_W_X0 = 70, HL_W_X1 = 650, HL_W_Y = 150, HL_W_H = 54;
+const HL_MG_WALL = {
+  btn: '⚡ CHỐT TẦN SỐ',
+  hint(g) {
+    if (g.dead) return g.win ? 'Tường lửa sụp — bấm ✖ THOÁT để nhận việc.'
+                             : 'Trượt 3 lần hoặc hết 30 giây. Bấm 🔄 CHẠY LẠI.';
+    return 'Kim quét dọc dải sóng. Bấm ⚡ CHỐT TẦN SỐ (hoặc Space / E, hoặc chạm vào bảng) khi kim nằm trong vùng xanh — cần 3 lần trúng.';
+  },
+  init(g) {
+    g.t = 30; g.pos = 0; g.dir = 1; g.sp = .8; g.hit = 0; g.miss = 0; g.zw = .18; g.zx = .5;
+    g.fx = 0; g.good = false;
+  },
+  lock(g) {
+    const p = g.pos;
+    if (p >= g.zx - g.zw / 2 && p <= g.zx + g.zw / 2) {
+      g.hit++; g.good = true; g.fx = .7;
+      try { beep(1100, 'triangle', .1, .04); } catch (e) {}
+      if (g.hit >= 3) { g.dead = true; g.win = true; return; }
+      /* Dải xanh bó hẹp + kim nhanh dần sau mỗi lần trúng: lần 3 khó hơn lần
+         1 rõ rệt mà vẫn kịp phản xạ bằng ngón tay trên iPhone. */
+      g.zw = Math.max(.075, g.zw * .72); g.sp += .16;
+    } else {
+      g.miss++; g.good = false; g.fx = .7;
+      try { beep(180, 'sawtooth', .2, .04); } catch (e) {}
+      if (g.miss >= 3) { g.dead = true; g.win = false; return; }
+    }
+    g.zx = .12 + Math.random() * .76;
+  },
+  ptr(g, kind) { if (kind === 'down') HL_MG_WALL.lock(g); },
+  pulse(g) { HL_MG_WALL.lock(g); },
+  key(g, code) { if (code === 'Space' || code === 'KeyE') HL_MG_WALL.lock(g); },
+  tick(g, dt) {
+    g.t -= dt; if (g.fx > 0) g.fx -= dt;
+    if (g.t <= 0) { g.t = 0; g.dead = true; g.win = false; return; }
+    g.pos += g.dir * g.sp * dt;
+    if (g.pos >= 1) { g.pos = 1; g.dir = -1; }
+    if (g.pos <= 0) { g.pos = 0; g.dir = 1; }
+  },
+  live(g) { return 'trúng ' + g.hit + '/3  ·  trượt ' + g.miss + '/3  ·  ' + g.t.toFixed(0) + 's'; },
+  stars(g) { return g.miss === 0 ? 3 : g.miss === 1 ? 2 : 1; },
+  draw(g, ctx) {
+    hlMgTxt(ctx, 'PHÁ TƯỜNG LỬA DIÊM VƯƠNG — bắt đúng tần số', 20, 28, 14, '#ffb347');
+    hlMgBar(ctx, 20, 36, 300, 9, g.t / 30, g.t < 8 ? '#f87171' : '#fb923c');
+    const w = HL_W_X1 - HL_W_X0;
+    /* Tường lửa: vạch sóng đỏ dựng đều sau dải tần số, đúng hình ảnh
+       "tường lửa Diêm Vương sập nguồn" của yêu cầu. */
+    ctx.strokeStyle = 'rgba(239,68,68,.3)'; ctx.lineWidth = 2;
+    for (let i = 0; i < 22; i++) {
+      const x = HL_W_X0 + i * (w / 21), h = 26 + 34 * Math.abs(Math.sin(g.up * 3 + i));
+      ctx.beginPath(); ctx.moveTo(x, HL_W_Y + HL_W_H + 6); ctx.lineTo(x, HL_W_Y + HL_W_H + 6 - h); ctx.stroke();
+    }
+    hlMgBox(ctx, HL_W_X0, HL_W_Y, w, HL_W_H, 10, 'rgba(6,16,30,.9)', 'rgba(125,211,252,.5)', 2);
+    hlMgBox(ctx, HL_W_X0 + (g.zx - g.zw / 2) * w, HL_W_Y + 4, g.zw * w, HL_W_H - 8, 6,
+      g.fx > 0 && g.good ? 'rgba(134,239,172,.95)' : 'rgba(34,197,94,.75)');
+    ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 1;
+    for (let i = 0; i <= 10; i++) {
+      const x = HL_W_X0 + i * (w / 10);
+      ctx.beginPath(); ctx.moveTo(x, HL_W_Y + HL_W_H); ctx.lineTo(x, HL_W_Y + HL_W_H + 8); ctx.stroke();
+    }
+    const nx = HL_W_X0 + g.pos * w;
+    ctx.save();
+    ctx.shadowColor = '#7dd3fc'; ctx.shadowBlur = 14;
+    ctx.fillStyle = g.fx > 0 ? (g.good ? '#86efac' : '#fca5a5') : '#e0f2fe';
+    hlMgBox(ctx, nx - 3, HL_W_Y - 12, 6, HL_W_H + 24, 3, ctx.fillStyle);
+    ctx.restore();
+    for (let i = 0; i < 3; i++) hlMgEmoji(ctx, i < g.hit ? '✅' : '⬜', 300 + i * 34, 250, 24);
+    for (let i = 0; i < 3; i++) hlMgEmoji(ctx, i < g.miss ? '❌' : '⬛', 430 + i * 34, 250, 24);
+    hlMgEmoji(ctx, '🧱', HL_MG_W / 2, 300, 34);
+    if (g.fx > 0) { ctx.globalAlpha = Math.min(.26, g.fx); ctx.fillStyle = g.good ? '#22c55e' : '#ef4444'; ctx.fillRect(0, 0, HL_MG_W, HL_MG_H); ctx.globalAlpha = 1; }
+  }
+};
+
+const HL_MG = { virus: HL_MG_VIRUS, ping: HL_MG_PING, fan: HL_MG_FAN, crypto: HL_MG_CRYPTO, wall: HL_MG_WALL };
+
+/* Một nhịp mỗi khung hình, chạy nhờ vòng rAF riêng của mg-art (xem wrapper dưới). */
+function hlMgTick() {
+  if (!HLM) return;
+  /* ESC → closeAll() chỉ việc ẩn mọi .modal, không biết gì về HLM. Thấy hộp
+     biến mất là buông tiến trình, nếu không doAction vẫn tưởng ải đang mở. */
+  if (!hlMgVis()) { HLM = null; return; }
+  const now = performance.now();
+  let dt = (now - HLM.last) / 1000;
+  HLM.last = now;
+  if (!(dt > 0)) dt = 0;
+  if (dt > .05) dt = .05;
+  const g = HLM.g, mod = HLM.mod;
+  if (!g.dead) {
+    g.up += dt;
+    mod.tick(g, dt);
+  }
+  /* Cờ dead hai đường mới sinh: tick (hết giờ, đủ điểm) hoặc chính cái nhịp
+     (ải Tường lửa thắng ngay ở phát CHỐT thứ ba). Chỉ canh đường thứ nhất là
+     ải bấm-thắng không bao giờ trả thưởng. */
+  if (g.dead && !HLM.done) { if (g.win) hlMgWin(); else hlMgLose(); }
+  const cv = document.getElementById('hl-mini-cv');
+  if (!cv || !cv.getContext) return;
+  const ctx = mgFit(cv, HL_MG_W, HL_MG_H);
+  mod.draw(g, ctx);
+  if (g.dead) hlMgResult(g, ctx);
+  const live = document.getElementById('hl-mini-live');
+  if (live) {
+    const s = mod.live ? mod.live(g) : '';
+    if (live.textContent !== s) live.textContent = s;
+  }
+}
+
+/* ============================================================
+   20. V44 — MÓC NỐI (wrapper — không sửa hàm cũ)
+   ------------------------------------------------------------
+   * ESC đi qua closeAll() của engine: nó tự ẩn mọi .modal, nên hell chỉ việc
+     thấy hộp biến mất là buông HLM (hệt cách mg-coding canh hvmVisible()).
+   * Thỏ mini phải ẩn khỏi hộp ải, cùng khuôn BUN_MINI_MODALS mà Khu 3 đã dùng.
+   ============================================================ */
+try { if (typeof BUN_MINI_MODALS !== 'undefined') BUN_MINI_MODALS.push('hl-mini'); } catch (e) {}
+
+const _hlOldMgFrame = mgFrame;
+mgFrame = function () {
+  try { hlMgTick(); } catch (e) {}
+  return _hlOldMgFrame.apply(this, arguments);
+};
+
+/* Phím trong hộp ải. Engine đã bắt KeyE/Space → doAction (đường của nút hành
+   động) và Escape → closeAll, nên ở đây chỉ còn A/D/mũi tên của ải Hứng Gói
+   Tin và Space/E của hai ải cần gõ bàn phím. */
+window.addEventListener('keydown', function (e) {
+  if (!HLM) return;
+  const t = e.target;
+  if (t && /INPUT|TEXTAREA|BUTTON/.test(t.tagName || '')) return;
+  if (e.code === 'Escape') { HLM = null; return; }   // closeAll() lo phần ẩn hộp
+  if (HLM.g.dead) return;
+  const mod = HLM.mod;
+  if (mod.key) { try { mod.key(HLM.g, e.code); } catch (err) {} }
+});
+window.addEventListener('keyup', function (e) {
+  if (!HLM || !HLM.mod.keyUp) return;
+  try { HLM.mod.keyUp(HLM.g, e.code); } catch (err) {}
+});
+
+window.HELL.mg = () => HLM;
+window.HELL.mgGames = HL_MG;
+window.HELL.MG_W = HL_MG_W;
+window.HELL.mgOpen = hlMgOpen;

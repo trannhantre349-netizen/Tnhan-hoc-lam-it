@@ -12,7 +12,7 @@
 
    Thêm tài nguyên mới? Cập nhật cả ASSETS.js và PRECACHE bên dưới.
    ============================================================ */
-const CACHE_NAME = 'it-game-v1.88';
+const CACHE_NAME = 'it-game-v1.90';
 
 const PRECACHE = [
   // --- vỏ ứng dụng ---
@@ -113,6 +113,11 @@ const PRECACHE = [
   './assets/img/baked/hell_st3.png?v=1',
   './assets/img/baked/hell_st4.png?v=1',
   './assets/img/baked/hell_st5.png?v=1',
+  // --- V43: CỔNG VÀO ĐỊA NGỤC ở cuối Phố Ngoài (bakeFlat giữ nguyên khung) ---
+  './assets/img/baked/hell_gate.png?v=1',
+  // --- V44: 5 QUỶ GIAO VIỆC cạnh 5 trạm Âm Phủ (lưới đều 5 cột x 1 hàng, ô 224x304,
+  //     chân dòng 300) — bake: node tools/bake-hell.cjs ---
+  './assets/img/baked/hell_job_npcs.png?v=1',
   './assets/img/icon-113.png',
   './assets/img/baked/npc_lan.png',
   './assets/img/baked/npc_tuan.png',

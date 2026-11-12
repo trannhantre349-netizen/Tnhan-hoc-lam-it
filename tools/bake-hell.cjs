@@ -325,6 +325,58 @@ async function bakeFlat(srcRel, outRel, pocketMin) {
   }
 }
 
+/* ---------- 5. V44: 5 QUỶ GIAO VIỆC (hell_job_npcs.png) ----------
+   Ảnh nguồn 1024x434 có 5 nhân vật KHÔNG cách đều (khe trắng giữa 2 con chỉ
+   4px, con 1 rộng 220px) nên chia lưới đều 5 cột sẽ cắt cụt con số 1 và 5.
+   Vì vậy cắt theo DẢI CỘT đo từ profile mực (biên đặt giữa khe hẹp nhất),
+   còn ẢNH RA vẫn đúng yêu cầu: lưới đều 5 cột x 1 hàng, neo đáy chân.
+   Khác bake(): lấy bbox HỢP NHẤT mọi nét đặc trong dải thay vì cụm to nhất,
+   để sừng / đuôi / vũ khí rời khỏi thân không bị bỏ lại ngoài ô.
+   hell.js phải biết kích thước NÉT của từng ô để co về chiều cao mong muốn
+   mà không lệch chân, nên hàm này in bảng "cN nét WxH" — chép vào HL_JINK. */
+async function bakeCells(srcRel, outRel, xbands, CW, CH, foot) {
+  const src = path.join(ROOT, srcRel), out = path.join(ROOT, outRel);
+  const im = await readRGBA(src);
+  const W = im.w, H = im.h;
+  const png = new PNG({ width: CW * xbands.length, height: CH });
+  const lines = [];
+  for (let c = 0; c < xbands.length; c++) {
+    const x0 = xbands[c][0], cw = xbands[c][1] - x0 + 1;
+    const cut = cutCell(im, x0, 0, cw, H);
+    let bx0 = cw, bx1 = -1, by0 = H, by1 = -1, n = 0;
+    for (let y = 0; y < H; y++) for (let x = 0; x < cw; x++) {
+      if (cut.bg[y * cw + x]) continue;
+      n++;
+      if (x < bx0) bx0 = x; if (x > bx1) bx1 = x;
+      if (y < by0) by0 = y; if (y > by1) by1 = y;
+    }
+    if (!n) { console.error('  Ô ' + c + ' trắng toàn bộ — sai dải cột?'); process.exit(1); }
+    const lay = makeLayer(im, x0, 0, cw, H, cut);
+    const g = blitCell(png, c * CW, 0, CW, CH, foot, lay, cw, H, { bx0, by0, bx1, by1 }, 0);
+    lines.push('  c' + c + ' nét ' + g.dw + 'x' + g.dh + '  (nguồn ' + (bx1 - bx0 + 1) + 'x' +
+      (by1 - by0 + 1) + ' @' + (x0 + bx0) + ',' + by0 + ') px=' + n);
+  }
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  fs.writeFileSync(out, PNG.sync.write(png, { deflateLevel: 9 }));
+  console.log('\n' + path.basename(src) + ' ' + W + 'x' + H + ' -> ' + path.relative(ROOT, out) +
+    '  lưới đều ' + xbands.length + ' cột ô ' + CW + 'x' + CH + ' chân=' + foot);
+  console.log(lines.join('\n'));
+  if (DEBUG) {
+    const p = path.join(ROOT, 'tmp', 'hell', path.basename(outRel).replace('.png', '_debug.png'));
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    const dbg = new PNG({ width: png.width, height: png.height });
+    for (let i = 0; i < png.width * png.height; i++) {
+      const a = png.data[i * 4 + 3] / 255;
+      dbg.data[i * 4] = Math.round(255 * a + 255 * (1 - a));
+      dbg.data[i * 4 + 1] = Math.round(40 * a);
+      dbg.data[i * 4 + 2] = Math.round(180 * a + 255 * (1 - a));
+      dbg.data[i * 4 + 3] = 255;
+    }
+    fs.writeFileSync(p, PNG.sync.write(dbg));
+    console.log('  ảnh soi: ' + path.relative(ROOT, p));
+  }
+}
+
 (async () => {
   /* fitH=158 đúng bằng SK_GEO.BODY của sheet người -> Quỷ cao ngang người,
      skSheetChibi() không phải đổi một con số nào. */
@@ -337,6 +389,14 @@ async function bakeFlat(srcRel, outRel, pocketMin) {
      pocketMin=1 riêng trạm 1: nền trắng kẹt trong các vòng dây cáp dưới gầm bàn. */
   for (let i = 1; i <= 5; i++)
     await bakeFlat('assets/img/hell_st' + i + '.png', 'assets/img/baked/hell_st' + i + '.png', i === 1 ? 1 : 0);
+  /* V43: CỔNG VÀO ĐỊA NGỤC ở cuối Phố Ngoài — cùng quy tắc bakeFlat (giữ nguyên
+     khổ, chỉ đổi kênh alpha). hell.js neo ĐÁY bbox xuống mặt sàn vỉa hè nên chỉ
+     cần chép bbox log này in ra vào HL_GATE.box. */
+  await bakeFlat('assets/img/hell_gate.png', 'assets/img/baked/hell_gate.png', 0);
+  /* V44: 5 QUỶ GIAO VIỆC đứng cạnh 5 trạm Âm Phủ — dải cột đo bằng profile mực
+     (tools/_inspect_job.cjs), ô 224x304 vì nét to nhất 220x295. */
+  await bakeCells('assets/img/hell_job_npcs.png', 'assets/img/baked/hell_job_npcs.png',
+    [[0, 254], [255, 408], [409, 613], [614, 800], [801, 1023]], 224, 304, 300);
   const bg = await readRGBA(path.join(ROOT, 'assets/img/hell_bg.png'));
   const bgPng = new PNG({ width: bg.w, height: bg.h });
   bgPng.data = Buffer.from(bg.d);

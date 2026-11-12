@@ -120,10 +120,19 @@ const ASSETS = {
   hellSt2: 'assets/img/baked/hell_st2.png?v=1',
   hellSt3: 'assets/img/baked/hell_st3.png?v=1',
   hellSt4: 'assets/img/baked/hell_st4.png?v=1',
-  hellSt5: 'assets/img/baked/hell_st5.png?v=1'
+  hellSt5: 'assets/img/baked/hell_st5.png?v=1',
+  /* V43: CỔNG VÀO ĐỊA NGỤC ở cuối Phố Ngoài — nguồn WebP đổi tên 765x1024, bake
+     bằng bakeFlat (khung giữ nguyên, chỉ kênh alpha đổi). hell.js neo ĐÁY bbox
+     xuống mặt sàn vỉa hè nên không cần biết ảnh gốc chừa lề bao nhiêu. */
+  hellGate: 'assets/img/baked/hell_gate.png?v=1',
+  /* V44: 5 QUỶ GIAO VIỆC đứng cạnh 5 trạm — nguồn 1024x434 (WebP đổi tên) được
+     bake-hell.cjs cắt theo DẢI CỘT đo từ profile mực rồi đóng lại thành lưới đều
+     5 cột x 1 hàng, ô 224x304, bàn chân neo tại dòng 300. hell.js biết kích thước
+     nét của từng ô (HL_JINK) nên co về ~76px mà không lệch chân. */
+  hellJobNpcs: 'assets/img/baked/hell_job_npcs.png?v=1'
 };
 
-const IMG = { bg: null, chars: {}, avf: null, femSprites: null, maleSprites: null, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null, creatures: null, bunny: null, hvStations: null, hvBg: null, hvBgClean: null, ipBg: null, ipBench: null, ipMonkSheet: null, ipAbbot: null, hellBg: null, demonSheet: null, hellNpcs: null, hellSt1: null, hellSt2: null, hellSt3: null, hellSt4: null, hellSt5: null };
+const IMG = { bg: null, chars: {}, avf: null, femSprites: null, maleSprites: null, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null, creatures: null, bunny: null, hvStations: null, hvBg: null, hvBgClean: null, ipBg: null, ipBench: null, ipMonkSheet: null, ipAbbot: null, hellBg: null, demonSheet: null, hellNpcs: null, hellSt1: null, hellSt2: null, hellSt3: null, hellSt4: null, hellSt5: null, hellGate: null, hellJobNpcs: null };
 let assetsReady = false;
 
 /* ============================================================
@@ -313,6 +322,12 @@ function loadOne(src) {
      bấm [E] sửa máy được bình thường. */
   for (let i = 1; i <= 5; i++)
     jobs.push(loadOne(ASSETS['hellSt' + i]).then(im => { IMG['hellSt' + i] = im; }));
+  /* V43: cổng vào Khu 6 ở Phố Ngoài — thiếu ảnh thì hell.js tự vẽ lại khe nứt
+     vector cũ, vẫn vào Địa Ngục được, không lỗi. */
+  jobs.push(loadOne(ASSETS.hellGate).then(im => { IMG.hellGate = im; }));
+  /* V44: bộ 5 Quỷ Giao Việc — thiếu ảnh thì hell.js tự vẽ lại bằng ô trong sheet
+     hell_npcs.png cũ, nhân vật vẫn đứng cạnh trạm, không lỗi. */
+  jobs.push(loadOne(ASSETS.hellJobNpcs).then(im => { IMG.hellJobNpcs = im; }));
 
   Object.entries(ASSETS.chars).forEach(([k, src]) => {
     jobs.push(loadOne(src).then(im => { IMG.chars[k] = im; }));
