@@ -259,7 +259,13 @@ function skSheetCol() {
 
 function skSheetChibi(x, y) {
   const right = (S.p.dir || 1) > 0;
-  const col = skSheetCol(), row = SK_ROW[skEquipped()] || 0;
+  const col = skSheetCol();
+  /* V36: sang Khu 6 thì thân người thay bằng sheet Quỷ — hàng 0 Quỷ Nam, hàng 1
+     Quỷ Nữ theo giới tính đang chơi. Lưới 150x178 giống hệt sheet người nên 5 cột
+     hướng, nhịp bước, bóng chân không phải sửa. Sheet chưa nạp thì vẫn mặc đồ
+     thường (không mất hình); ảnh đại diện HUD/cửa hàng vẫn dùng skSheetImg cũ. */
+  const hell = (typeof S !== 'undefined' && S.scene === 'HELL') ? IMG.demonSheet : null;
+  const row = hell ? (playerGender === 'female' ? 1 : 0) : (SK_ROW[skEquipped()] || 0);
   const sc = SK_GEO.H / SK_GEO.BODY, dw = SK_GEO.CW * sc, dh = SK_GEO.CH * sc;
   const cx = x + 10, feet = y + 30;
   const bob = S.p.moving ? Math.abs(Math.sin(S.p.step * 0.32)) * 2.2
@@ -271,7 +277,7 @@ function skSheetChibi(x, y) {
   /* cột 4 vẽ sẵn quay sang phải -> lật khi đi trái; 4 cột kia đã có bản đối xứng */
   if (col === 4 && !right) ctx.scale(-1, 1);
   try { ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; } catch (e) {}
-  ctx.drawImage(skSheetImg(), col * SK_GEO.CW, row * SK_GEO.CH, SK_GEO.CW, SK_GEO.CH,
+  ctx.drawImage(hell || skSheetImg(), col * SK_GEO.CW, row * SK_GEO.CH, SK_GEO.CW, SK_GEO.CH,
     -dw / 2, -dh * (SK_GEO.FOOT / SK_GEO.CH), dw, dh);
   ctx.restore();
 }

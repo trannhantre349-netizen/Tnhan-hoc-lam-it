@@ -12,7 +12,7 @@
 
    Thêm tài nguyên mới? Cập nhật cả ASSETS.js và PRECACHE bên dưới.
    ============================================================ */
-const CACHE_NAME = 'it-game-v1.80';
+const CACHE_NAME = 'it-game-v1.81';
 
 const PRECACHE = [
   // --- vỏ ứng dụng ---
@@ -36,6 +36,7 @@ const PRECACHE = [
   './js/mg-coding.js',
   './js/inpeace.js',
   './js/critters.js',
+  './js/hell.js',
   './js/widescreen.js',
   // --- icon PWA ---
   './assets/img/icon-192.png',
@@ -99,6 +100,12 @@ const PRECACHE = [
   //     nữ nên hai giới vẽ bằng một công thức. Nguồn assets/img/male_sprites.png
   //     là JPEG nền xám, game KHÔNG nạp nó; bake: node tools/bake-male-sprites.cjs ---
   './assets/img/baked/male_sprites.png?v=1',
+  // --- V36: Khu 6 Địa Ngục Trần Nhân. Nền 1024x572 (WebP gốc đổi tên, bake ra PNG),
+  //     sheet quỷ ép đúng lưới người 150x178 (2 hàng: Nam/Nữ), sheet NPC 4x2.
+  //     bake: node tools/bake-hell.cjs ---
+  './assets/img/baked/hell_bg.png?v=1',
+  './assets/img/baked/hell_demon_sheet.png?v=1',
+  './assets/img/baked/hell_npcs.png?v=1',
   './assets/img/icon-113.png',
   './assets/img/baked/npc_lan.png',
   './assets/img/baked/npc_tuan.png',

@@ -103,10 +103,19 @@ const ASSETS = {
      đổi giới tính không làm nhân vật to/nhỏ đi. Nguồn assets/img/male_sprites.png
      cũng là JPEG đổi tên (magic FFD8) nên phải bake:
          node tools/bake-male-sprites.cjs -> baked/male_sprites.png 750x712 */
-  maleSprites: 'assets/img/baked/male_sprites.png?v=1'
+  maleSprites: 'assets/img/baked/male_sprites.png?v=1',
+  /* V36: Khu 6 — Địa Ngục Trần Nhân. Ba nguồn gốc là WebP đổi tên .png nên Chrome
+     vẫn giải mã được, nhưng bộ bake cần PNG trong suốt:
+         node tools/bake-hell.cjs -> baked/hell_bg.png, hell_demon_sheet.png,
+                                     hell_npcs.png
+     Sheet quỷ ép đúng lưới người 150x178 (chân dòng 172) nên skins.js chỉ việc
+     đổi ảnh + đổi hàng theo giới tính, không đổi công thức vẽ. */
+  hellBg: 'assets/img/baked/hell_bg.png?v=1',
+  demonSheet: 'assets/img/baked/hell_demon_sheet.png?v=1',
+  hellNpcs: 'assets/img/baked/hell_npcs.png?v=1'
 };
 
-const IMG = { bg: null, chars: {}, avf: null, femSprites: null, maleSprites: null, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null, creatures: null, bunny: null, hvStations: null, hvBg: null, hvBgClean: null, ipBg: null, ipBench: null, ipMonkSheet: null, ipAbbot: null };
+const IMG = { bg: null, chars: {}, avf: null, femSprites: null, maleSprites: null, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null, creatures: null, bunny: null, hvStations: null, hvBg: null, hvBgClean: null, ipBg: null, ipBench: null, ipMonkSheet: null, ipAbbot: null, hellBg: null, demonSheet: null, hellNpcs: null };
 let assetsReady = false;
 
 /* ============================================================
@@ -288,6 +297,10 @@ function loadOne(src) {
   jobs.push(loadOne(ASSETS.avf).then(im => { IMG.avf = im; }));
   jobs.push(loadOne(ASSETS.femSprites).then(im => { IMG.femSprites = im; }));
   jobs.push(loadOne(ASSETS.maleSprites).then(im => { IMG.maleSprites = im; }));
+  /* V36: thiếu ảnh Khu 6 thì hell.js tự vẽ bằng trụ lửa / nền tối — không lỗi. */
+  jobs.push(loadOne(ASSETS.hellBg).then(im => { IMG.hellBg = im; }));
+  jobs.push(loadOne(ASSETS.demonSheet).then(im => { IMG.demonSheet = im; }));
+  jobs.push(loadOne(ASSETS.hellNpcs).then(im => { IMG.hellNpcs = im; }));
 
   Object.entries(ASSETS.chars).forEach(([k, src]) => {
     jobs.push(loadOne(src).then(im => { IMG.chars[k] = im; }));
