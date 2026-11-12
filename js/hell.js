@@ -531,7 +531,21 @@ function hlExitBox() {
   const r = cv.getBoundingClientRect();
   const k = (r && r.width) ? cv.width / r.width : 1;
   const s = 46 * Math.max(.35, Math.min(6, k));
-  return { x: cv.width - s - 10 * k, y: 10 * k, w: s, h: s, k: k };
+  /* Khu 6 GIỮ NGUYÊN HUD (khác Khu 5 Zen), nên góc phải-trên đã có minimap
+     (z-index 12) chiếm chỗ — đặt ✕ ngay trên nó, thụt xuống đúng bề cao thẻ.
+     Không có minimap (màn dọc gọn/Máy bàn phím ẩn panel) thì về đúng góc
+     như nút ✕ của Khu 5. */
+  let y = 10 * k;
+  try {
+    const m = document.getElementById('minimap-box');
+    const mr = m && m.getBoundingClientRect();
+    if (m && mr && mr.width && mr.height && getComputedStyle(m).display !== 'none') {
+      const need = s + 8 * k;
+      const below = (mr.bottom - r.top) * k + 6 * k;
+      if (below + need <= cv.height) y = below;
+    }
+  } catch (e) {}
+  return { x: cv.width - s - 10 * k, y: y, w: s, h: s, k: k };
 }
 function hlExitDraw() {
   if (S.scene !== 'HELL' || HL_CUT) return;
