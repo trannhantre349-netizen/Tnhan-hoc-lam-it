@@ -121,6 +121,9 @@ const ASSETS = {
   hellSt3: 'assets/img/baked/hell_st3.png?v=1',
   hellSt4: 'assets/img/baked/hell_st4.png?v=1',
   hellSt5: 'assets/img/baked/hell_st5.png?v=1',
+  /* V48:ảnh TƯỜNG LỬA DIÊM VƯƠNG cho Trạm 5 — trước đây hell.js vẽ khung chữ
+     nhật vector tạm, giờ dùng ảnh bake thật (bakeFlat, giữ nguyên khổ). */
+  hellSt6: 'assets/img/baked/hell_st6.png?v=1',
   /* V43: CỔNG VÀO ĐỊA NGỤC ở cuối Phố Ngoài — nguồn WebP đổi tên 765x1024, bake
      bằng bakeFlat (khung giữ nguyên, chỉ kênh alpha đổi). hell.js neo ĐÁY bbox
      xuống mặt sàn vỉa hè nên không cần biết ảnh gốc chừa lề bao nhiêu. */
@@ -133,10 +136,18 @@ const ASSETS = {
   /* V45: CỔNG LÊN THIÊN ĐÀNG thay cột sáng ở Khu Trung Tâm — cùng quy trình
      bakeFlat như hell_gate (giữ nguyên khổ, chỉ đổi kênh alpha), nguồn WebP
      đổi tên 765x1024, nét 743x975. heaven.js neo ĐÁY nét xuống mặt đất. */
-  heavenGate: 'assets/img/baked/heaven_gate.png?v=1'
+  heavenGate: 'assets/img/baked/heaven_gate.png?v=1',
+  /* V47: 4 TRẠM CÔNG NGHỆ XU HƯỚNG (Kiểm Duyệt AI · Thợ Săn Scam · Tường Lửa
+     DDoS · Xoay Mạch Định Tuyến) — nguồn WebP VP8X 1024x1024 nền trắng, bake
+     bằng bakeFlat. mg-trends.js neo ĐÁY nét xuống mặt đất nên không cần biết
+     ảnh chừa lề bao nhiêu; thiếu ảnh thì trạm chỉ mất hình, [E] vẫn chạy. */
+  stAiAudit: 'assets/img/baked/station_ai_audit.png?v=1',
+  stAntiScam: 'assets/img/baked/station_antiscam.png?v=1',
+  stFirewall: 'assets/img/baked/station_firewall.png?v=1',
+  stRouting: 'assets/img/baked/station_routing.png?v=1'
 };
 
-const IMG = { bg: null, chars: {}, avf: null, femSprites: null, maleSprites: null, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null, creatures: null, bunny: null, hvStations: null, hvBg: null, hvBgClean: null, ipBg: null, ipBench: null, ipMonkSheet: null, ipAbbot: null, hellBg: null, demonSheet: null, hellNpcs: null, hellSt1: null, hellSt2: null, hellSt3: null, hellSt4: null, hellSt5: null, hellGate: null, hellJobNpcs: null, heavenGate: null };
+const IMG = { bg: null, chars: {}, avf: null, femSprites: null, maleSprites: null, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null, creatures: null, bunny: null, hvStations: null, hvBg: null, hvBgClean: null, ipBg: null, ipBench: null, ipMonkSheet: null, ipAbbot: null, hellBg: null, demonSheet: null, hellNpcs: null, hellSt1: null, hellSt2: null, hellSt3: null, hellSt4: null, hellSt5: null, hellSt6: null, hellGate: null, hellJobNpcs: null, heavenGate: null, stAiAudit: null, stAntiScam: null, stFirewall: null, stRouting: null };
 let assetsReady = false;
 
 /* ============================================================
@@ -324,7 +335,7 @@ function loadOne(src) {
   jobs.push(loadOne(ASSETS.hellNpcs).then(im => { IMG.hellNpcs = im; }));
   /* V41: 5 trạm Âm Phủ — thiếu ảnh nào hell.js vẽ khối trụ đá thay ảnh đó, vẫn
      bấm [E] sửa máy được bình thường. */
-  for (let i = 1; i <= 5; i++)
+  for (let i = 1; i <= 6; i++)
     jobs.push(loadOne(ASSETS['hellSt' + i]).then(im => { IMG['hellSt' + i] = im; }));
   /* V43: cổng vào Khu 6 ở Phố Ngoài — thiếu ảnh thì hell.js tự vẽ lại khe nứt
      vector cũ, vẫn vào Địa Ngục được, không lỗi. */
@@ -335,6 +346,11 @@ function loadOne(src) {
   /* V45: cổng lên Thiên Đàng — thiếu ảnh thì heaven.js vẫn vẽ cột sáng vector
      cũ, người chơi bấm [E] lên Khu 4 được, không lỗi. */
   jobs.push(loadOne(ASSETS.heavenGate).then(im => { IMG.heavenGate = im; }));
+  /* V47: 4 trạm xu hướng — nạp NGOÀI jobs để không chậm màn boot (3,8MB ảnh
+     bake). mg-trends.js kiểm tra IMG mỗi khung hình, ảnh về tới là vẽ. */
+  ['stAiAudit', 'stAntiScam', 'stFirewall', 'stRouting'].forEach(k => {
+    loadOne(ASSETS[k]).then(im => { IMG[k] = im; });
+  });
 
   Object.entries(ASSETS.chars).forEach(([k, src]) => {
     jobs.push(loadOne(src).then(im => { IMG.chars[k] = im; }));

@@ -1276,9 +1276,11 @@ const HL_STATIONS = [
   { n: 4, id: 'hell_st4', img: 'hellSt4', x: 1780, y: 545, h: 172, r: 66, pk: 476,
     box: [211, 69, 812, 956], mg: 'crypto', xp: 55, coin: 80, rgb: '220,150,255',
     act: '[E] 📜 GIẢI MÃ SỔ SINH TỬ', sign: '📜 GIẢI MÃ SỔ SINH TỬ' },
-  /* Trạm 5 không có ảnh rời — TƯỜNG LỬA Diêm Vương do hlWallArt() vẽ vector
-     (cột đá + màn lửa), vẫn neo đáy y=545 và cao 190px cho ngang trạm 3. */
-  { n: 5, id: 'hell_st5', x: 2230, y: 545, h: 190, r: 66, pk: 476, wall: true,
+  /* V48: TƯỜNG LỬA Diêm Vương có ảnh rời (assets/img/hell_st6.png → baked,
+     bbox 869x929 @(84,55)) nên không còn khung vector. sgap 46: đỉnh ảnh là
+     cặp sừng + ăng-ten WiFi vút cao, bảng hiệu phải nhả lên trên hẳn. */
+  { n: 5, id: 'hell_st5', img: 'hellSt6', x: 2230, y: 546, h: 180, r: 66, pk: 476,
+    box: [84, 55, 952, 983], sgap: 46,
     mg: 'wall', xp: 65, coin: 90, rgb: '255,90,40',
     act: '[E] ⚡ PHÁ TƯỜNG LỬA DIÊM VƯƠNG', sign: '⚡ TƯỜNG LỬA DIÊM VƯƠNG' },
   /* pk 468 < HL_KING.pk 470 → ngai luôn đứng SAU vua. V44: ngai x=2740, vua
@@ -1329,54 +1331,8 @@ function hlNearStation() {
 }
 
 /* ----- vẽ ----- */
-/* V44: TƯỜNG LỬA DIÊM VƯƠNG (trạm 5) không có ảnh rời nên vẽ vector: hai cột
-   đá nham thạch + màn lửa chảy, chân tường nằm đúng feetY như mọi trạm khác
-   (k = h/bh để mọi trạm cùng một mặt sàn). */
-function hlWallArt(g, s, t) {
-  const feetY = s.y + 2, h = s.h, w = Math.round(h * .9);
-  const x0 = s.x - w / 2, x1 = s.x + w / 2, yTop = feetY - h;
-  g.save();
-  /* hai cột đá */
-  for (let i = 0; i < 2; i++) {
-    const cx = i ? x1 - 22 : x0, cw = 22;
-    const st = g.createLinearGradient(cx, 0, cx + cw, 0);
-    st.addColorStop(0, '#241016'); st.addColorStop(.45, '#4a2530'); st.addColorStop(1, '#1a0a10');
-    g.fillStyle = st; g.fillRect(cx, yTop - 10, cw, h + 10);
-    g.fillStyle = 'rgba(255,140,60,.20)';
-    for (let k = 0; k < 4; k++) g.fillRect(cx + 2, yTop + 6 + k * (h / 4), cw - 4, 3);
-    /* đầu cột đội lửa */
-    g.globalCompositeOperation = 'lighter';
-    const q = g.createRadialGradient(cx + cw / 2, yTop - 14, 2, cx + cw / 2, yTop - 14, 26);
-    q.addColorStop(0, 'rgba(255,220,120,.85)'); q.addColorStop(.5, 'rgba(255,120,30,.45)');
-    q.addColorStop(1, 'rgba(255,60,10,0)');
-    g.fillStyle = q; g.beginPath(); g.arc(cx + cw / 2, yTop - 14, 26, 0, 6.2832); g.fill();
-    g.globalCompositeOperation = 'source-over';
-  }
-  /* màn lửa giữa hai cột: sóng chạy theo t nên không bao giờ đứng hình */
-  g.globalCompositeOperation = 'lighter';
-  const fl = g.createLinearGradient(0, feetY, 0, yTop);
-  fl.addColorStop(0, 'rgba(255,90,20,.55)'); fl.addColorStop(.55, 'rgba(255,140,40,.30)');
-  fl.addColorStop(1, 'rgba(255,200,90,.10)');
-  g.fillStyle = fl;
-  g.beginPath();
-  g.moveTo(x0 + 22, feetY);
-  for (let i = 0; i <= 12; i++) {
-    const u = i / 12, yy = yTop + 8 + Math.sin(t * 2.2 + u * 7.4) * 7;
-    g.lineTo(x0 + 22 + (w - 44) * u, yy);
-  }
-  g.lineTo(x1 - 22, feetY); g.closePath(); g.fill();
-  g.globalCompositeOperation = 'source-over';
-  /* song sắt nhà tù âm phủ đè lên màn lửa */
-  g.strokeStyle = 'rgba(30,10,8,.72)'; g.lineWidth = 3;
-  for (let i = 1; i < 5; i++) {
-    const bx = x0 + 22 + (w - 44) * i / 5;
-    g.beginPath(); g.moveTo(bx, yTop + 6); g.lineTo(bx, feetY - 2); g.stroke();
-  }
-  g.restore();
-}
 function hlStArt(g, s, t) {
   const feetY = s.y + 2;
-  if (s.wall) { hlWallArt(g, s, t); return; }
   const im = hlImg(s.img);
   if (!im || !(im.naturalWidth || im.width)) {         // thiếu ảnh: trụ lửa + nhãn, hitbox vẫn đúng
     hlRiftDraw(g, s.x, s.y, Math.round(s.h * .55), t, s.sign);
@@ -1397,8 +1353,9 @@ function hlStSign(g, s, t) {
   /* V42: trạm cao gấp ~1.8 nên bảng hiệu cũng phải nhả lên THEO, không chỉ
      cách đỉnh một khe cố định — mép trên ảnh trạm 1-4 là ăng-ten/nóc nhà, để
      sát quá là bảng đè lên chi tiết. Khe = 30px + 10% chiều cao trạm; NGAI (n=6,
-     ca:false) cao 240px và có lưng ngai vút cao nên chừa hẳn 40px. */
-  const top = s.y + 2 - s.h - ((s.ca === false ? 40 : 30) + Math.round(s.h * .1));
+     ca:false) cao 240px và có lưng ngai vút cao nên chừa hẳn 40px. V48: trạm 5
+     có cặp sừng+ăng-ten chạm mép trên ảnh nên sgap riêng 46px. */
+  const top = s.y + 2 - s.h - ((s.sgap || (s.ca === false ? 40 : 30)) + Math.round(s.h * .1));
   g.save();
   g.globalCompositeOperation = 'lighter';
   if (typeof hvGlow === 'function')

@@ -12,7 +12,7 @@
 
    Thêm tài nguyên mới? Cập nhật cả ASSETS.js và PRECACHE bên dưới.
    ============================================================ */
-const CACHE_NAME = 'it-game-v1.92';
+const CACHE_NAME = 'it-game-v1.96';
 
 const PRECACHE = [
   // --- vỏ ứng dụng ---
@@ -37,6 +37,7 @@ const PRECACHE = [
   './js/inpeace.js',
   './js/critters.js',
   './js/hell.js',
+  './js/mg-trends.js',
   './js/widescreen.js',
   // --- icon PWA ---
   './assets/img/icon-192.png',
@@ -113,6 +114,8 @@ const PRECACHE = [
   './assets/img/baked/hell_st3.png?v=1',
   './assets/img/baked/hell_st4.png?v=1',
   './assets/img/baked/hell_st5.png?v=1',
+  // --- V48:ảnh TƯỜNG LỬA DIÊM VƯƠNG cho Trạm 5 (bakeFlat giữ nguyên khung) ---
+  './assets/img/baked/hell_st6.png?v=1',
   // --- V43: CỔNG VÀO ĐỊA NGỤC ở cuối Phố Ngoài (bakeFlat giữ nguyên khung) ---
   './assets/img/baked/hell_gate.png?v=1',
   // --- V44: 5 QUỶ GIAO VIỆC cạnh 5 trạm Âm Phủ (lưới đều 5 cột x 1 hàng, ô 224x304,
@@ -126,6 +129,14 @@ const PRECACHE = [
   //     vẫn render, nhưng static server trả Content-Type image/jpeg, vì vậy
   //     chỉ nạp bằng new Image() trong game.js, không qua bộ nạp ảnh đã bake. ---
   './assets/img/heaven_map_thumb.jpg',
+  // --- V47: 4 TRẠM CÔNG NGHỆ XU HƯỚNG (WebP VP8X 1024x1024 nền trắng → bakeFlat
+  //     tẩy nền từ 4 biên + feather 2px) — bake: node tools/bake-hell.cjs.
+  //     js/mg-trends.js vẽ chúng ở Khu 1 (AI Audit, Firewall), Khu 2 (Anti-Scam)
+  //     và Khu 4 (Routing) kèm 4 modal minigame. ---
+  './assets/img/baked/station_ai_audit.png?v=1',
+  './assets/img/baked/station_antiscam.png?v=1',
+  './assets/img/baked/station_firewall.png?v=1',
+  './assets/img/baked/station_routing.png?v=1',
   './assets/img/icon-113.png',
   './assets/img/baked/npc_lan.png',
   './assets/img/baked/npc_tuan.png',

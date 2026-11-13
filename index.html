@@ -614,6 +614,11 @@
      2500×600 và 5 trạm NPC. Nạp TRƯỚC widescreen.js để wrapper setTransform của
      nó vẫn là lớp ngoài cùng — giống hệt trật tự của heaven/inpeace/critters. -->
 <script src="js/hell.js"></script>
+<!-- V47: 4 TRẠM CÔNG NGHỆ XU HƯỚNG + 4 MINIGAME. File ADD-ONLY: chỉ bọc
+     update/render/doAction để dựng trạm (WORLD/STREET/HEAVEN) và mở modal,
+     toàn bộ logic nằm trong js/mg-trends.js. Nạp TRƯỚC widescreen.js để
+     wrapper setTransform của nó vẫn là lớp ngoài cùng. -->
+<script src="js/mg-trends.js"></script>
 <!-- V31: ADAPTIVE WIDESCREEN — file ADD-ONLY, nạp CUỐI ĐỦA CUỐI để wrapper
      render() của nó đứng ngoài cùng (sau critters/inpeace/heaven). Nó đặt
      cv.width = VIRTUAL_W (600 × tỉ lệ cửa sổ, chặn [960,1120]), nong #app ra

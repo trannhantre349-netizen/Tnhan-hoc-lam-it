@@ -386,8 +386,10 @@ async function bakeCells(srcRel, outRel, xbands, CW, CH, foot) {
   await bake('assets/img/hell_npcs_sheet.png', 'assets/img/baked/hell_npcs.png',
     4, 2, 256, 286, 278, 0, 2500);
   /* V41: 5 TRẠM IT SUPPORT ÂM PHỦ — ảnh rời, giữ nguyên khổ, chỉ tẩy nền trắng.
-     pocketMin=1 riêng trạm 1: nền trắng kẹt trong các vòng dây cáp dưới gầm bàn. */
-  for (let i = 1; i <= 5; i++)
+     pocketMin=1 riêng trạm 1: nền trắng kẹt trong các vòng dây cáp dưới gầm bàn.
+     V48:hell_st6 là Cổng TƯỜNG LỬA của Trạm 5 — cùng quy tắc, vẽ bằng IMG.hellSt6
+     thay cho khung chữ nhật vector tạm trong js/hell.js. */
+  for (let i = 1; i <= 6; i++)
     await bakeFlat('assets/img/hell_st' + i + '.png', 'assets/img/baked/hell_st' + i + '.png', i === 1 ? 1 : 0);
   /* V43: CỔNG VÀO ĐỊA NGỤC ở cuối Phố Ngoài — cùng quy tắc bakeFlat (giữ nguyên
      khổ, chỉ đổi kênh alpha). hell.js neo ĐÁY bbox xuống mặt sàn vỉa hè nên chỉ
@@ -403,6 +405,13 @@ async function bakeCells(srcRel, outRel, xbands, CW, CH, foot) {
      heaven.js neo ĐÁY bbox xuống mặt đất, vì vậy bbox in ra ở đây là số liệu
      duy nhất cần chép vào HG_GATE_BOX. */
   await bakeFlat('assets/img/heaven_gate.png', 'assets/img/baked/heaven_gate.png', 0);
+  /* V47: 4 TRẠM CÔNG NGHỆ XU HƯỚNG mới (Kiểm Duyệt AI · Thợ Săn Scam · Tường
+     Lửa DDoS · Xoay Mạch Định Tuyến) — cùng quy tắc bakeFlat: giữ nguyên khổ
+     1024x1024, flood-fill nền trắng từ 4 biên + feather 2px. Nguồn là WebP
+     VP8X mang đuôi .png nên đi qua readRGBA (wasm). mg-trends.js neo ĐÁY bbox
+     xuống mặt đất nên bbox in ra ở đây là số liệu phải chép vào MGT_BOX. */
+  for (const k of ['ai_audit', 'antiscam', 'firewall', 'routing'])
+    await bakeFlat('assets/img/station_' + k + '.png', 'assets/img/baked/station_' + k + '.png', 0);
   const bg = await readRGBA(path.join(ROOT, 'assets/img/hell_bg.png'));
   const bgPng = new PNG({ width: bg.w, height: bg.h });
   bgPng.data = Buffer.from(bg.d);
