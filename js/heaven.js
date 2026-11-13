@@ -866,14 +866,62 @@ function hvScene() {
   if (!bg) hvShade();
 }
 
-/* ---------- 5. CỘT SÁNG Ở WORLD (đi qua depth sort thật) ---------- */
+/* ---------- 5. CỔNG THIÊN ĐÀNG Ở WORLD (đi qua depth sort thật) ---------- */
 decor.push({ t: 'hv_beam', x: HV_BEAM.x, y: HV_BEAM.y, s: 1 });
+/* V45: ảnh cổng 765x1024, nét thật 743x975 @(14,21) do bake-hell.cjs đo.
+   k = cao-nét-muốn-đổi / cao-nét-thật rồi suy ra ô vẽ của CẢ KHUNG ảnh, nên
+   chân đám mây rơi đúng xuống mặt đất dù ảnh chừa lề trong suốt. */
+const HV_GATE_H = 168;
+const HV_GATE_INK = { w: 743, h: 975, x: 14, y: 21 };
+function hvGateDraw(x, y) {
+  const im = IMG.heavenGate;
+  if (!im || !im.width) return false;
+  const k = HV_GATE_H / HV_GATE_INK.h;
+  const dw = im.width * k, dh = im.height * k;
+  const left = x - (HV_GATE_INK.x + HV_GATE_INK.w / 2) * k;
+  const top = y - (HV_GATE_INK.y + HV_GATE_INK.h) * k;
+  ctx.save();
+  try { ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; } catch (e) {}
+  ctx.drawImage(im, left, top, dw, dh);
+  ctx.restore();
+  return true;
+}
+/* Hạt sáng vàng–xanh bay lơ lửng quanh cổng: hai tông xen kẽ, trôi lên chậm
+   và dao động theo sin chứ không đi thẳng, tan dần trước khi tới đỉnh. */
+function hvGateMotes(x, y, t) {
+  const k0 = HV_GATE_H / HV_GATE_INK.h;
+  const wGate = HV_GATE_INK.w * k0;
+  for (let i = 0; i < 12; i++) {
+    const seed = i * 0.83;
+    const cyc = ((t * 0.11 + i / 12) % 1);
+    const gx = x + Math.sin(seed * 2.1 + t * 0.7) * (wGate * 0.52) * (0.35 + cyc * 0.5);
+    const gy = y - 8 - cyc * (HV_GATE_H * 1.18);
+    const a = 0.72 * Math.sin(Math.PI * cyc);
+    const r = 2.5 - cyc * 1.3;
+    ctx.fillStyle = (i % 3 === 0)
+      ? 'rgba(253,224,71,' + a.toFixed(3) + ')'
+      : 'rgba(186,230,253,' + a.toFixed(3) + ')';
+    ctx.beginPath(); ctx.arc(gx, gy, Math.max(0.6, r), 0, 6.2832); ctx.fill();
+  }
+}
 function hvBeamWorld(d) {
   const t = Date.now() / 1000, x = d.x, y = d.y, p = .5 + Math.sin(t * 2.4) * .5;
-  ctx.fillStyle = 'rgba(125,211,252,' + (.13 + p * .09) + ')';
-  ellipsePath(ctx, x, y, 46, 17); ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,' + (.6 + p * .3) + ')'; ctx.lineWidth = 2.4; ctx.setLineDash([9, 7]);
-  ctx.lineDashOffset = -t * 24; ellipsePath(ctx, x, y, 46, 17); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+  if (!hvGateDraw(x, y)) { hvBeamPillar(x, y, t, p); }
+  else {
+    ctx.fillStyle = 'rgba(125,211,252,' + (.10 + p * .07) + ')';
+    ellipsePath(ctx, x, y, 52, 18); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,' + (.42 + p * .26) + ')'; ctx.lineWidth = 2;
+    ctx.setLineDash([9, 7]); ctx.lineDashOffset = -t * 18;
+    ellipsePath(ctx, x, y, 52, 18); ctx.stroke();
+    ctx.setLineDash([]); ctx.lineDashOffset = 0;
+    hvGateMotes(x, y, t);
+  }
+  if (!(targetAct && targetAct.t === 'to_heaven'))
+    hvCap(ctx, x, y + 12, '✦ CỔNG THIÊN ĐÀNG', { h: 16, pad: 14 });
+}
+/* Bản dựng lại cho trường hợp ảnh cổng chưa nạp xong (mất file / cache cũ):
+   vẫn là cột sáng thang máy ngày trước, đứng được, bấm [E] vẫn lên Khu 4. */
+function hvBeamPillar(x, y, t, p) {
   /* trụ sáng: loe dần lên cao, trong suốt nên nhân vật đứng trước vẫn thấy */
   const hg = ctx.createLinearGradient(0, y - 210, 0, y);
   hg.addColorStop(0, 'rgba(255,255,255,0)'); hg.addColorStop(.55, 'rgba(224,246,255,.3)'); hg.addColorStop(1, 'rgba(255,255,255,.62)');
@@ -894,8 +942,6 @@ function hvBeamWorld(d) {
   /* vòng thiên thần trên đỉnh */
   ctx.strokeStyle = 'rgba(253,224,71,' + (.5 + p * .4) + ')'; ctx.lineWidth = 2.6;
   ctx.beginPath(); ctx.ellipse(x, y - 212, 20, 6.5, 0, 0, 6.2832); ctx.stroke();
-  if (!(targetAct && targetAct.t === 'to_heaven'))
-    hvCap(ctx, x, y + 12, '✦ THANG MÁY THIÊN ĐÀNG', { h: 16, pad: 14 });
 }
 
 /* ---------- 6. MÓC NỐI VẬT LÝ: ĐA GIÁC = TƯỜNG ---------- */

@@ -129,10 +129,14 @@ const ASSETS = {
      bake-hell.cjs cắt theo DẢI CỘT đo từ profile mực rồi đóng lại thành lưới đều
      5 cột x 1 hàng, ô 224x304, bàn chân neo tại dòng 300. hell.js biết kích thước
      nét của từng ô (HL_JINK) nên co về ~76px mà không lệch chân. */
-  hellJobNpcs: 'assets/img/baked/hell_job_npcs.png?v=1'
+  hellJobNpcs: 'assets/img/baked/hell_job_npcs.png?v=1',
+  /* V45: CỔNG LÊN THIÊN ĐÀNG thay cột sáng ở Khu Trung Tâm — cùng quy trình
+     bakeFlat như hell_gate (giữ nguyên khổ, chỉ đổi kênh alpha), nguồn WebP
+     đổi tên 765x1024, nét 743x975. heaven.js neo ĐÁY nét xuống mặt đất. */
+  heavenGate: 'assets/img/baked/heaven_gate.png?v=1'
 };
 
-const IMG = { bg: null, chars: {}, avf: null, femSprites: null, maleSprites: null, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null, creatures: null, bunny: null, hvStations: null, hvBg: null, hvBgClean: null, ipBg: null, ipBench: null, ipMonkSheet: null, ipAbbot: null, hellBg: null, demonSheet: null, hellNpcs: null, hellSt1: null, hellSt2: null, hellSt3: null, hellSt4: null, hellSt5: null, hellGate: null, hellJobNpcs: null };
+const IMG = { bg: null, chars: {}, avf: null, femSprites: null, maleSprites: null, street: null, streetExtra: null, traffic: null, street_bg: null, interior_bg: null, net_bg: null, hw_bg: null, ccna_bg: null, it_bg: null, dc_bg: null, isp_bg: null, sales_bg: null, noc_bg: null, lunar_bg: null, creatures: null, bunny: null, hvStations: null, hvBg: null, hvBgClean: null, ipBg: null, ipBench: null, ipMonkSheet: null, ipAbbot: null, hellBg: null, demonSheet: null, hellNpcs: null, hellSt1: null, hellSt2: null, hellSt3: null, hellSt4: null, hellSt5: null, hellGate: null, hellJobNpcs: null, heavenGate: null };
 let assetsReady = false;
 
 /* ============================================================
@@ -328,6 +332,9 @@ function loadOne(src) {
   /* V44: bộ 5 Quỷ Giao Việc — thiếu ảnh thì hell.js tự vẽ lại bằng ô trong sheet
      hell_npcs.png cũ, nhân vật vẫn đứng cạnh trạm, không lỗi. */
   jobs.push(loadOne(ASSETS.hellJobNpcs).then(im => { IMG.hellJobNpcs = im; }));
+  /* V45: cổng lên Thiên Đàng — thiếu ảnh thì heaven.js vẫn vẽ cột sáng vector
+     cũ, người chơi bấm [E] lên Khu 4 được, không lỗi. */
+  jobs.push(loadOne(ASSETS.heavenGate).then(im => { IMG.heavenGate = im; }));
 
   Object.entries(ASSETS.chars).forEach(([k, src]) => {
     jobs.push(loadOne(src).then(im => { IMG.chars[k] = im; }));

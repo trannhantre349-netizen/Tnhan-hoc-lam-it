@@ -397,6 +397,12 @@ async function bakeCells(srcRel, outRel, xbands, CW, CH, foot) {
      (tools/_inspect_job.cjs), ô 224x304 vì nét to nhất 220x295. */
   await bakeCells('assets/img/hell_job_npcs.png', 'assets/img/baked/hell_job_npcs.png',
     [[0, 254], [255, 408], [409, 613], [614, 800], [801, 1023]], 224, 304, 300);
+  /* V45: CỔNG LÊN THIÊN ĐÀNG ở Khu Trung Tâm — cùng quy tắc bakeFlat như cổng
+     hell_gate: giữ nguyên khổ, flood-fill nền trắng từ 4 biên + feather 2px.
+     Nguồn là WebP lossless mang đuôi .png nên đi qua readRGBA (wasm).
+     heaven.js neo ĐÁY bbox xuống mặt đất, vì vậy bbox in ra ở đây là số liệu
+     duy nhất cần chép vào HG_GATE_BOX. */
+  await bakeFlat('assets/img/heaven_gate.png', 'assets/img/baked/heaven_gate.png', 0);
   const bg = await readRGBA(path.join(ROOT, 'assets/img/hell_bg.png'));
   const bgPng = new PNG({ width: bg.w, height: bg.h });
   bgPng.data = Buffer.from(bg.d);

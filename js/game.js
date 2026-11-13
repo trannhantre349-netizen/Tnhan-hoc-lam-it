@@ -5278,6 +5278,24 @@ const WM_SHIP_LV = 4;   // mốc cấp để bay ra Mặt Trăng từ bản đ�
    khu bãi đáp (vòm kính + ăng-ten + xe + mũi phi thuyền): đúng chất căn cứ và
    tránh các nhãn ải baked trên mặt ảnh. */
 const WM_RECT = { WORLD: [0, 0, 0, 0], STREET: [60, 0, 430, 200], LUNAR_BASE: [365, 288, 430, 200] };
+/* heaven.js nạp SAU game.js, nên mọi lời gọi xuyên script phải chờ đến lúc
+   bản đồ mở (đã parse xong hết) và vẫn phải sống sót khi heaven.js lỗi. */
+const wmHvDone = () => (typeof hvDone === 'function' ? hvDone() : 0);
+const wmHvTotal = () => (typeof HV_PCS !== 'undefined' && HV_PCS ? HV_PCS.length : 3);
+/* Ảnh đại diện Khu 4 chỉ bản đồ dùng, không phải tài nguyên cảnh → nạp lười
+   một lần duy nhất. Cache trên window (không phải biến top-level) để không
+   đụng tên với 15 script khác và để lần mở bản đồ sau có ảnh ngay. */
+function wmHvThumbImg() {
+  if (!window.__wmHvThumb) {
+    window.__wmHvThumb = new Image();
+    window.__wmHvThumb.src = 'assets/img/heaven_map_thumb.jpg';
+  }
+  return window.__wmHvThumb;
+}
+/* Gọi NGAY khi script chạy, đừng chờ tới lúc mở bản đồ: nếu để lần bấm đầu
+   mới fetch thì thẻ Khu 4 kịp vẽ ô "⏳ đang nạp ảnh…" trong khi năm thẻ kia đã
+   có ảnh từ assets.js. */
+wmHvThumbImg();
 function wmBusy() { return !!LU_CUT; }              // đang chiếu phim phóng tàu
 const shipReady = () => !!S.ship;
 /* Lần đầu bước lên phi thuyền (bấm [E] ở bãi đáp hoặc fast-travel) là coi như
@@ -5307,6 +5325,16 @@ function wmSpots() {
       sub: '10 trạm ải không gian · boss Trung tâm Quản trị hệ thống lõi',
       prog: '🚀 ' + luDone() + '/' + LUNAR_STAGES.length + ' trạm',
       img: IMG.lunar_bg, tint: '#a855f7', need: true },
+    /* V45: Khu 4 ghép vào đúng giữa Khu 3 và Khu 5 để dải thẻ đọc theo thứ tự
+       1→2→3→4→5→6. V46: ảnh đại diện đổi sang toàn cảnh heaven_map_thumb.jpg
+       và vẽ tràn kín khung cover-crop Y HỆT năm thẻ còn lại. File này là WebP
+       lossy mang đuôi .jpg nên không đi qua assets.js (đó là bộ nạp ảnh đã bake
+       của game); nạp thẳng bằng Image thường, giữ trên window để mở bản đồ lần
+       sau là ảnh đã có sẵn, không nhấp nháy. */
+    { id: 'HEAVEN', no: 'KHU 4', icon: '☁️', name: 'THIÊN ĐÀNG IT',
+      sub: 'Tầng mây lập trình — xếp thuật toán, bắt bug và thử thách code nâng cao cùng thỏ thiên thần',
+      prog: '☁️ ' + wmHvDone() + '/' + wmHvTotal() + ' ải lập trình IT',
+      img: wmHvThumbImg(), tint: '#38bdf8' },
     { id: 'INPEACE', no: 'KHU 5', icon: '🕊️', name: 'THÁNH ĐƯỜNG TĨNH TÂM',
       sub: 'Hành lang tĩnh lặng — ngồi ghế thiền định, thắp nến nguyện ước và thỉnh giáo Sư Thầy',
       prog: '🕊️ Không gian thư giãn Zen', img: IMG.ipBg, tint: '#f59e0b' },
@@ -5515,6 +5543,15 @@ function wmToHell() {
   if (typeof hlEnter !== 'function') { showToast('🔥 Khu 6 chưa nạp xong — thử lại sau nhé.'); return; }
   hlEnter();
 }
+/* V45: hvUp là đường lên mây CHÍNH của heaven.js (cổng ở quảng trường dùng nó),
+   đã sẵn setZone + banner + saveGame + thả chân tại HV_LAND là thềm mây đầu
+   Khu 4, nên bản đồ chỉ việc gọi lại. Khu cũ đã được wmLeaveInpeace/
+   wmLeaveHell dọn trước; nhạc Khu 6 tự tắt vì hlBgmStep canh S.scene. */
+function wmToHeaven() {
+  if (typeof hvUp !== 'function') { showToast('☁️ Khu 4 chưa nạp xong — thử lại sau nhé.'); return; }
+  window._camX = 0;
+  hvUp();
+}
 /* Bấm thẻ trên bản đồ: kiểm điều kiện, đóng modal rồi đặt nhân vật vào khu.
    Lên Mặt Trăng đi qua luLaunch để còn xem đoạn phim phóng 2 giây. */
 function wmGo(id) {
@@ -5532,6 +5569,7 @@ function wmGo(id) {
   if (id === 'LUNAR_BASE') { shipUnlock(); luLaunch(); return; }
   if (id === 'INPEACE') { wmToInpeace(); return; }
   if (id === 'HELL') { wmToHell(); return; }
+  if (id === 'HEAVEN') { wmToHeaven(); return; }
   if (id === 'STREET') wmToStreet(); else wmToWorld();
 }
 

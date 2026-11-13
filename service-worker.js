@@ -12,7 +12,7 @@
 
    Thêm tài nguyên mới? Cập nhật cả ASSETS.js và PRECACHE bên dưới.
    ============================================================ */
-const CACHE_NAME = 'it-game-v1.90';
+const CACHE_NAME = 'it-game-v1.92';
 
 const PRECACHE = [
   // --- vỏ ứng dụng ---
@@ -118,6 +118,14 @@ const PRECACHE = [
   // --- V44: 5 QUỶ GIAO VIỆC cạnh 5 trạm Âm Phủ (lưới đều 5 cột x 1 hàng, ô 224x304,
   //     chân dòng 300) — bake: node tools/bake-hell.cjs ---
   './assets/img/baked/hell_job_npcs.png?v=1',
+  // --- V45: CỔNG LÊN THIÊN ĐÀNG thay cột sáng ở Khu Trung Tâm (bakeFlat giữ
+  //     nguyên khung 765x1024, nét 743x975) — bake: node tools/bake-hell.cjs ---
+  './assets/img/baked/heaven_gate.png?v=1',
+  // --- V46: ảnh đại diện toàn cảnh thẻ KHU 4 trên Bản Đồ Dịch Chuyển Nhanh.
+  //     File này là WebP lossy mang đuôi .jpg — trình duyệt ngửi nội dung nên
+  //     vẫn render, nhưng static server trả Content-Type image/jpeg, vì vậy
+  //     chỉ nạp bằng new Image() trong game.js, không qua bộ nạp ảnh đã bake. ---
+  './assets/img/heaven_map_thumb.jpg',
   './assets/img/icon-113.png',
   './assets/img/baked/npc_lan.png',
   './assets/img/baked/npc_tuan.png',
